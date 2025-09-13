@@ -26,6 +26,15 @@ The name **zvote** is currently a working title. It may be updated as the projec
 - Open API for integration and extension
 - Privacy and security first
 
+## Use Cases
+**zvote** is designed to be flexible and fun, applicable to everyday decisions and ambitious collaborative endeavors alike. Here are some envisioned use cases to inspire and motivate:
+
+- Choosing restaurants or venues among friends for social gatherings.
+- Selecting community representatives or leaders using fair and expressive voting systems.
+- Deciding directions and strategies collectively in interactive experiences like Twitch Plays Pokémon, integrating with technologies such as spacetimedb and Kyber to enable synchronized, low-latency group control.
+- Pioneering a real-time "neural network" of collective decision making where many participants and AI systems collaborate seamlessly — for example, multiple surgeons and AI-driven assistants performing a complex operation together, combining precision with consensus in milliseconds.
+- Exploring how dynamic, live decision-making platforms can unlock new potentials for human progress, collaboration, and trust.
+
 ## Licensing and Repository Structure
 
 This project aims to maintain openness, transparency, and community trust by carefully managing code and design licenses:
