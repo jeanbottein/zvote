@@ -1,4 +1,5 @@
 import { DbConnection, type Vote, type VoteOption } from './generated';
+import { deepEqual } from '@clockworklabs/spacetimedb-sdk';
 
 // Basic DOM refs
 const statusEl = document.getElementById('status') as HTMLDivElement;
@@ -11,6 +12,8 @@ const createForm = document.getElementById('create-form') as HTMLFormElement;
 const titleInput = document.getElementById('title') as HTMLInputElement;
 const optionsInput = document.getElementById('options') as HTMLTextAreaElement;
 const publicInput = document.getElementById('public') as HTMLInputElement;
+const identityTextEl = document.getElementById('identity-text') as HTMLElement;
+const resetIdentityBtn = document.getElementById('reset-identity') as HTMLButtonElement;
 
 // Connection config
 const MODULE_NAME = (moduleNameEl?.textContent?.trim() || 'zvote-proto1');
@@ -18,6 +21,7 @@ const SERVER_URI = (serverUriEl?.textContent?.trim() || 'ws://localhost:3000');
 
 let conn: DbConnection | null = null;
 let currentVoteId: bigint | null = null;
+let myIdentity: any = null;
 
 function setStatus(text: string) {
   if (statusEl) statusEl.textContent = text;
@@ -33,7 +37,8 @@ function renderVotes() {
     const right = document.createElement('div');
     right.className = 'item-actions';
 
-    left.innerHTML = `<strong>${escapeHtml(v.title)}</strong> <span class="badge">#${v.id.toString()}</span>`;
+    const isMine = myIdentity && deepEqual((v as any).creator, myIdentity);
+    left.innerHTML = `<strong>${escapeHtml(v.title)}</strong> <span class="badge">#${v.id.toString()}</span>${isMine ? ' <span class="badge">me</span>' : ''}`;
 
     const viewBtn = document.createElement('button');
     viewBtn.textContent = 'View';
@@ -45,7 +50,13 @@ function renderVotes() {
 
     const delBtn = document.createElement('button');
     delBtn.textContent = 'Delete';
+    const isOwner = myIdentity && deepEqual((v as any).creator, myIdentity);
+    if (!isOwner) {
+      delBtn.disabled = true;
+      delBtn.title = 'Only the vote creator can delete this vote';
+    }
     delBtn.addEventListener('click', () => {
+      if (delBtn.disabled) return;
       if (confirm(`Delete vote "${v.title}"?`)) {
         conn!.reducers.deleteVote(v.id);
       }
@@ -72,31 +83,64 @@ function renderDetail() {
   // Collect options for this vote
   const options: VoteOption[] = [];
   for (const opt of conn.db.voteOption.iter() as Iterable<VoteOption>) {
-    if (opt.voteId === currentVoteId) options.push(opt);
+    if ((opt as any).voteId === currentVoteId) options.push(opt);
   }
   // Sort options by approvals desc, orderIndex asc
   options.sort((a, b) => {
-    if (b.approvalsCount !== a.approvalsCount) return b.approvalsCount - a.approvalsCount;
-    return a.orderIndex - b.orderIndex;
+    if ((b as any).approvalsCount !== (a as any).approvalsCount) return (b as any).approvalsCount - (a as any).approvalsCount;
+    return (a as any).orderIndex - (b as any).orderIndex;
   });
 
-  const lines: string[] = [];
-  lines.push(`Title: ${vote.title}`);
-  lines.push(`ID: ${vote.id.toString()}`);
-  lines.push('Options:');
+  const approved = getMyApprovedOptionIds(currentVoteId);
+
+  // Build UI
+  detailEl.innerHTML = '';
+  const meta = document.createElement('div');
+  meta.innerHTML = `<div><strong>Title:</strong> ${escapeHtml((vote as any).title)}</div><div><strong>ID:</strong> ${(vote as any).id.toString()}</div>`;
+  detailEl.appendChild(meta);
+
+  // Live selection: toolbar removed
+
+  const list = document.createElement('ul');
+  list.className = 'option-list';
+  const selectedSet = approved;
   for (const o of options) {
-    lines.push(` • ${o.label} (${o.approvalsCount})`);
+    const li = document.createElement('li');
+    li.className = 'option-row';
+
+    const left = document.createElement('div');
+    left.className = 'option-left';
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.checked = selectedSet.has((o as any).id);
+    cb.title = 'Toggle your approval for this option';
+    cb.addEventListener('change', () => {
+      if (cb.checked) {
+        conn!.reducers.approve(currentVoteId!, (o as any).id as number);
+      } else {
+        conn!.reducers.unapprove(currentVoteId!, (o as any).id as number);
+      }
+    });
+    const label = document.createElement('span');
+    label.textContent = (o as any).label as string;
+    left.append(cb, label);
+
+    const right = document.createElement('div');
+    right.innerHTML = `<span class="badge">${(o as any).approvalsCount}</span>`;
+
+    li.append(left, right);
+    list.appendChild(li);
   }
-  detailEl.textContent = lines.join('\n');
+  detailEl.appendChild(list);
 }
 
 function escapeHtml(s: string) {
   return s
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
-    .replaceAll("'", '&#039;');
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/\"/g, '&quot;')
+    .replace(/'/g, '&#039;');
 }
 
 function wireUi() {
@@ -122,16 +166,25 @@ function wireUi() {
     // reset
     optionsInput.value = '';
   });
+
+  resetIdentityBtn?.addEventListener('click', () => {
+    if (confirm('Switch to a fresh identity? This will reconnect and give you a new identity.')) {
+      localStorage.removeItem('auth_token');
+      location.reload();
+    }
+  });
 }
 
 function connect() {
   setStatus('Connecting…');
   const prevToken = localStorage.getItem('auth_token') || '';
 
-  const onConnect = (c: DbConnection, _identity: any, token: string) => {
+  const onConnect = (c: DbConnection, identity: any, token: string) => {
     conn = c;
+    myIdentity = identity;
     localStorage.setItem('auth_token', token);
     setStatus('Connected');
+    if (identityTextEl) identityTextEl.textContent = formatIdentity(identity);
 
     // Subscribe to data
     conn.subscriptionBuilder()
@@ -143,6 +196,7 @@ function connect() {
       .subscribe([
         'SELECT * FROM vote',
         'SELECT * FROM vote_option',
+        'SELECT * FROM approval',
       ]);
 
     // Listen for changes to re-render
@@ -159,6 +213,9 @@ function connect() {
     conn.db.voteOption.onInsert(() => renderDetail());
     conn.db.voteOption.onUpdate(() => renderDetail());
     conn.db.voteOption.onDelete(() => renderDetail());
+    // Approvals affect only detail view
+    conn.db.approval.onInsert(() => renderDetail());
+    conn.db.approval.onDelete(() => renderDetail());
   };
 
   const onDisconnect = () => {
@@ -188,3 +245,33 @@ function main() {
 }
 
 main();
+
+// --- helpers ---
+
+function getMyApprovedOptionIds(voteId: bigint): Set<number> {
+  const set = new Set<number>();
+  if (!conn || !myIdentity) return set;
+  for (const a of conn.db.approval.iter() as Iterable<any>) {
+    if ((a as any).voteId === voteId && deepEqual((a as any).voter, myIdentity)) {
+      set.add((a as any).optionId as number);
+    }
+  }
+  return set;
+}
+
+function formatIdentity(identity: any): string {
+  try {
+    if (!identity) return '—';
+    let s: any = undefined;
+    if (typeof identity === 'string') s = identity;
+    if (!s && typeof identity.toString === 'function') s = identity.toString();
+    if (s === '[object Object]') s = undefined;
+    if (!s && typeof identity.toBase58 === 'function') s = identity.toBase58();
+    if (!s && typeof identity.toHex === 'function') s = identity.toHex();
+    if (!s) s = JSON.stringify(identity);
+    const str = String(s);
+    return str.length > 20 ? `${str.slice(0, 10)}…${str.slice(-6)}` : str;
+  } catch {
+    return '—';
+  }
+}
