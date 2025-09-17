@@ -4,9 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "vite --host",
     "build": "vite build",
-    "preview": "vite preview --port 5173"
+    "preview": "vite preview --host --port 5173"
   },
   "dependencies": {
     "@clockworklabs/spacetimedb-sdk": "^1.3.1"

@@ -17,4 +17,6 @@ if ! command -v npm >/dev/null 2>&1; then
   exit 1
 fi
 
-( cd "$CLIENT_DIR" && npm run preview -- --port "$PORT" )
+# Expose on all interfaces for LAN testing
+# You can override PORT via env. Example: PORT=8080 ./run_client_preview.sh
+( cd "$CLIENT_DIR" && npm run preview -- --host --port "$PORT" )

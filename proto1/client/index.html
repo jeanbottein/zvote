@@ -16,6 +16,12 @@
           <code id="identity-text">—</code>
           <button id="reset-identity" class="secondary" title="Reconnect with a fresh identity">New identity</button>
         </div>
+        <div class="server">
+          <span class="muted">Server:</span>
+          <input id="server-host-input" type="text" placeholder="host or ws://..." />
+          <button id="server-set" class="secondary" title="Override server host">Set</button>
+          <button id="server-reset" class="secondary" title="Clear override">Reset</button>
+        </div>
       </div>
     </header>
 
@@ -59,7 +65,7 @@
     <footer>
       <small>
         Connected to SpacetimeDB module <code id="module-name">zvote-proto1</code> on
-        <code id="server-uri">ws://localhost:3000</code>
+        <code id="server-uri">auto</code>
       </small>
     </footer>
 

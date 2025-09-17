@@ -27,6 +27,8 @@ h1 { font-size: 20px; margin: 0; font-weight: 600; }
 .header-right { display: flex; gap: 12px; align-items: center; }
 .identity { display: flex; gap: 8px; align-items: center; color: var(--muted); }
 .identity code { color: var(--fg); background: #151515; border: 1px solid var(--border); padding: 2px 6px; border-radius: 6px; }
+.server { display: flex; gap: 8px; align-items: center; }
+.server input { width: 200px; }
 main { display: grid; gap: 16px; grid-template-columns: 1fr 1fr; padding: 16px; }
 .panel {
   background: var(--panel);
@@ -70,7 +72,6 @@ footer { padding: 10px 16px; border-top: 1px solid var(--border); color: var(--m
 .option-list { list-style: none; padding: 0; margin: 10px 0 0 0; display: flex; flex-direction: column; gap: 6px; }
 .option-row { display: flex; align-items: center; justify-content: space-between; padding: 8px 10px; border: 1px solid var(--border); background: #0f0f0f; border-radius: 8px; }
 .option-left { display: flex; gap: 10px; align-items: center; }
-.toolbar { display: flex; gap: 8px; margin: 8px 0 12px; }
 
 /* Scroll when more than 10 items (toggled via JS) */
 .list.scrollable {

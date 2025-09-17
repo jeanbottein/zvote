@@ -8,6 +8,9 @@ const publicVoteListEl = document.getElementById('public-vote-list') as HTMLULis
 const detailEl = document.getElementById('detail') as HTMLDivElement;
 const moduleNameEl = document.getElementById('module-name') as HTMLElement;
 const serverUriEl = document.getElementById('server-uri') as HTMLElement;
+const serverHostInput = document.getElementById('server-host-input') as HTMLInputElement | null;
+const serverSetBtn = document.getElementById('server-set') as HTMLButtonElement | null;
+const serverResetBtn = document.getElementById('server-reset') as HTMLButtonElement | null;
 
 const createForm = document.getElementById('create-form') as HTMLFormElement;
 const titleInput = document.getElementById('title') as HTMLInputElement;
@@ -18,7 +21,16 @@ const resetIdentityBtn = document.getElementById('reset-identity') as HTMLButton
 
 // Connection config
 const MODULE_NAME = (moduleNameEl?.textContent?.trim() || 'zvote-proto1');
-const SERVER_URI = (serverUriEl?.textContent?.trim() || 'ws://localhost:3000');
+const scheme = location.protocol === 'https:' ? 'wss' : 'ws';
+const hostForDefault = location.hostname || 'localhost';
+const DEFAULT_SERVER_URI = `${scheme}://${formatHostnameForWs(hostForDefault)}:3000`;
+const explicitServerText = serverUriEl?.textContent?.trim();
+const overrideServerText = (typeof localStorage !== 'undefined' ? localStorage.getItem('server_uri_override') || '' : '').trim();
+const SERVER_URI = (overrideServerText && overrideServerText.toLowerCase() !== 'auto')
+  ? overrideServerText
+  : (!explicitServerText || explicitServerText.toLowerCase() === 'auto')
+    ? DEFAULT_SERVER_URI
+    : explicitServerText;
 
 let conn: DbConnection | null = null;
 let currentVoteId: bigint | null = null;
@@ -163,6 +175,42 @@ function wireUi() {
       localStorage.removeItem('auth_token');
       location.reload();
     }
+  });
+
+  // Allow overriding the server host at runtime
+  if (serverHostInput) {
+    // Prefill input with current page hostname, for convenience
+    serverHostInput.placeholder = location.hostname || 'localhost';
+  }
+  serverSetBtn?.addEventListener('click', () => {
+    const raw = (serverHostInput?.value || '').trim();
+    if (!raw) {
+      alert('Enter a hostname or host:port (or full ws:// URL).');
+      return;
+    }
+    let nextUri = raw;
+    const lower = raw.toLowerCase();
+    if (!lower.startsWith('ws://') && !lower.startsWith('wss://')) {
+      // Accept host or host:port
+      const hasPort = raw.includes(':') && !raw.includes(']'); // naive, IPv6 handled below
+      const isIPv6 = raw.includes(':') && !raw.includes('.');
+      const hostPart = isIPv6 ? `[${raw.replace(/^\[|\]$/g, '')}]` : raw;
+      const port = hasPort && !isIPv6 ? '' : ':3000';
+      nextUri = `${scheme}://${hostPart}${port}`;
+    }
+    try {
+      // Basic validation
+      const u = new URL(nextUri);
+      if (u.protocol !== 'ws:' && u.protocol !== 'wss:') throw new Error('Invalid protocol');
+      localStorage.setItem('server_uri_override', nextUri);
+      location.reload();
+    } catch {
+      alert('Invalid server URI. Use ws://host:port or wss://host:port');
+    }
+  });
+  serverResetBtn?.addEventListener('click', () => {
+    localStorage.removeItem('server_uri_override');
+    location.reload();
   });
 }
 
@@ -341,4 +389,15 @@ function formatIdentity(identity: any): string {
   } catch {
     return '—';
   }
+}
+
+// Wrap IPv6 hosts in brackets for ws:// URIs; leave others unchanged
+function formatHostnameForWs(host: string): string {
+  // If already bracketed, return as-is
+  if (host.startsWith('[') && host.endsWith(']')) return host;
+  // Heuristic: IPv6 addresses contain ':' and no dots
+  if (host.includes(':') && !host.includes('.')) {
+    return `[${host}]`;
+  }
+  return host;
 }

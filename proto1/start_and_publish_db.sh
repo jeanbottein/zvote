@@ -29,7 +29,8 @@ if spacetime server ping "$SPACETIME_SERVER" >/dev/null 2>&1; then
   echo "SpacetimeDB server is already running."
 else
   echo "Starting SpacetimeDB server in background..."
-  nohup spacetime start >"$LOG_FILE" 2>&1 &
+  # You can pass extra args via SPACETIME_START_ARGS, e.g.: --bind 0.0.0.0:3000
+  nohup spacetime start ${SPACETIME_START_ARGS:-} >"$LOG_FILE" 2>&1 &
   echo $! > "$PID_FILE"
 
   # Wait for server to come online
