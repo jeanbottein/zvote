@@ -71,3 +71,9 @@ footer { padding: 10px 16px; border-top: 1px solid var(--border); color: var(--m
 .option-row { display: flex; align-items: center; justify-content: space-between; padding: 8px 10px; border: 1px solid var(--border); background: #0f0f0f; border-radius: 8px; }
 .option-left { display: flex; gap: 10px; align-items: center; }
 .toolbar { display: flex; gap: 8px; margin: 8px 0 12px; }
+
+/* Scroll when more than 10 items (toggled via JS) */
+.list.scrollable {
+  max-height: 420px; /* roughly ~10 rows depending on content */
+  overflow-y: auto;
+}

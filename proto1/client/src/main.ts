@@ -3,7 +3,8 @@ import { deepEqual } from '@clockworklabs/spacetimedb-sdk';
 
 // Basic DOM refs
 const statusEl = document.getElementById('status') as HTMLDivElement;
-const voteListEl = document.getElementById('vote-list') as HTMLUListElement;
+const myVoteListEl = document.getElementById('my-vote-list') as HTMLUListElement;
+const publicVoteListEl = document.getElementById('public-vote-list') as HTMLUListElement;
 const detailEl = document.getElementById('detail') as HTMLDivElement;
 const moduleNameEl = document.getElementById('module-name') as HTMLElement;
 const serverUriEl = document.getElementById('server-uri') as HTMLElement;
@@ -29,43 +30,33 @@ function setStatus(text: string) {
 
 function renderVotes() {
   if (!conn) return;
-  voteListEl.innerHTML = '';
-  // Iterate over all votes in client cache
+  if (myVoteListEl) myVoteListEl.innerHTML = '';
+  if (publicVoteListEl) publicVoteListEl.innerHTML = '';
+
+  // Collect and sort all votes by createdAt desc
+  const allVotes: Vote[] = [];
   for (const v of conn.db.vote.iter() as Iterable<Vote>) {
-    const li = document.createElement('li');
-    const left = document.createElement('div');
-    const right = document.createElement('div');
-    right.className = 'item-actions';
-
-    const isMine = myIdentity && deepEqual((v as any).creator, myIdentity);
-    left.innerHTML = `<strong>${escapeHtml(v.title)}</strong> <span class="badge">#${v.id.toString()}</span>${isMine ? ' <span class="badge">me</span>' : ''}`;
-
-    const viewBtn = document.createElement('button');
-    viewBtn.textContent = 'View';
-    viewBtn.className = 'secondary';
-    viewBtn.addEventListener('click', () => {
-      currentVoteId = v.id;
-      renderDetail();
-    });
-
-    const delBtn = document.createElement('button');
-    delBtn.textContent = 'Delete';
-    const isOwner = myIdentity && deepEqual((v as any).creator, myIdentity);
-    if (!isOwner) {
-      delBtn.disabled = true;
-      delBtn.title = 'Only the vote creator can delete this vote';
-    }
-    delBtn.addEventListener('click', () => {
-      if (delBtn.disabled) return;
-      if (confirm(`Delete vote "${v.title}"?`)) {
-        conn!.reducers.deleteVote(v.id);
-      }
-    });
-
-    right.append(viewBtn, delBtn);
-    li.append(left, right);
-    voteListEl.appendChild(li);
+    allVotes.push(v);
   }
+  allVotes.sort((a, b) => compareCreatedDesc(a, b));
+
+  let myCount = 0;
+  let publicCount = 0;
+  for (const v of allVotes) {
+    const isMine = myIdentity && deepEqual((v as any).creator, myIdentity);
+    const isPublic = !!(v as any).public;
+    if (isMine && myVoteListEl) {
+      appendVoteListItem(myVoteListEl, v, true);
+      myCount++;
+    } else if (isPublic && publicVoteListEl) {
+      appendVoteListItem(publicVoteListEl, v, false);
+      publicCount++;
+    }
+  }
+
+  // Enable scrolling when more than 10 items
+  if (myVoteListEl) myVoteListEl.classList.toggle('scrollable', myCount > 10);
+  if (publicVoteListEl) publicVoteListEl.classList.toggle('scrollable', publicCount > 10);
 }
 
 function renderDetail() {
@@ -214,8 +205,8 @@ function connect() {
     conn.db.voteOption.onUpdate(() => renderDetail());
     conn.db.voteOption.onDelete(() => renderDetail());
     // Approvals affect only detail view
-    conn.db.approval.onInsert(() => renderDetail());
-    conn.db.approval.onDelete(() => renderDetail());
+    conn.db.approval.onInsert(() => { renderVotes(); renderDetail(); });
+    conn.db.approval.onDelete(() => { renderVotes(); renderDetail(); });
   };
 
   const onDisconnect = () => {
@@ -248,6 +239,44 @@ main();
 
 // --- helpers ---
 
+function appendVoteListItem(listEl: HTMLUListElement, v: Vote, isMine: boolean) {
+  const li = document.createElement('li');
+  const left = document.createElement('div');
+  const right = document.createElement('div');
+  right.className = 'item-actions';
+
+  const voters = getUniqueVoterCount((v as any).id as bigint);
+  const limit = (v as any).maxParticipants ?? (v as any).participantsLimit ?? null;
+  const countText = limit ? `(${voters}/${limit})` : `${voters}`;
+
+  left.innerHTML = `<strong>${escapeHtml((v as any).title)}</strong> <span class="badge">${countText}</span> <span class="badge">#${(v as any).id.toString()}</span>${isMine ? ' <span class="badge">me</span>' : ''}`;
+
+  const viewBtn = document.createElement('button');
+  viewBtn.textContent = 'View';
+  viewBtn.className = 'secondary';
+  viewBtn.addEventListener('click', () => {
+    currentVoteId = (v as any).id as bigint;
+    renderDetail();
+  });
+
+  const delBtn = document.createElement('button');
+  delBtn.textContent = 'Delete';
+  if (!isMine) {
+    delBtn.disabled = true;
+    delBtn.title = 'Only the vote creator can delete this vote';
+  }
+  delBtn.addEventListener('click', () => {
+    if (delBtn.disabled) return;
+    if (confirm(`Delete vote "${(v as any).title}"?`)) {
+      conn!.reducers.deleteVote((v as any).id);
+    }
+  });
+
+  right.append(viewBtn, delBtn);
+  li.append(left, right);
+  listEl.appendChild(li);
+}
+
 function getMyApprovedOptionIds(voteId: bigint): Set<number> {
   const set = new Set<number>();
   if (!conn || !myIdentity) return set;
@@ -257,6 +286,44 @@ function getMyApprovedOptionIds(voteId: bigint): Set<number> {
     }
   }
   return set;
+}
+
+function getUniqueVoterCount(voteId: bigint): number {
+  const voters = new Set<string>();
+  if (!conn) return 0;
+  for (const a of conn.db.approval.iter() as Iterable<any>) {
+    if ((a as any).voteId === voteId) {
+      voters.add(identityStableString((a as any).voter));
+    }
+  }
+  return voters.size;
+}
+
+function identityStableString(identity: any): string {
+  try {
+    if (!identity) return 'null';
+    if (typeof identity.toBase58 === 'function') return identity.toBase58();
+    if (typeof identity.toHex === 'function') return identity.toHex();
+    if (typeof identity === 'string') return identity;
+    if (typeof identity.toString === 'function') return identity.toString();
+    return JSON.stringify(identity);
+  } catch {
+    return String(identity);
+  }
+}
+
+function compareCreatedDesc(a: Vote, b: Vote): number {
+  const ta = getCreatedAtNumber(a);
+  const tb = getCreatedAtNumber(b);
+  return tb - ta;
+}
+
+function getCreatedAtNumber(v: Vote): number {
+  const ts: any = (v as any).createdAt ?? (v as any).created_at ?? 0;
+  if (typeof ts === 'bigint') return Number(ts);
+  if (typeof ts === 'number') return ts;
+  if (ts && typeof ts.toNumber === 'function') return ts.toNumber();
+  return 0;
 }
 
 function formatIdentity(identity: any): string {
