@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>zvote proto1</title>
+    <script type="module" crossorigin src="/assets/index-BVGHJe0m.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-DomOwCjR.css">
+  </head>
+  <body>
+    <header>
+      <h1>zvote — proto1</h1>
+      <div id="status" class="status">Connecting…</div>
+    </header>
+
+    <main>
+      <section class="panel">
+        <h2>Create a vote</h2>
+        <form id="create-form">
+          <label>
+            Title
+            <input id="title" name="title" placeholder="e.g., Lunch poll" required />
+          </label>
+          <label>
+            Options (one per line)
+            <textarea id="options" name="options" rows="5" placeholder="Pizza\nSushi\nSalad"></textarea>
+          </label>
+          <label class="checkbox">
+            <input type="checkbox" id="public" name="public" checked /> Public
+          </label>
+          <div class="actions">
+            <button type="submit">Create vote</button>
+          </div>
+        </form>
+      </section>
+
+      <section class="panel">
+        <h2>Existing votes</h2>
+        <ul id="vote-list" class="list"></ul>
+      </section>
+
+      <section class="panel">
+        <h2>Vote details</h2>
+        <div id="detail"></div>
+      </section>
+    </main>
+
+    <footer>
+      <small>
+        Connected to SpacetimeDB module <code id="module-name">zvote-proto1</code> on
+        <code id="server-uri">ws://localhost:3000</code>
+      </small>
+    </footer>
+
+  </body>
+</html>

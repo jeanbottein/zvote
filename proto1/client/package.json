@@ -1,0 +1,18 @@
+{
+  "name": "zvote-proto1-client",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview --port 5173"
+  },
+  "dependencies": {
+    "@clockworklabs/spacetimedb-sdk": "^1.3.1"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0",
+    "vite": "^5.4.0"
+  }
+}
