@@ -5,6 +5,9 @@ use crate::utils::normalize_label;
 // Bring approval table trait into scope so `ctx.db.approval()` is available.
 use crate::approval::approval;
 
+// Maximum number of options allowed per vote (server-enforced)
+pub const MAX_OPTIONS: usize = 20;
+
 // Votes table: one row per vote
 #[spacetimedb::table(
     name = vote,
@@ -41,15 +44,13 @@ pub struct VoteOption {
 }
 
 /// Validate, normalize, deduplicate, and return the cleaned list of options.
-/// - Requires 1..=20 options after cleaning
+/// - Requires at least 1 option after cleaning
+/// - If more than MAX_OPTIONS options remain after cleaning, extras are ignored (truncated)
 /// - Uses `normalize_label` to trim/validate each option
 /// - Deduplicates options case-sensitively after normalization
 pub(crate) fn validate_and_clean_options(options: Vec<String>) -> Result<Vec<String>, String> {
     if options.is_empty() {
         return Err("At least one option is required".into());
-    }
-    if options.len() > 20 {
-        return Err("At most 20 options are allowed".into());
     }
 
     let mut seen = HashSet::<String>::new();
@@ -63,10 +64,13 @@ pub(crate) fn validate_and_clean_options(options: Vec<String>) -> Result<Vec<Str
     if cleaned.is_empty() {
         return Err("All options were empty/duplicate after normalization".into());
     }
+    if cleaned.len() > MAX_OPTIONS {
+        cleaned.truncate(MAX_OPTIONS);
+    }
     Ok(cleaned)
 }
 
-// Reducer: create a vote with up to 20 options
+// Reducer: create a vote (options beyond MAX_OPTIONS are ignored)
 #[spacetimedb::reducer]
 pub fn create_vote(
     ctx: &ReducerContext,
@@ -94,6 +98,23 @@ pub fn create_vote(
             approvals_count: 0,
             order_index: idx as u32,
         });
+    }
+    Ok(())
+}
+
+// Public server info table so clients can read max options via subscription
+#[spacetimedb::table(name = server_info, public)]
+pub struct ServerInfo {
+    #[primary_key]
+    id: u8, // singleton: id = 1
+    max_options: u32,
+}
+
+/// Ensure the ServerInfo singleton row exists (id=1), seeding max_options.
+#[spacetimedb::reducer]
+pub fn ensure_server_info(ctx: &ReducerContext) -> Result<(), String> {
+    if ctx.db.server_info().id().find(1).is_none() {
+        ctx.db.server_info().insert(ServerInfo { id: 1, max_options: MAX_OPTIONS as u32 });
     }
     Ok(())
 }
@@ -168,10 +189,11 @@ mod tests {
     }
 
     #[test]
-    fn validate_and_clean_rejects_too_many() {
-        let options: Vec<String> = (0..21).map(|i| format!("opt{}", i)).collect();
-        let res = validate_and_clean_options(options);
-        assert!(res.is_err());
+    fn validate_and_clean_truncates_too_many() {
+        let options: Vec<String> = (0..(MAX_OPTIONS as i32 + 5)).map(|i| format!("opt{}", i)).collect();
+        let res = validate_and_clean_options(options).unwrap();
+        assert_eq!(res.len(), MAX_OPTIONS);
+        assert_eq!(res[0], "opt0");
     }
 
     #[test]

@@ -10,7 +10,6 @@
     <header>
       <h1>zvote — proto1</h1>
       <div class="header-right">
-        <div id="status" class="status">Connecting…</div>
         <div class="identity">
           <span class="muted">You:</span>
           <code id="identity-text">—</code>
@@ -26,48 +25,71 @@
     </header>
 
     <main>
-      <section class="panel">
-        <h2>Create a vote</h2>
-        <form id="create-form">
-          <label>
-            Title
-            <input id="title" name="title" placeholder="e.g., Lunch poll" required />
-          </label>
-          <label>
-            Options (one per line)
-            <textarea id="options" name="options" rows="5" placeholder="Pizza\nSushi\nSalad"></textarea>
-          </label>
-          <label class="checkbox">
-            <input type="checkbox" id="public" name="public" checked /> Public
-          </label>
-          <div class="actions">
-            <button type="submit">Create vote</button>
-          </div>
-        </form>
-      </section>
-
-      <section class="panel">
+      <section id="my-section" class="panel">
         <h2>My votes</h2>
         <ul id="my-vote-list" class="list"></ul>
       </section>
 
-      <section class="panel">
+      <section id="public-section" class="panel">
         <h2>Public votes</h2>
         <ul id="public-vote-list" class="list"></ul>
       </section>
-
-      <section class="panel">
-        <h2>Vote details</h2>
-        <div id="detail"></div>
-      </section>
     </main>
 
-    <footer>
-      <small>
-        Connected to SpacetimeDB module <code id="module-name">zvote-proto1</code> on
-        <code id="server-uri">auto</code>
-      </small>
-    </footer>
+
+    <!-- Floating action button to create a new vote -->
+    <button id="fab-new-vote" title="Create new vote" class="fab">＋</button>
+
+    <!-- Bottom tabs for mobile -->
+    <nav class="bottom-tabs">
+      <button id="tab-my" class="active">My</button>
+      <button id="tab-public">Public</button>
+    </nav>
+
+    <!-- New Vote Modal -->
+    <div id="new-vote-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="new-vote-title">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3 id="new-vote-title">Create a vote</h3>
+          <button id="new-vote-close" class="icon" title="Close">✕</button>
+        </div>
+        <div class="modal-body">
+          <label>
+            Title
+            <input id="nv-title" placeholder="e.g., Lunch poll" />
+          </label>
+          <div class="nv-row nv-public">
+            <label class="checkbox"><input type="checkbox" id="nv-public" checked /> Public</label>
+          </div>
+          <div class="nv-options">
+            <div class="nv-options-header">
+              <span>Options</span>
+              <small id="nv-count">0/20</small>
+            </div>
+            <small id="nv-hint" class="muted"></small>
+            <div id="nv-options-container"></div>
+            <div class="actions">
+              <button id="nv-add-option" class="secondary" type="button">Add option</button>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button id="nv-create">Create</button>
+          <button id="nv-cancel" class="secondary" type="button">Cancel</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Details Modal -->
+    <div id="detail-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="detail-title">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3 id="detail-title">Vote details</h3>
+          <button id="detail-close" class="icon" title="Close">✕</button>
+        </div>
+        <div id="detail" class="modal-body"></div>
+      </div>
+    </div>
 
     <script type="module" src="/src/main.ts"></script>
   </body>

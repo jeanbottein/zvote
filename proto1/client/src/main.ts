@@ -2,7 +2,7 @@ import { DbConnection, type Vote, type VoteOption } from './generated';
 import { deepEqual } from '@clockworklabs/spacetimedb-sdk';
 
 // Basic DOM refs
-const statusEl = document.getElementById('status') as HTMLDivElement;
+const statusEl = document.getElementById('status') as HTMLDivElement | null;
 const myVoteListEl = document.getElementById('my-vote-list') as HTMLUListElement;
 const publicVoteListEl = document.getElementById('public-vote-list') as HTMLUListElement;
 const detailEl = document.getElementById('detail') as HTMLDivElement;
@@ -12,10 +12,28 @@ const serverHostInput = document.getElementById('server-host-input') as HTMLInpu
 const serverSetBtn = document.getElementById('server-set') as HTMLButtonElement | null;
 const serverResetBtn = document.getElementById('server-reset') as HTMLButtonElement | null;
 
-const createForm = document.getElementById('create-form') as HTMLFormElement;
-const titleInput = document.getElementById('title') as HTMLInputElement;
-const optionsInput = document.getElementById('options') as HTMLTextAreaElement;
-const publicInput = document.getElementById('public') as HTMLInputElement;
+// New UI elements
+const fabNewVote = document.getElementById('fab-new-vote') as HTMLButtonElement | null;
+const tabMyBtn = document.getElementById('tab-my') as HTMLButtonElement | null;
+const tabPublicBtn = document.getElementById('tab-public') as HTMLButtonElement | null;
+const mySectionEl = document.getElementById('my-section') as HTMLElement | null;
+const publicSectionEl = document.getElementById('public-section') as HTMLElement | null;
+
+// New Vote modal
+const newVoteModalEl = document.getElementById('new-vote-modal') as HTMLDivElement | null;
+const newVoteCloseBtn = document.getElementById('new-vote-close') as HTMLButtonElement | null;
+const nvTitleInput = document.getElementById('nv-title') as HTMLInputElement | null;
+const nvPublicInput = document.getElementById('nv-public') as HTMLInputElement | null;
+const nvOptionsContainer = document.getElementById('nv-options-container') as HTMLDivElement | null;
+const nvCountEl = document.getElementById('nv-count') as HTMLElement | null;
+const nvHintEl = document.getElementById('nv-hint') as HTMLElement | null;
+const nvAddOptionBtn = document.getElementById('nv-add-option') as HTMLButtonElement | null;
+const nvCreateBtn = document.getElementById('nv-create') as HTMLButtonElement | null;
+const nvCancelBtn = document.getElementById('nv-cancel') as HTMLButtonElement | null;
+
+// Detail modal
+const detailModalEl = document.getElementById('detail-modal') as HTMLDivElement | null;
+const detailCloseBtn = document.getElementById('detail-close') as HTMLButtonElement | null;
 const identityTextEl = document.getElementById('identity-text') as HTMLElement;
 const resetIdentityBtn = document.getElementById('reset-identity') as HTMLButtonElement;
 
@@ -35,6 +53,8 @@ const SERVER_URI = (overrideServerText && overrideServerText.toLowerCase() !== '
 let conn: DbConnection | null = null;
 let currentVoteId: bigint | null = null;
 let myIdentity: any = null;
+let activeTab: 'my' | 'public' = 'my';
+let MAX_OPTIONS = 20; // default; updated from server via get_limits reducer
 
 function setStatus(text: string) {
   if (statusEl) statusEl.textContent = text;
@@ -147,29 +167,6 @@ function escapeHtml(s: string) {
 }
 
 function wireUi() {
-  if (!createForm) return;
-  createForm.addEventListener('submit', (e) => {
-    e.preventDefault();
-    if (!conn) return;
-    const title = titleInput.value.trim();
-    const publicFlag = !!publicInput.checked;
-    const options = optionsInput.value
-      .split(/\r?\n/)
-      .map((s) => s.trim())
-      .filter((s) => s.length > 0);
-    if (!title) {
-      alert('Title is required');
-      return;
-    }
-    if (options.length === 0) {
-      alert('Please enter at least one option (one per line).');
-      return;
-    }
-    conn.reducers.createVote(title, options, publicFlag);
-    // reset
-    optionsInput.value = '';
-  });
-
   resetIdentityBtn?.addEventListener('click', () => {
     if (confirm('Switch to a fresh identity? This will reconnect and give you a new identity.')) {
       localStorage.removeItem('auth_token');
@@ -212,6 +209,21 @@ function wireUi() {
     localStorage.removeItem('server_uri_override');
     location.reload();
   });
+
+  // FAB + New Vote modal
+  fabNewVote?.addEventListener('click', () => openNewVoteModal());
+  newVoteCloseBtn?.addEventListener('click', () => closeNewVoteModal());
+  nvCancelBtn?.addEventListener('click', () => closeNewVoteModal());
+  nvAddOptionBtn?.addEventListener('click', () => addOptionRow(''));
+  nvCreateBtn?.addEventListener('click', () => onCreateNewVote());
+  detailCloseBtn?.addEventListener('click', () => closeDetailModal());
+
+  // Tabs (mobile)
+  tabMyBtn?.addEventListener('click', () => setActiveTab('my'));
+  tabPublicBtn?.addEventListener('click', () => setActiveTab('public'));
+  window.addEventListener('resize', updateSectionsVisibility);
+  // Initial tab
+  setActiveTab('my');
 }
 
 function connect() {
@@ -236,7 +248,11 @@ function connect() {
         'SELECT * FROM vote',
         'SELECT * FROM vote_option',
         'SELECT * FROM approval',
+        'SELECT * FROM server_info',
       ]);
+
+    // Fetch server limits (e.g., max options)
+    fetchServerLimits();
 
     // Listen for changes to re-render
     conn.db.vote.onInsert(() => renderVotes());
@@ -303,8 +319,7 @@ function appendVoteListItem(listEl: HTMLUListElement, v: Vote, isMine: boolean) 
   viewBtn.textContent = 'View';
   viewBtn.className = 'secondary';
   viewBtn.addEventListener('click', () => {
-    currentVoteId = (v as any).id as bigint;
-    renderDetail();
+    showDetailModal((v as any).id as bigint);
   });
 
   const delBtn = document.createElement('button');
@@ -322,6 +337,9 @@ function appendVoteListItem(listEl: HTMLUListElement, v: Vote, isMine: boolean) 
 
   right.append(viewBtn, delBtn);
   li.append(left, right);
+  // Click row to view as well
+  left.style.cursor = 'pointer';
+  left.addEventListener('click', () => showDetailModal((v as any).id as bigint));
   listEl.appendChild(li);
 }
 
@@ -400,4 +418,123 @@ function formatHostnameForWs(host: string): string {
     return `[${host}]`;
   }
   return host;
+}
+
+// --- modal + tabs helpers ---
+
+function showDetailModal(voteId: bigint) {
+  currentVoteId = voteId;
+  renderDetail();
+  if (detailModalEl) detailModalEl.classList.remove('hidden');
+}
+
+function closeDetailModal() {
+  if (detailModalEl) detailModalEl.classList.add('hidden');
+}
+
+function openNewVoteModal() {
+  if (!newVoteModalEl || !nvOptionsContainer) return;
+  if (nvTitleInput) nvTitleInput.value = '';
+  if (nvPublicInput) nvPublicInput.checked = true;
+  nvOptionsContainer.innerHTML = '';
+  addOptionRow('');
+  addOptionRow('');
+  updateNvCount();
+  if (nvHintEl) nvHintEl.textContent = `Up to ${MAX_OPTIONS} options`;
+  newVoteModalEl.classList.remove('hidden');
+}
+
+function closeNewVoteModal() {
+  if (newVoteModalEl) newVoteModalEl.classList.add('hidden');
+}
+
+function addOptionRow(value: string) {
+  if (!nvOptionsContainer) return;
+  const current = nvOptionsContainer.querySelectorAll('input.nv-option').length;
+  if (current >= MAX_OPTIONS) return;
+  const row = document.createElement('div');
+  row.className = 'nv-option-row';
+  const input = document.createElement('input');
+  input.className = 'nv-option';
+  input.placeholder = `Option ${current + 1}`;
+  input.value = value;
+  const removeBtn = document.createElement('button');
+  removeBtn.className = 'secondary';
+  removeBtn.type = 'button';
+  removeBtn.textContent = 'Remove';
+  removeBtn.addEventListener('click', () => {
+    row.remove();
+    updateNvCount();
+  });
+  row.append(input, removeBtn);
+  nvOptionsContainer.appendChild(row);
+  updateNvCount();
+}
+
+function updateNvCount() {
+  if (!nvOptionsContainer || !nvCountEl) return;
+  const count = nvOptionsContainer.querySelectorAll('input.nv-option').length;
+  nvCountEl.textContent = `${count}/${MAX_OPTIONS}`;
+}
+
+function onCreateNewVote() {
+  if (!conn) return;
+  const title = (nvTitleInput?.value || '').trim();
+  const publicFlag = !!nvPublicInput?.checked;
+  const optionInputs = Array.from(nvOptionsContainer?.querySelectorAll('input.nv-option') || []) as HTMLInputElement[];
+  const options = optionInputs.map((i) => i.value.trim()).filter((s) => s.length > 0).slice(0, MAX_OPTIONS);
+  if (!title) {
+    alert('Title is required');
+    return;
+  }
+  if (options.length === 0) {
+    alert('Please enter at least one option.');
+    return;
+  }
+  conn.reducers.createVote(title, options, publicFlag);
+  closeNewVoteModal();
+}
+
+function setActiveTab(tab: 'my' | 'public') {
+  activeTab = tab;
+  tabMyBtn?.classList.toggle('active', tab === 'my');
+  tabPublicBtn?.classList.toggle('active', tab === 'public');
+  updateSectionsVisibility();
+}
+
+function updateSectionsVisibility() {
+  const isMobile = window.matchMedia('(max-width: 900px)').matches;
+  if (!mySectionEl || !publicSectionEl) return;
+  if (isMobile) {
+    mySectionEl.classList.toggle('hidden', activeTab !== 'my');
+    publicSectionEl.classList.toggle('hidden', activeTab !== 'public');
+  } else {
+    mySectionEl.classList.remove('hidden');
+    publicSectionEl.classList.remove('hidden');
+  }
+}
+
+// --- server limits ---
+async function fetchServerLimits() {
+  if (!conn) return;
+  // Ensure the singleton server_info row exists
+  try { await (conn as any).reducers.ensureServerInfo(); } catch (e) { /* ignore */ }
+  // Read from the table (available via subscription)
+  try {
+    const serverInfoTable: any = (conn.db as any).serverInfo;
+    if (serverInfoTable && typeof serverInfoTable.iter === 'function') {
+      for (const row of serverInfoTable.iter() as Iterable<any>) {
+        const v = (row as any).maxOptions ?? (row as any).max_options;
+        const n = Number(v);
+        if (Number.isFinite(n) && n > 0) {
+          MAX_OPTIONS = n;
+          updateNvCount();
+          if (nvHintEl) nvHintEl.textContent = `Up to ${MAX_OPTIONS} options`;
+          break;
+        }
+      }
+    }
+  } catch (e) {
+    console.warn('Failed to read server_info:', e);
+  }
 }

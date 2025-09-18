@@ -8,6 +8,7 @@
   --accent-solid: #26a69a;
   --border: #2a2a2a;
 }
+.hidden { display: none !important; }
 html, body {
   margin: 0;
   padding: 0;
@@ -77,4 +78,42 @@ footer { padding: 10px 16px; border-top: 1px solid var(--border); color: var(--m
 .list.scrollable {
   max-height: 420px; /* roughly ~10 rows depending on content */
   overflow-y: auto;
+}
+
+/* Floating Action Button (top-right) */
+.fab {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  width: 48px;
+  height: 48px;
+  border-radius: 999px;
+  background: var(--accent-solid);
+  color: #0b0b0b;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.35);
+  border: 1px solid var(--border);
+  font-size: 22px;
+  line-height: 1;
+  z-index: 1000;
+}
+
+/* Modals */
+.modal { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; padding: 20px; z-index: 900; }
+.modal.hidden { display: none; }
+.modal-content { width: 100%; max-width: 520px; background: var(--panel); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+.modal-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; border-bottom: 1px solid var(--border); }
+.modal-body { padding: 12px 14px; }
+.modal-footer { display: flex; gap: 10px; justify-content: flex-end; padding: 12px 14px; border-top: 1px solid var(--border); }
+.modal-header .icon { background: transparent; color: var(--fg); border: 1px solid var(--border); }
+.nv-options-header { display: flex; align-items: center; justify-content: space-between; margin-top: 8px; }
+.nv-option-row { display: flex; gap: 8px; align-items: center; margin-top: 8px; }
+.nv-option-row input { flex: 1; }
+
+/* Bottom tabs (mobile only) */
+.bottom-tabs { position: fixed; left: 0; right: 0; bottom: 0; display: none; gap: 8px; padding: 10px 12px; background: #0e0e0e; border-top: 1px solid var(--border); z-index: 800; }
+.bottom-tabs button { flex: 1; }
+.bottom-tabs button.active { outline: 2px solid var(--accent-solid); }
+@media (max-width: 900px) {
+  .bottom-tabs { display: flex; }
+  main { padding-bottom: 68px; }
 }
