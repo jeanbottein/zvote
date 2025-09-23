@@ -31,10 +31,38 @@ export const spacetimeDB = {
       console.log('Connecting to SpacetimeDB:', { SERVER_URI, MODULE_NAME });
 
       const onConnect = (conn: DbConnection, identity: any, token: string) => {
-        console.log('Connected to SpacetimeDB!', { identity: identity.toString(), token });
+        console.log('Connected to SpacetimeDB:', { SERVER_URI, MODULE_NAME });
+        
+        // Make a stable, human-readable identity string for logging and state
+        let identityStr = '';
+        try {
+          // Try to decode JWT payload (base64url)
+          const parts = token?.split?.('.') || [];
+          if (parts.length === 3) {
+            const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+            const json = JSON.parse(atob(base64));
+            identityStr = json.hex_identity || json.hexIdentity || json.sub || '';
+          }
+        } catch (e) {
+          // ignore decoding errors; we'll fallback below
+        }
+        if (!identityStr) {
+          try {
+            const s = identity?.toString?.();
+            // Avoid default object toString noise
+            if (s && !/\[object .*\]/.test(s)) {
+              identityStr = s;
+            }
+          } catch (_) {
+            // ignore
+          }
+        }
+        if (!identityStr) identityStr = 'unknown-identity';
+
+        console.log('Connected to SpacetimeDB!', { identity: identityStr, token });
         connection = conn;
         currentUser = {
-          identity: identity.toString(),
+          identity: identityStr,
           token
         };
         localStorage.setItem('auth_token', token);

@@ -87,9 +87,9 @@ const Header: React.FC<HeaderProps> = ({ onViewChange, currentView }) => {
                 onClick={handleResetIdentity}
                 disabled={!connected}
                 className="secondary"
-                title="Reconnect with a fresh identity"
+                title="Switch to a fresh identity"
               >
-                New identity
+                Switch user
               </button>
             </div>
 

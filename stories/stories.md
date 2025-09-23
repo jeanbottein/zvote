@@ -30,3 +30,5 @@ as a user, I want to see the public votes made by people of my country and votes
 as a user, I want to see the voting count of each option of a vote only for approval voting. both in voting mode and view mode. with live update in voting mode
 
 as a user, I want to see the majority judgement graph for each option of a vote only for majority judgement voting. both in voting mode and view mode.with live update in voting mode.
+
+As a user, I want the options to be sorted from the highest to the lowest rank, displaying the mention each option received. In case there is a tie in the majority mention between two or more options, please break the tie by removing their majority mention and comparing their next closest mentions. Repeat this process iteratively until only one option stands out with a higher mention. If options remain tied even after this step, recognize them as equal. Please present the results clearly, showing the sorted options with their corresponding mentions step-by-step.
