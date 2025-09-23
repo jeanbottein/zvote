@@ -1,4 +1,6 @@
 use spacetimedb::{ReducerContext, Table, Identity, Timestamp};
+use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine as _};
+use blake3;
 use std::collections::HashSet;
 
 use crate::utils::normalize_label;
@@ -13,7 +15,8 @@ pub const MAX_OPTIONS: usize = 20;
     name = vote,
     public,
     index(name = by_creator, btree(columns = [creator])),
-    index(name = by_creator_and_created, btree(columns = [creator, created_at]))
+    index(name = by_creator_and_created, btree(columns = [creator, created_at])),
+    index(name = by_token, btree(columns = [token]))
 )]
 pub struct Vote {
     #[auto_inc]
@@ -23,6 +26,7 @@ pub struct Vote {
     title: String,
     public: bool,
     created_at: Timestamp,
+    token: String,
 }
 
 // Options table: up to 20 per vote
@@ -82,12 +86,30 @@ pub fn create_vote(
 
     let cleaned = validate_and_clean_options(options)?;
 
+    // Pre-generate a unique token before inserting the vote
+    let mut temp_vote_for_token = Vote {
+        id: 0, // Temp value, will be auto-incremented on insert
+        creator: ctx.sender,
+        title: title.clone(),
+        public: is_public.unwrap_or(true),
+        created_at: ctx.timestamp,
+        token: String::new(), // Placeholder
+    };
+
+    let mut token = compute_share_token(ctx, &temp_vote_for_token, 0);
+    let mut salt: u32 = 1;
+    while ctx.db.vote().by_token().filter(token.as_str()).next().is_some() {
+        token = compute_share_token(ctx, &temp_vote_for_token, salt);
+        salt = salt.wrapping_add(1);
+    }
+
     let vote = ctx.db.vote().insert(Vote {
         id: 0,
         creator: ctx.sender,
         title,
         public: is_public.unwrap_or(true),
         created_at: ctx.timestamp,
+        token,
     });
 
     for (idx, label) in cleaned.into_iter().enumerate() {
@@ -101,6 +123,7 @@ pub fn create_vote(
     }
     Ok(())
 }
+
 
 // Public server info table so clients can read max options via subscription
 #[spacetimedb::table(name = server_info, public)]
@@ -153,6 +176,20 @@ pub fn vote_exists(ctx: &ReducerContext, vote_id: u64) -> bool {
 /// Find a vote by id.
 pub fn find_vote_by_id(ctx: &ReducerContext, vote_id: u64) -> Option<Vote> {
     ctx.db.vote().id().find(vote_id)
+}
+
+/// Find a vote by share token.
+pub fn find_vote_by_token(ctx: &ReducerContext, token: &str) -> Option<Vote> {
+    ctx.db.vote().by_token().filter(token).next()
+}
+
+/// Compute a base64url (no padding) token from stable data and an optional salt.
+fn compute_share_token(ctx: &ReducerContext, vote: &Vote, salt: u32) -> String {
+    // Combine vote id, timestamp, and a salt to derive a token
+    let input = format!("zvote:{}:{:?}:{}", vote.id, ctx.timestamp, salt);
+    let hash = blake3::hash(input.as_bytes());
+    // Use first 16 bytes -> ~22 char token
+    URL_SAFE_NO_PAD.encode(&hash.as_bytes()[..16])
 }
 
 /// Find a vote option by primary key.

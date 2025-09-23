@@ -1,5 +1,6 @@
 import { DbConnection, type Vote, type VoteOption } from './generated';
 import { deepEqual } from '@clockworklabs/spacetimedb-sdk';
+import * as QRCode from 'qrcode';
 
 // Basic DOM refs
 const statusEl = document.getElementById('status') as HTMLDivElement | null;
@@ -55,6 +56,10 @@ let currentVoteId: bigint | null = null;
 let myIdentity: any = null;
 let activeTab: 'my' | 'public' = 'my';
 let MAX_OPTIONS = 20; // default; updated from server via get_limits reducer
+
+// In-memory token caches to avoid repeated reducer calls
+const tokenByVoteId = new Map<bigint, string>();
+const voteIdByToken = new Map<string, bigint>();
 
 function setStatus(text: string) {
   if (statusEl) statusEl.textContent = text;
@@ -155,6 +160,49 @@ function renderDetail() {
     list.appendChild(li);
   }
   detailEl.appendChild(list);
+
+  // --- Share section ---
+  const shareSection = document.createElement('div');
+  shareSection.className = 'share-section';
+  const shareHeader = document.createElement('div');
+  shareHeader.className = 'share-title';
+  shareHeader.textContent = 'Share this vote';
+  const qrCanvas = document.createElement('canvas');
+  qrCanvas.className = 'qr-canvas';
+  const urlInput = document.createElement('input');
+  urlInput.className = 'share-url';
+  urlInput.readOnly = true;
+  const shareUrl = buildShareUrlForVote(vote);
+  urlInput.value = shareUrl;
+  urlInput.addEventListener('focus', () => urlInput.select());
+  QRCode.toCanvas(qrCanvas, shareUrl, { width: 160, margin: 1 }).catch((e: unknown) => console.warn('QR code error', e));
+  const actions = document.createElement('div');
+  actions.className = 'share-actions';
+  const copyBtn = document.createElement('button');
+  copyBtn.className = 'secondary';
+  copyBtn.textContent = 'Copy link';
+  copyBtn.addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      copyBtn.textContent = 'Copied!';
+      setTimeout(() => (copyBtn.textContent = 'Copy link'), 1200);
+    } catch {
+      alert('Copy failed');
+    }
+  });
+  actions.appendChild(copyBtn);
+  if (navigator.share) {
+    const shareBtn = document.createElement('button');
+    shareBtn.textContent = 'Share…';
+    shareBtn.addEventListener('click', async () => {
+      try {
+        await navigator.share({ title: (vote as any).title as string, url: shareUrl });
+      } catch { /* user cancelled or unsupported */ }
+    });
+    actions.appendChild(shareBtn);
+  }
+  shareSection.append(shareHeader, qrCanvas, urlInput, actions);
+  detailEl.appendChild(shareSection);
 }
 
 function escapeHtml(s: string) {
@@ -243,6 +291,7 @@ function connect() {
         // Initial cache ready
         renderVotes();
         renderDetail();
+        openFromUrl();
       })
       .subscribe([
         'SELECT * FROM vote',
@@ -293,8 +342,8 @@ function connect() {
 }
 
 function main() {
-  moduleNameEl.textContent = MODULE_NAME;
-  serverUriEl.textContent = SERVER_URI;
+  if (moduleNameEl) moduleNameEl.textContent = MODULE_NAME;
+  if (serverUriEl) serverUriEl.textContent = SERVER_URI;
   wireUi();
   connect();
 }
@@ -420,16 +469,195 @@ function formatHostnameForWs(host: string): string {
   return host;
 }
 
+// Build a shareable absolute URL (initially uses ?vote=ID; token will be fetched async)
+function buildShareUrlForVote(vote: Vote): string {
+  try {
+    const u = new URL(location.origin + location.pathname);
+    const vid = (vote as any).id as bigint;
+    const cached = tokenByVoteId.get(vid);
+    if (cached) {
+      u.searchParams.set('t', cached);
+    } else {
+      u.searchParams.set('vote', vid.toString());
+    }
+    return u.toString();
+  } catch {
+    return location.href;
+  }
+}
+
+// Read vote ID from current URL (?vote=ID)
+function getUrlVoteId(): bigint | null {
+  try {
+    const v = new URLSearchParams(location.search).get('vote');
+    if (!v) return null;
+    const n = BigInt(v);
+    return n;
+  } catch { return null; }
+}
+
+function getUrlVoteToken(): string | null {
+  try {
+    const t = new URLSearchParams(location.search).get('t');
+    return t && t.length > 0 ? t : null;
+  } catch { return null; }
+}
+
+function openFromUrl() { void openFromUrlAsync(); }
+async function openFromUrlAsync() {
+  if (!conn) return;
+  const token = getUrlVoteToken();
+  if (token) {
+    const id = await resolveTokenToVoteId(token);
+    if (id != null) {
+      showDetailModal(id);
+      return;
+    }
+  }
+  const id = getUrlVoteId();
+  if (id != null) showDetailModal(id);
+}
+
+async function resolveTokenToVoteId(token: string): Promise<bigint | null> {
+  if (!conn) return null;
+  // Cache first
+  if (voteIdByToken.has(token)) return voteIdByToken.get(token)!;
+  const id = await queryVoteIdByToken(token);
+  if (id != null) {
+    voteIdByToken.set(token, id);
+  }
+  return id;
+}
+
+// (token generation is server-side now)
+
 // --- modal + tabs helpers ---
 
 function showDetailModal(voteId: bigint) {
   currentVoteId = voteId;
   renderDetail();
   if (detailModalEl) detailModalEl.classList.remove('hidden');
+  // Update URL with ?vote=ID for easy sharing
+  try {
+    const u = new URL(location.origin + location.pathname);
+    u.searchParams.set('vote', voteId.toString());
+    history.replaceState({}, '', u.toString());
+  } catch {}
+  // Fetch token in background and update URL if available
+  void fetchTokenAndUpdateUrl(voteId);
+}
+
+async function fetchTokenAndUpdateUrl(voteId: bigint) {
+  const token = await fetchVoteToken(voteId);
+  if (!token) return;
+  try {
+    const u = new URL(location.origin + location.pathname);
+    u.searchParams.set('t', token);
+    history.replaceState({}, '', u.toString());
+  } catch {}
+  // Also update share UI if present
+  const urlInput = detailEl.querySelector('input.share-url') as HTMLInputElement | null;
+  const qrCanvas = detailEl.querySelector('canvas.qr-canvas') as HTMLCanvasElement | null;
+  if (urlInput && qrCanvas) {
+    const newUrl = buildTokenUrl(token);
+    urlInput.value = newUrl;
+    QRCode.toCanvas(qrCanvas, newUrl, { width: 160, margin: 1 }).catch(() => {});
+  }
+}
+
+function buildTokenUrl(token: string): string {
+  try {
+    const u = new URL(location.origin + location.pathname);
+    u.searchParams.set('t', token);
+    return u.toString();
+  } catch { return location.href; }
+}
+
+async function fetchVoteToken(voteId: bigint): Promise<string | null> {
+  if (!conn) return null;
+  // Cache first
+  const cached = tokenByVoteId.get(voteId);
+  if (cached) return cached;
+  // Ensure server has generated it (safe no-op if it already exists)
+  try { await (conn as any).reducers.ensureVoteToken(voteId); } catch {}
+  // Query via a targeted subscription
+  const t = await queryTokenByVoteId(voteId);
+  if (!t) return null;
+  tokenByVoteId.set(voteId, t);
+  voteIdByToken.set(t, voteId);
+  return t;
+}
+
+// --- targeted subscription helpers for vote_token ---
+const subscribedByVoteId = new Set<string>();
+const subscribedByToken = new Set<string>();
+
+function voteIdKey(id: bigint): string { return id.toString(); }
+
+async function queryTokenByVoteId(voteId: bigint): Promise<string | null> {
+  if (!conn) return null;
+  // If we already have this row in cache via previous subscription, read directly
+  const vtTable: any = (conn.db as any).voteToken;
+  if (vtTable && typeof vtTable.iter === 'function') {
+    for (const row of vtTable.iter() as Iterable<any>) {
+      if ((row as any).voteId === voteId) return (row as any).token as string;
+    }
+  }
+  const key = voteIdKey(voteId);
+  if (!subscribedByVoteId.has(key)) {
+    subscribedByVoteId.add(key);
+    await new Promise<void>((resolve) => {
+      conn!.subscriptionBuilder()
+        .onApplied(() => resolve())
+        .subscribe([`SELECT * FROM vote_token WHERE vote_id = ${voteId.toString()}`]);
+    });
+  }
+  // After applied, read again
+  if (vtTable && typeof vtTable.iter === 'function') {
+    for (const row of vtTable.iter() as Iterable<any>) {
+      if ((row as any).voteId === voteId) return (row as any).token as string;
+    }
+  }
+  return null;
+}
+
+async function queryVoteIdByToken(token: string): Promise<bigint | null> {
+  if (!conn) return null;
+  // If we already have this row in cache via previous subscription, read directly
+  const vtTable: any = (conn.db as any).voteToken;
+  if (vtTable && typeof vtTable.iter === 'function') {
+    for (const row of vtTable.iter() as Iterable<any>) {
+      if ((row as any).token === token) return (row as any).voteId as bigint;
+    }
+  }
+  if (!subscribedByToken.has(token)) {
+    subscribedByToken.add(token);
+    const tokenSql = token.replace(/'/g, "''");
+    await new Promise<void>((resolve) => {
+      conn!.subscriptionBuilder()
+        .onApplied(() => resolve())
+        .subscribe([`SELECT * FROM vote_token WHERE token = '${tokenSql}'`]);
+    });
+  }
+  // After applied, read again
+  if (vtTable && typeof vtTable.iter === 'function') {
+    for (const row of vtTable.iter() as Iterable<any>) {
+      if ((row as any).token === token) return (row as any).voteId as bigint;
+    }
+  }
+  return null;
 }
 
 function closeDetailModal() {
   if (detailModalEl) detailModalEl.classList.add('hidden');
+  // Remove vote param from URL when closing
+  try {
+    const u = new URL(location.href);
+    u.searchParams.delete('vote');
+    u.searchParams.delete('t');
+    const qs = u.searchParams.toString();
+    history.replaceState({}, '', u.pathname + (qs ? `?${qs}` : ''));
+  } catch {}
 }
 
 function openNewVoteModal() {

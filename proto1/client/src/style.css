@@ -117,3 +117,10 @@ footer { padding: 10px 16px; border-top: 1px solid var(--border); color: var(--m
   .bottom-tabs { display: flex; }
   main { padding-bottom: 68px; }
 }
+
+/* Share section in details modal */
+.share-section { margin-top: 14px; padding: 12px; border: 1px solid var(--border); border-radius: 10px; background: #0f0f0f; display: grid; gap: 10px; }
+.share-title { font-weight: 600; font-size: 14px; color: var(--muted); }
+.qr-canvas { justify-self: start; width: 160px; height: 160px; background: #fff; border-radius: 6px; }
+.share-url { width: 100%; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size: 13px; }
+.share-actions { display: flex; gap: 8px; }

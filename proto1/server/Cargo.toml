@@ -11,3 +11,5 @@ crate-type = ["cdylib"]
 [dependencies]
 spacetimedb = "1.3.2"
 log = "0.4"
+blake3 = "1.5"
+base64 = { version = "0.21", default-features = false, features = ["alloc"] }

@@ -6,4 +6,13 @@ pub mod approval;
 
 // Re-export types and reducers to preserve the public API surface.
 pub use approval::{Approval, approve, unapprove, set_approvals};
-pub use vote::{Vote, VoteOption, ServerInfo, create_vote, delete_vote, ensure_server_info, MAX_OPTIONS};
+pub use vote::{
+    Vote,
+    VoteOption,
+    ServerInfo,
+    create_vote,
+    delete_vote,
+    ensure_server_info,
+    ensure_vote_token,
+    MAX_OPTIONS,
+};
