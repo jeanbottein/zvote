@@ -7,6 +7,7 @@ import ApprovalVotingDisplay from './components/ApprovalVotingDisplay';
 import MajorityJudgmentGraph from './components/MajorityJudgmentGraph';
 import { useVotes, VoteWithOptions } from './hooks/useVotes';
 import { VotingSystem } from './generated/voting_system_type';
+import { spacetimeDB } from './lib/spacetimeClient';
 
 // Helper function to get display name from VotingSystem tagged union
 const getVotingSystemDisplayName = (votingSystem: VotingSystem): string => {
@@ -53,6 +54,28 @@ function App() {
       setSelectedVote(updated);
     }
   }, [myVotes, publicVotes, selectedVote?.id]);
+
+  // Helpers: URL token management (path-based: /vote/<token>)
+  const getTokenFromUrl = (): string | null => {
+    try {
+      const path = window.location.pathname || '/';
+      const m = path.match(/^\/vote\/([^/]+)$/);
+      return m ? decodeURIComponent(m[1]) : null;
+    } catch {
+      return null;
+    }
+  };
+
+  const pushTokenToUrl = (token: string | null) => {
+    const base = `${window.location.origin}`;
+    const newUrl = token ? `${base}/vote/${encodeURIComponent(token)}` : `${base}/`;
+    window.history.pushState({}, '', newUrl);
+  };
+
+  const findVoteByToken = (token: string | null): VoteWithOptions | undefined => {
+    if (!token) return undefined;
+    return [...myVotes, ...publicVotes].find(v => v.token === token);
+  };
 
   const handleVoteCreated = (voteId: string) => {
     console.log('Vote créé avec l\'ID:', voteId);
@@ -107,17 +130,75 @@ function App() {
   const handleVoteClick = (vote: VoteWithOptions) => {
     setSelectedVote(vote);
     setCurrentView('vote');
+    // Update URL and focus subscriptions
+    if (vote.token) pushTokenToUrl(vote.token);
+    spacetimeDB.setFocusedVote(vote.id).catch(console.warn);
+  };
+
+  const handleBackToHome = () => {
+    setCurrentView('home');
+    setSelectedVote(null);
+    pushTokenToUrl(null);
+    spacetimeDB.setFocusedVote(null).catch(console.warn);
+    // Reconnect to restore wide subscriptions so public list appears
+    spacetimeDB.refocus();
   };
 
   const handleViewChange = (view: 'home' | 'create' | 'vote') => {
     if (view === 'create') {
       setShowCreateModal(true);
+    } else if (view === 'home') {
+      // Route all 'home' navigations through the same cleanup logic
+      handleBackToHome();
     } else {
       setCurrentView(view as 'home' | 'vote');
     }
   };
 
-  // Show vote detail page (placeholder for now)
+  // Open vote from URL token on load or navigation
+  useEffect(() => {
+    const tryOpenFromUrl = () => {
+      // Only attempt if we aren't already showing a vote
+      if (selectedVote || currentView === 'vote') return;
+      const token = getTokenFromUrl();
+      if (!token) {
+        // No token: ensure we are on home
+        return;
+      }
+      const found = findVoteByToken(token);
+      if (found) {
+        setSelectedVote(found);
+        setCurrentView('vote');
+        spacetimeDB.setFocusedVote(found.id).catch(console.warn);
+      }
+    };
+
+    // Try now (after votes load as well)
+    tryOpenFromUrl();
+    // Also on popstate (back/forward)
+    const onPop = () => {
+      const token = getTokenFromUrl();
+      if (!token) {
+        // Back to list
+        setSelectedVote(null);
+        setCurrentView('home');
+        spacetimeDB.setFocusedVote(null).catch(console.warn);
+        // Ensure wide subscriptions are active after back navigation
+        spacetimeDB.refocus();
+      } else {
+        const found = findVoteByToken(token);
+        if (found) {
+          setSelectedVote(found);
+          setCurrentView('vote');
+          spacetimeDB.setFocusedVote(found.id).catch(console.warn);
+        }
+      }
+    };
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, [myVotes, publicVotes, selectedVote, currentView]);
+
+  // Show vote detail page
   if (currentView === 'vote' && selectedVote) {
     return (
       <>
@@ -125,15 +206,13 @@ function App() {
         <main>
           <div className="panel">
             <button
-              onClick={() => setCurrentView('home')}
+              onClick={handleBackToHome}
               className="secondary"
               style={{ marginBottom: '16px' }}
             >
               ← Back to votes
             </button>
             <h2>{selectedVote.title}</h2>
-            <p>Voting system: {getVotingSystemDisplayName(selectedVote.voting_system)}</p>
-            <p>Visibility: {getVisibilityDisplayName(selectedVote)}</p>
             
             {/* Vote Results */}
             <div style={{ marginTop: '16px' }}>
@@ -160,26 +239,50 @@ function App() {
 
               {getVotingSystemDisplayName(selectedVote.voting_system) === 'MajorityJudgment' && (
                 <div>
-                  {selectedVote.options?.map((option) => {
-                    const judgmentCounts = option.judgment_counts || {
-                      ToReject: 0,
-                      Passable: 0,
-                      Good: 0,
-                      VeryGood: 0,
-                      Excellent: 0
+                  {(() => {
+                    // Sort options by majority mention (best to lowest)
+                    const mentionOrder: Record<string, number> = {
+                      ToReject: 1,
+                      Passable: 2,
+                      Good: 3,
+                      VeryGood: 4,
+                      Excellent: 5,
                     };
-                    const totalJudgments = option.total_judgments || 0;
-                    
-                    return (
-                      <MajorityJudgmentGraph
-                        key={option.id}
-                        optionLabel={option.label}
-                        judgmentCounts={judgmentCounts}
-                        totalJudgments={totalJudgments}
-                        compact={false}
-                      />
-                    );
-                  })}
+                    const computeMajorityMention = (counts?: Record<string, number>, total?: number) => {
+                      const c = counts || { ToReject: 0, Passable: 0, Good: 0, VeryGood: 0, Excellent: 0 } as Record<string, number>;
+                      const t = total || 0;
+                      if (t <= 0) return null;
+                      const expanded = Object.entries(c).flatMap(([m, n]) => Array(n).fill(m)).sort((a, b) => mentionOrder[a] - mentionOrder[b]);
+                      const medianIdx = Math.floor(expanded.length / 2);
+                      return expanded[medianIdx] || null;
+                    };
+                    const sorted = [...(selectedVote.options || [])].sort((a, b) => {
+                      const ma = computeMajorityMention(a.judgment_counts as any, a.total_judgments);
+                      const mb = computeMajorityMention(b.judgment_counts as any, b.total_judgments);
+                      const ra = ma ? mentionOrder[ma] : 0;
+                      const rb = mb ? mentionOrder[mb] : 0;
+                      return rb - ra;
+                    });
+                    return sorted.map((option) => {
+                      const judgmentCounts = option.judgment_counts || {
+                        ToReject: 0,
+                        Passable: 0,
+                        Good: 0,
+                        VeryGood: 0,
+                        Excellent: 0
+                      };
+                      const totalJudgments = option.total_judgments || 0;
+                      return (
+                        <MajorityJudgmentGraph
+                          key={option.id}
+                          optionLabel={option.label}
+                          judgmentCounts={judgmentCounts}
+                          totalJudgments={totalJudgments}
+                          compact={false}
+                        />
+                      );
+                    });
+                  })()}
                 </div>
               )}
             </div>

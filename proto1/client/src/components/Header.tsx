@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { spacetimeDB } from '../lib/spacetimeClient';
+import { getColorMode, setColorMode as persistColorMode, onColorModeChange } from '../lib/colorMode';
 
 interface HeaderProps {
   onViewChange?: (view: 'home' | 'create' | 'vote') => void;
@@ -10,6 +11,7 @@ const Header: React.FC<HeaderProps> = ({ onViewChange, currentView }) => {
   const [user, setUser] = useState(spacetimeDB.currentUser);
   const [connected, setConnected] = useState(false);
   const [serverHost, setServerHost] = useState('');
+  const [colorMode, setColorMode] = useState(getColorMode());
   const [currentServerUri, setCurrentServerUri] = useState('');
 
   useEffect(() => {
@@ -31,7 +33,11 @@ const Header: React.FC<HeaderProps> = ({ onViewChange, currentView }) => {
     };
 
     spacetimeDB.onConnectionChange(handleConnectionChange);
-    return () => spacetimeDB.offConnectionChange(handleConnectionChange);
+    const offColor = onColorModeChange(setColorMode);
+    return () => {
+      spacetimeDB.offConnectionChange(handleConnectionChange);
+      offColor?.();
+    };
   }, []);
 
   const handleResetIdentity = () => {
@@ -59,6 +65,12 @@ const Header: React.FC<HeaderProps> = ({ onViewChange, currentView }) => {
   const handleResetServer = () => {
     localStorage.removeItem('server_uri_override');
     location.reload();
+  };
+
+  const handleToggleColorMode = () => {
+    const next = colorMode === 'color' ? 'colorblind' : 'color';
+    setColorMode(next);
+    persistColorMode(next);
   };
 
   const formatIdentity = (identity: string) => {
@@ -116,6 +128,13 @@ const Header: React.FC<HeaderProps> = ({ onViewChange, currentView }) => {
                 className="secondary"
               >
                 Reset
+              </button>
+              <button
+                onClick={handleToggleColorMode}
+                className="secondary"
+                title="Toggle colorblind-friendly grayscale palette"
+              >
+                {colorMode === 'color' ? 'Colorblind' : 'Colors'}
               </button>
             </div>
 

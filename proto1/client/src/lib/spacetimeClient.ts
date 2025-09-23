@@ -4,14 +4,65 @@ import { DbConnection } from '../generated/index';
 let connection: DbConnection | null = null;
 let currentUser: { identity: string; token?: string } | null = null;
 let connectionCallbacks = new Set<(connected: boolean) => void>();
+let focusedVoteId: string | null = null;
+
+const AUTH_TOKEN_KEY = 'auth_token';
+
+function getCookie(name: string): string | null {
+  if (typeof document === 'undefined') return null;
+  const value = `; ${document.cookie}`;
+  const parts = value.split(`; ${name}=`);
+  if (parts.length === 2) return parts.pop()!.split(';').shift() || null;
+  return null;
+}
+
+function setCookie(name: string, value: string, days = 180) {
+  if (typeof document === 'undefined') return;
+  const date = new Date();
+  date.setTime(date.getTime() + days * 24 * 60 * 60 * 1000);
+  const expires = `expires=${date.toUTCString()}`;
+  const sameSite = 'SameSite=Lax';
+  const path = 'Path=/';
+  const secure = location.protocol === 'https:' ? 'Secure' : '';
+  document.cookie = `${name}=${value}; ${expires}; ${sameSite}; ${path}${secure ? `; ${secure}` : ''}`;
+}
+
+function deleteCookie(name: string) {
+  if (typeof document === 'undefined') return;
+  document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; Path=/; SameSite=Lax`;
+}
 
 export const spacetimeDB = {
   get currentUser() {
     return currentUser;
   },
+
+  async setFocusedVoteByToken(token: string | null): Promise<void> {
+    if (!connection) return;
+    if (!token) return;
+    try {
+      connection
+        .subscriptionBuilder()
+        .onApplied(() => {
+          console.log('Focused subscriptions applied for token');
+        })
+        .subscribe([
+          `SELECT * FROM vote`,
+          `SELECT * FROM vote_option WHERE vote_id = (SELECT id FROM vote WHERE token = '${token}')`,
+          `SELECT * FROM approval WHERE vote_id = (SELECT id FROM vote WHERE token = '${token}')`,
+          `SELECT * FROM judgment WHERE option_id IN (SELECT id FROM vote_option WHERE vote_id = (SELECT id FROM vote WHERE token = '${token}'))`,
+        ]);
+    } catch (e) {
+      console.warn('Failed to apply focused subscriptions by token:', e);
+    }
+  },
   
   get connection() {
     return connection;
+  },
+
+  get focusedVoteId() {
+    return focusedVoteId;
   },
 
   async connect(): Promise<void> {
@@ -26,7 +77,7 @@ export const spacetimeDB = {
         : DEFAULT_SERVER_URI;
       
       const MODULE_NAME = 'zvote-proto1';
-      const prevToken = localStorage.getItem('auth_token') || '';
+      const prevToken = localStorage.getItem(AUTH_TOKEN_KEY) || getCookie(AUTH_TOKEN_KEY) || '';
 
       console.log('Connecting to SpacetimeDB:', { SERVER_URI, MODULE_NAME });
 
@@ -65,21 +116,46 @@ export const spacetimeDB = {
           identity: identityStr,
           token
         };
-        localStorage.setItem('auth_token', token);
+        // Persist token in both localStorage and a cookie (for cross-tab and easy adoption)
+        localStorage.setItem(AUTH_TOKEN_KEY, token);
+        setCookie(AUTH_TOKEN_KEY, token);
         connectionCallbacks.forEach(cb => cb(true));
 
-        // Subscribe to all tables for real-time updates
-        conn.subscriptionBuilder()
-          .onApplied(() => {
-            console.log('SpacetimeDB subscriptions applied');
-            resolve();
-          })
-          .subscribe([
-            'SELECT * FROM vote',
-            'SELECT * FROM vote_option', 
-            'SELECT * FROM approval',
-            'SELECT * FROM judgment'
-          ]);
+        // Subscriptions: if URL carries a path token (/vote/<token>), scope to that vote; else subscribe wide
+        let pathToken: string | null = null;
+        try {
+          const path = window.location.pathname || '/';
+          const m = path.match(/^\/vote\/([^/]+)$/);
+          pathToken = m ? decodeURIComponent(m[1]) : null;
+        } catch {}
+
+        if (pathToken) {
+          console.log('Applying focused subscriptions from URL token');
+          conn.subscriptionBuilder()
+            .onApplied(() => {
+              console.log('SpacetimeDB focused subscriptions applied');
+              resolve();
+            })
+            .subscribe([
+              `SELECT * FROM vote`,
+              `SELECT * FROM vote_option WHERE vote_id = (SELECT id FROM vote WHERE token = '${pathToken}')`,
+              `SELECT * FROM approval WHERE vote_id = (SELECT id FROM vote WHERE token = '${pathToken}')`,
+              `SELECT * FROM judgment WHERE option_id IN (SELECT id FROM vote_option WHERE vote_id = (SELECT id FROM vote WHERE token = '${pathToken}'))`,
+            ]);
+        } else {
+          // Initial wide subscriptions for lists
+          conn.subscriptionBuilder()
+            .onApplied(() => {
+              console.log('SpacetimeDB subscriptions applied');
+              resolve();
+            })
+            .subscribe([
+              'SELECT * FROM vote',
+              'SELECT * FROM vote_option', 
+              'SELECT * FROM approval',
+              'SELECT * FROM judgment'
+            ]);
+        }
       };
 
       const onDisconnect = () => {
@@ -112,12 +188,50 @@ export const spacetimeDB = {
   },
 
   resetIdentity(): void {
-    localStorage.removeItem('auth_token');
+    localStorage.removeItem(AUTH_TOKEN_KEY);
+    deleteCookie(AUTH_TOKEN_KEY);
     this.disconnect();
     // Reconnect with fresh identity
     setTimeout(() => {
       this.connect().catch(console.error);
     }, 100);
+  },
+
+  // Reconnect to apply focused or wide subscriptions based on URL token
+  refocus(): void {
+    this.disconnect();
+    setTimeout(() => {
+      this.connect().catch(console.error);
+    }, 50);
+  },
+
+  // Add focused subscriptions for a single vote so we receive live updates
+  // only for this vote in addition to general ones. SDK doesn't expose
+  // unsubscribe yet, so we keep the general ones too.
+  async setFocusedVote(voteId: string | null): Promise<void> {
+    if (focusedVoteId === voteId) return; // no-op if unchanged
+    focusedVoteId = voteId;
+    if (!connection) return;
+    if (!voteId) {
+      console.log('Cleared focused vote');
+      return;
+    }
+    try {
+      const idLiteral = BigInt(voteId).toString();
+      connection
+        .subscriptionBuilder()
+        .onApplied(() => {
+          console.log('Focused subscriptions applied for vote', idLiteral);
+        })
+        .subscribe([
+          `SELECT * FROM vote`,
+          `SELECT * FROM vote_option WHERE vote_id = ${idLiteral}`,
+          `SELECT * FROM approval WHERE vote_id = ${idLiteral}`,
+          `SELECT * FROM judgment WHERE option_id IN (SELECT id FROM vote_option WHERE vote_id = ${idLiteral})`,
+        ]);
+    } catch (e) {
+      console.warn('Failed to apply focused subscriptions:', e);
+    }
   },
 
   async call(reducerName: string, ...args: any[]): Promise<any> {

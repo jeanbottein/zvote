@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { VoteWithOptions } from '../hooks/useVotes';
 import { spacetimeDB } from '../lib/spacetimeClient';
 import { Mention } from '../generated/mention_type';
-import MajorityJudgmentGraph from './MajorityJudgmentGraph';
+import { getColorMode, onColorModeChange } from '../lib/colorMode';
 
 interface VotingInterfaceProps {
   vote: VoteWithOptions;
@@ -14,6 +14,12 @@ const VotingInterface: React.FC<VotingInterfaceProps> = ({ vote, onVoteCast, onE
   const [isVoting, setIsVoting] = useState(false);
   const [userApprovals, setUserApprovals] = useState<Set<string>>(new Set());
   const [userJudgments, setUserJudgments] = useState<Record<string, string>>({});
+  const [colorMode, setColorMode] = useState(getColorMode());
+
+  useEffect(() => {
+    const off = onColorModeChange(setColorMode);
+    return () => off?.();
+  }, []);
 
   // Initialize current user's approvals for this vote and live-sync via subscriptions
   useEffect(() => {
@@ -145,14 +151,108 @@ const VotingInterface: React.FC<VotingInterfaceProps> = ({ vote, onVoteCast, onE
     return { approvedOptions: approved, unapprovedOptions: unapproved };
   }, [vote.options, userApprovals]);
 
+  // ----- Majority Judgment helpers -----
+  const mentionOrder: Record<string, number> = {
+    ToReject: 1,
+    Passable: 2,
+    Good: 3,
+    VeryGood: 4,
+    Excellent: 5,
+  };
+
+  // Note: do NOT sort MJ sliders; we keep original option order for voting UX
+
+  // Load current user's judgments and live-sync
+  useEffect(() => {
+    if (!spacetimeDB.connection || !spacetimeDB.currentUser) {
+      setUserJudgments({});
+      return;
+    }
+    const connection = spacetimeDB.connection;
+    const currentIdentity = spacetimeDB.currentUser.identity;
+
+    const init: Record<string, string> = {};
+    for (const row of (connection.db as any).judgment.iter() as Iterable<any>) {
+      try {
+        const sameVoter = row.voter?.toString?.() === currentIdentity;
+        if (sameVoter) {
+          init[String(row.optionId)] = row.mention?.tag;
+        }
+      } catch (_) {}
+    }
+    setUserJudgments(init);
+
+    const onInsert = (_ctx: any, row: any) => {
+      try {
+        if (row.voter?.toString?.() === currentIdentity) {
+          setUserJudgments(prev => ({ ...prev, [String(row.optionId)]: row.mention?.tag }));
+        }
+      } catch (_) {}
+    };
+    const onUpdate = (_ctx: any, _oldRow: any, newRow: any) => {
+      try {
+        if (newRow.voter?.toString?.() === currentIdentity) {
+          setUserJudgments(prev => ({ ...prev, [String(newRow.optionId)]: newRow.mention?.tag }));
+        }
+      } catch (_) {}
+    };
+    const onDelete = (_ctx: any, row: any) => {
+      try {
+        if (row.voter?.toString?.() === currentIdentity) {
+          setUserJudgments(prev => {
+            const next = { ...prev };
+            delete next[String(row.optionId)];
+            return next;
+          });
+        }
+      } catch (_) {}
+    };
+    const h = connection.db.judgment;
+    h.onInsert(onInsert);
+    h.onUpdate(onUpdate);
+    h.onDelete(onDelete);
+    return () => {
+      try {
+        h.removeOnInsert(onInsert);
+        h.removeOnUpdate(onUpdate);
+        h.removeOnDelete(onDelete);
+      } catch (_) {}
+    };
+  }, [vote.id]);
+
+  // Visibility badge style (same as App.tsx)
+  const getVisibilityBadgeStyle = (visibilityTag?: string): React.CSSProperties => {
+    switch (visibilityTag) {
+      case 'Public':
+        return { backgroundColor: '#15803d', color: 'white' };
+      case 'Unlisted':
+        return { backgroundColor: '#b45309', color: 'white' };
+      case 'Private':
+        return { backgroundColor: '#dc2626', color: 'white' };
+      default:
+        return {};
+    }
+  };
+
   if (!vote.options || vote.options.length === 0) {
     return <div>No voting options available.</div>;
   }
 
   return (
     <div style={{ marginTop: '16px' }}>
-      <h3>Cast your vote:</h3>
-      
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+        {/* Visibility tag */}
+        <div className="badge" style={getVisibilityBadgeStyle(vote.visibility?.tag)}>
+          {vote.visibility?.tag || (vote.public ? 'Public' : 'Private')}
+        </div>
+        {/* Total judgments tag (green) */}
+        {isMajorityJudgment && (
+          <div className="badge" style={{ backgroundColor: '#16a34a', color: 'white' }}>
+            {Math.max(0, ...((vote.options || []).map(o => o.total_judgments || 0)))} judgments
+          </div>
+        )}
+      </div>
+
       {isApprovalVoting && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
           {approvedOptions && approvedOptions.length > 0 && (
@@ -211,54 +311,105 @@ const VotingInterface: React.FC<VotingInterfaceProps> = ({ vote, onVoteCast, onE
 
       {isMajorityJudgment && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          {vote.options.map((option) => {
+          {(vote.options || []).map((option) => {
             const userJudgment = userJudgments[option.id];
-            const judgmentCounts = option.judgment_counts || {
-              ToReject: 0,
-              Passable: 0,
-              Good: 0,
-              VeryGood: 0,
-              Excellent: 0
-            };
-            const totalJudgments = option.total_judgments || 0;
-            
+
+            // Slider value mapping 0..4
+            const sliderValue = userJudgment ? (mentionOrder[userJudgment] - 1) : 2; // default mid
+
+            const mentionKeys: Array<keyof typeof mentionOrder> = ['ToReject','Passable','Good','VeryGood','Excellent'];
+            const mentionLabel = (m: string) => m.replace(/([A-Z])/g, ' $1').trim();
+            const trackGradient = colorMode === 'colorblind'
+              ? 'linear-gradient(90deg, #1f2937 0%, #4b5563 25%, #9ca3af 50%, #d1d5db 75%, #ffffff 100%)'
+              : 'linear-gradient(90deg, #dc2626 0%, #3b82f6 25%, #60a5fa 50%, #22c55e 75%, #16a34a 100%)';
+
             return (
-              <div key={option.id} style={{ position: 'relative' }}>
-                <MajorityJudgmentGraph
-                  optionLabel={option.label}
-                  judgmentCounts={judgmentCounts}
-                  totalJudgments={totalJudgments}
-                />
-                <div style={{ 
-                  display: 'flex', 
-                  gap: '4px', 
-                  flexWrap: 'wrap',
-                  marginTop: '8px',
-                  padding: '8px',
-                  backgroundColor: 'rgba(0,0,0,0.02)',
-                  borderRadius: '6px'
-                }}>
-                  <div style={{ fontSize: '12px', color: 'var(--muted)', marginBottom: '4px', width: '100%' }}>
-                    Your judgment:
+              <div key={option.id} style={{ position: 'relative', padding: '10px', border: '1px solid var(--border)', borderRadius: '8px' }}>
+                <div style={{ fontWeight: 500, marginBottom: '8px' }}>{option.label}</div>
+
+                {/* Slider voting only (no results) */}
+                <div style={{ position: 'relative' }}>
+                  {/* Ticks above the slider */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+                    {mentionKeys.map((m) => (
+                      <div key={m} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '20%' }}>
+                        <div style={{ width: '2px', height: '10px', background: 'var(--border)' }} />
+                      </div>
+                    ))}
                   </div>
-                  {['ToReject', 'Passable', 'Good', 'VeryGood', 'Excellent'].map((mention) => (
-                    <button
-                      key={mention}
-                      onClick={() => handleJudgmentVote(option.id, mention)}
-                      disabled={isVoting}
-                      style={{
-                        padding: '4px 8px',
-                        fontSize: '11px',
-                        borderRadius: '4px',
-                        border: '1px solid var(--border)',
-                        backgroundColor: userJudgment === mention ? '#3b82f6' : 'transparent',
-                        color: userJudgment === mention ? 'white' : 'var(--fg)',
-                        cursor: isVoting ? 'not-allowed' : 'pointer'
-                      }}
-                    >
-                      {mention.replace(/([A-Z])/g, ' $1').trim()}
-                    </button>
-                  ))}
+
+                  <input
+                    type="range"
+                    min={0}
+                    max={4}
+                    step={1}
+                    value={sliderValue}
+                    onChange={(e) => {
+                      const val = Number(e.target.value);
+                      const mention = mentionKeys[val] as string;
+                      handleJudgmentVote(option.id, mention);
+                    }}
+                    disabled={isVoting}
+                    style={{
+                      width: '100%',
+                      appearance: 'none',
+                      height: '8px',
+                      borderRadius: '9999px',
+                      background: trackGradient,
+                      outline: 'none',
+                    }}
+                  />
+                  {/* Custom thumb styling */}
+                  <style>{`
+                    input[type="range"]::-webkit-slider-thumb {
+                      -webkit-appearance: none;
+                      appearance: none;
+                      width: 18px;
+                      height: 18px;
+                      border-radius: 50%;
+                      background: #111;
+                      border: 2px solid white;
+                      box-shadow: 0 0 0 2px #111;
+                      cursor: pointer;
+                    }
+                    input[type="range"]::-moz-range-thumb {
+                      width: 18px;
+                      height: 18px;
+                      border-radius: 50%;
+                      background: #111;
+                      border: 2px solid white;
+                      box-shadow: 0 0 0 2px #111;
+                      cursor: pointer;
+                    }
+                  `}</style>
+
+                  {/* Mention labels under the slider, clickable to set value */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px', marginTop: '8px' }}>
+                    {mentionKeys.map((m, idx) => {
+                      const selected = sliderValue === idx;
+                      return (
+                        <button
+                          key={m}
+                          onClick={() => handleJudgmentVote(option.id, m as string)}
+                          disabled={isVoting}
+                          style={{
+                            flex: 1,
+                            padding: '6px 8px',
+                            fontSize: '11px',
+                            borderRadius: '9999px',
+                            border: '1px solid var(--border)',
+                            background: selected ? 'var(--accent-solid)' : 'transparent',
+                            color: selected ? '#0b0b0b' : 'var(--fg)',
+                            cursor: isVoting ? 'not-allowed' : 'pointer',
+                            textAlign: 'center',
+                          }}
+                          title={mentionLabel(m)}
+                        >
+                          {mentionLabel(m)}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
             );

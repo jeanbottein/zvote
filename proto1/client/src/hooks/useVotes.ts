@@ -115,8 +115,14 @@ export const useVotes = () => {
 
       // Separate my votes from public votes
       const currentUserIdentity = spacetimeDB.currentUser.identity.toString();
+      const focusedId = spacetimeDB.focusedVoteId;
       const myVotesList = allVotes.filter(vote => vote.creator === currentUserIdentity);
-      const publicVotesList = allVotes.filter(vote => vote.public && vote.creator !== currentUserIdentity);
+      const publicVotesList = allVotes.filter(vote => {
+        const isMine = vote.creator === currentUserIdentity;
+        const isPublic = vote.public;
+        const isFocused = focusedId ? vote.id === focusedId : false;
+        return (!isMine && (isPublic || isFocused));
+      });
 
       setMyVotes(myVotesList);
       setPublicVotes(publicVotesList);
