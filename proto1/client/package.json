@@ -10,9 +10,14 @@
   },
   "dependencies": {
     "@clockworklabs/spacetimedb-sdk": "^1.3.1",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
     "qrcode": "^1.5.3"
   },
   "devDependencies": {
+    "@types/react": "^18.2.0",
+    "@types/react-dom": "^18.2.0",
+    "@vitejs/plugin-react": "^4.2.0",
     "typescript": "^5.4.0",
     "vite": "^5.4.0"
   }

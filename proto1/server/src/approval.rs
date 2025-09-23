@@ -1,7 +1,7 @@
 use spacetimedb::{ReducerContext, Table, Identity, Timestamp};
 use std::collections::HashSet;
 
-use crate::vote::{find_vote_by_id, find_vote_option_by_id, set_vote_option_approvals_count, vote_exists, vote_option_vote_id, vote_option_approvals_count, VotingSystem};
+use crate::vote::{find_vote_by_id, find_vote_option_by_id, set_vote_option_approvals_count, vote_option_vote_id, vote_option_approvals_count, VotingSystem};
 // Bring the `approval` table trait into scope for method resolution on `ctx.db.approval()`.
 use self::approval as approval_table;
 

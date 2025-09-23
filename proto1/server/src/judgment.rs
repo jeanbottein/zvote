@@ -1,4 +1,4 @@
-use spacetimedb::{spacetimedb, ReducerContext, SpacetimeType, Table, Identity};
+use spacetimedb::{ReducerContext, SpacetimeType, Table, Identity};
 
 use crate::vote::{find_vote_by_id, find_vote_option_by_id, get_vote_options, VotingSystem};
 
@@ -16,8 +16,7 @@ pub enum Mention {
     name = judgment,
     public,
     index(name = by_option, btree(columns = [option_id])),
-    // Unique index to ensure one judgment per user per option
-    index(name = by_option_and_user, unique(columns = [option_id, voter]))
+    index(name = by_option_and_user, btree(columns = [option_id, voter]))
 )]
 pub struct Judgment {
     #[primary_key]
@@ -46,7 +45,7 @@ pub fn cast_judgment(ctx: &ReducerContext, option_id: u32, mention: Mention) -> 
 
     // 3. Check if this is the user's first judgment for this entire vote.
     let existing_judgments_for_vote: Vec<Judgment> = get_vote_options(ctx, vote.id)
-        .flat_map(|opt| ctx.db.judgment().by_option_and_user().filter(opt.id, &ctx.sender))
+        .flat_map(|opt| ctx.db.judgment().by_option().filter(opt.id).filter(|j| j.voter == ctx.sender))
         .collect();
 
     if existing_judgments_for_vote.is_empty() {
@@ -63,7 +62,7 @@ pub fn cast_judgment(ctx: &ReducerContext, option_id: u32, mention: Mention) -> 
     }
 
     // 4. Now, insert or update the specific judgment the user just cast.
-    if let Some(existing_judgment) = ctx.db.judgment().by_option_and_user().filter(option_id, &ctx.sender).next() {
+    if let Some(existing_judgment) = ctx.db.judgment().by_option().filter(option_id).filter(|j| j.voter == ctx.sender).next() {
         // An entry for this specific option already exists (likely just created with ToReject).
         // Update it with the user's actual mention.
         if existing_judgment.mention != mention {

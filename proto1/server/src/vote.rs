@@ -1,4 +1,4 @@
-use spacetimedb::{spacetimedb, ReducerContext, SpacetimeType, Table, Identity, Timestamp};
+use spacetimedb::{ReducerContext, SpacetimeType, Table, Identity, Timestamp};
 use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine as _};
 use blake3;
 use std::collections::HashSet;
@@ -11,6 +11,19 @@ use crate::judgment::judgment;
 // Maximum number of options allowed per vote (server-enforced)
 pub const MAX_OPTIONS: usize = 20;
 
+#[derive(SpacetimeType, Copy, Clone, Debug, PartialEq, Eq)]
+pub enum VotingSystem {
+    Approval,
+    MajorityJudgment,
+}
+
+#[derive(SpacetimeType, Copy, Clone, Debug, PartialEq, Eq)]
+pub enum Visibility {
+    Public,
+    Private,
+    Unlisted,
+}
+
 // Votes table: one row per vote
 #[spacetimedb::table(
     name = vote,
@@ -19,20 +32,13 @@ pub const MAX_OPTIONS: usize = 20;
     index(name = by_creator_and_created, btree(columns = [creator, created_at])),
     index(name = by_token, btree(columns = [token]))
 )]
-#[derive(SpacetimeType, Copy, Clone, Debug, PartialEq, Eq)]
-pub enum VotingSystem {
-    Approval,
-    MajorityJudgment,
-}
-
-
 pub struct Vote {
     #[auto_inc]
     #[primary_key]
     pub id: u64,
     pub creator: Identity,
     pub title: String,
-    pub public: bool,
+    pub visibility: Visibility,
     pub created_at: Timestamp,
     pub token: String,
     pub voting_system: VotingSystem,
@@ -89,7 +95,7 @@ pub fn create_vote(
     ctx: &ReducerContext,
     title: String,
     options: Vec<String>,
-    is_public: Option<bool>,
+    visibility: Option<Visibility>,
     voting_system: Option<VotingSystem>,
 ) -> Result<(), String> {
     let title = normalize_label(&title)?;
@@ -97,11 +103,11 @@ pub fn create_vote(
     let cleaned = validate_and_clean_options(options)?;
 
     // Pre-generate a unique token before inserting the vote
-    let mut temp_vote_for_token = Vote {
+    let temp_vote_for_token = Vote {
         id: 0, // Temp value, will be auto-incremented on insert
         creator: ctx.sender,
         title: title.clone(),
-        public: is_public.unwrap_or(true),
+        visibility: visibility.unwrap_or(Visibility::Public),
         created_at: ctx.timestamp,
         token: String::new(), // Placeholder
         voting_system: voting_system.unwrap_or(VotingSystem::Approval),
@@ -118,7 +124,7 @@ pub fn create_vote(
         id: 0,
         creator: ctx.sender,
         title,
-        public: is_public.unwrap_or(true),
+        visibility: visibility.unwrap_or(Visibility::Public),
         created_at: ctx.timestamp,
         token,
         voting_system: voting_system.unwrap_or(VotingSystem::Approval),

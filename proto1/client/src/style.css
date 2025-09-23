@@ -124,3 +124,15 @@ footer { padding: 10px 16px; border-top: 1px solid var(--border); color: var(--m
 .qr-canvas { justify-self: start; width: 160px; height: 160px; background: #fff; border-radius: 6px; }
 .share-url { width: 100%; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size: 13px; }
 .share-actions { display: flex; gap: 8px; }
+
+/* Toast notification animation */
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
