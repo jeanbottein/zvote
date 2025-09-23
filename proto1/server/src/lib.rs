@@ -3,9 +3,11 @@
 pub mod utils;
 pub mod vote;
 pub mod approval;
+pub mod judgment;
 
 // Re-export types and reducers to preserve the public API surface.
 pub use approval::{Approval, approve, unapprove, set_approvals};
+pub use judgment::{Mention, Judgment, cast_judgment};
 pub use vote::{
     Vote,
     VoteOption,
@@ -13,6 +15,5 @@ pub use vote::{
     create_vote,
     delete_vote,
     ensure_server_info,
-    ensure_vote_token,
     MAX_OPTIONS,
 };

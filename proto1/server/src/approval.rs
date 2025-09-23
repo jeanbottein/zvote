@@ -1,7 +1,7 @@
 use spacetimedb::{ReducerContext, Table, Identity, Timestamp};
 use std::collections::HashSet;
 
-use crate::vote::{find_vote_option_by_id, set_vote_option_approvals_count, vote_exists, vote_option_vote_id, vote_option_approvals_count};
+use crate::vote::{find_vote_by_id, find_vote_option_by_id, set_vote_option_approvals_count, vote_exists, vote_option_vote_id, vote_option_approvals_count, VotingSystem};
 // Bring the `approval` table trait into scope for method resolution on `ctx.db.approval()`.
 use self::approval as approval_table;
 
@@ -29,6 +29,14 @@ pub fn approve(ctx: &ReducerContext, vote_id: u64, option_id: u32) -> Result<(),
     };
     if vote_option_vote_id(&opt) != vote_id {
         return Err("Option does not belong to the specified vote".into());
+    }
+
+    // Ensure this is an approval-based vote
+    let Some(vote) = find_vote_by_id(ctx, vote_id) else {
+        return Err("Vote not found".into());
+    };
+    if vote.voting_system != VotingSystem::Approval {
+        return Err("This vote does not use approval voting".into());
     }
 
     // Check if already approved
@@ -67,6 +75,14 @@ pub fn unapprove(ctx: &ReducerContext, vote_id: u64, option_id: u32) -> Result<(
         return Err("Option does not belong to the specified vote".into());
     }
 
+    // Ensure this is an approval-based vote
+    let Some(vote) = find_vote_by_id(ctx, vote_id) else {
+        return Err("Vote not found".into());
+    };
+    if vote.voting_system != VotingSystem::Approval {
+        return Err("This vote does not use approval voting".into());
+    }
+
     // Find approval row to delete
     if let Some(a) = ctx
         .db
@@ -86,8 +102,12 @@ pub fn unapprove(ctx: &ReducerContext, vote_id: u64, option_id: u32) -> Result<(
 #[spacetimedb::reducer]
 pub fn set_approvals(ctx: &ReducerContext, vote_id: u64, option_ids: Vec<u32>) -> Result<(), String> {
     // Validate vote exists
-    if !vote_exists(ctx, vote_id) {
+    // Validate vote exists and is of the correct type
+    let Some(vote) = find_vote_by_id(ctx, vote_id) else {
         return Err("Vote not found".into());
+    };
+    if vote.voting_system != VotingSystem::Approval {
+        return Err("This vote does not use approval voting".into());
     }
 
     // Normalize option set and ensure they all belong to the vote

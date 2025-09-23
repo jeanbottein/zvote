@@ -1,11 +1,12 @@
-use spacetimedb::{ReducerContext, Table, Identity, Timestamp};
+use spacetimedb::{spacetimedb, ReducerContext, SpacetimeType, Table, Identity, Timestamp};
 use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine as _};
 use blake3;
 use std::collections::HashSet;
 
 use crate::utils::normalize_label;
-// Bring approval table trait into scope so `ctx.db.approval()` is available.
+// Bring table traits into scope for method resolution on `ctx.db.*()`.
 use crate::approval::approval;
+use crate::judgment::judgment;
 
 // Maximum number of options allowed per vote (server-enforced)
 pub const MAX_OPTIONS: usize = 20;
@@ -18,15 +19,23 @@ pub const MAX_OPTIONS: usize = 20;
     index(name = by_creator_and_created, btree(columns = [creator, created_at])),
     index(name = by_token, btree(columns = [token]))
 )]
+#[derive(SpacetimeType, Copy, Clone, Debug, PartialEq, Eq)]
+pub enum VotingSystem {
+    Approval,
+    MajorityJudgment,
+}
+
+
 pub struct Vote {
     #[auto_inc]
     #[primary_key]
-    id: u64,
-    creator: Identity,
-    title: String,
-    public: bool,
-    created_at: Timestamp,
-    token: String,
+    pub id: u64,
+    pub creator: Identity,
+    pub title: String,
+    pub public: bool,
+    pub created_at: Timestamp,
+    pub token: String,
+    pub voting_system: VotingSystem,
 }
 
 // Options table: up to 20 per vote
@@ -40,11 +49,11 @@ pub struct Vote {
 pub struct VoteOption {
     #[auto_inc]
     #[primary_key]
-    id: u32,
-    vote_id: u64,
-    label: String,
-    approvals_count: u32,
-    order_index: u32,
+    pub id: u32,
+    pub vote_id: u64,
+    pub label: String,
+    pub approvals_count: u32,
+    pub order_index: u32,
 }
 
 /// Validate, normalize, deduplicate, and return the cleaned list of options.
@@ -81,6 +90,7 @@ pub fn create_vote(
     title: String,
     options: Vec<String>,
     is_public: Option<bool>,
+    voting_system: Option<VotingSystem>,
 ) -> Result<(), String> {
     let title = normalize_label(&title)?;
 
@@ -94,6 +104,7 @@ pub fn create_vote(
         public: is_public.unwrap_or(true),
         created_at: ctx.timestamp,
         token: String::new(), // Placeholder
+        voting_system: voting_system.unwrap_or(VotingSystem::Approval),
     };
 
     let mut token = compute_share_token(ctx, &temp_vote_for_token, 0);
@@ -110,6 +121,7 @@ pub fn create_vote(
         public: is_public.unwrap_or(true),
         created_at: ctx.timestamp,
         token,
+        voting_system: voting_system.unwrap_or(VotingSystem::Approval),
     });
 
     for (idx, label) in cleaned.into_iter().enumerate() {
@@ -154,8 +166,12 @@ pub fn delete_vote(ctx: &ReducerContext, vote_id: u64) -> Result<(), String> {
         for a in ctx.db.approval().by_vote().filter(vote_id) {
             ctx.db.approval().delete(a);
         }
-        // Delete options
+        // Delete options and their associated judgments
         for opt in ctx.db.vote_option().by_vote().filter(vote_id) {
+            // Delete judgments for this option
+            for j in ctx.db.judgment().by_option().filter(opt.id) {
+                ctx.db.judgment().delete(j);
+            }
             ctx.db.vote_option().delete(opt);
         }
         // Delete vote itself
@@ -214,6 +230,12 @@ pub fn vote_option_vote_id(opt: &VoteOption) -> u64 {
 pub fn vote_option_approvals_count(opt: &VoteOption) -> u32 {
     opt.approvals_count
 }
+
+/// Get all options for a given vote.
+pub fn get_vote_options(ctx: &ReducerContext, vote_id: u64) -> impl Iterator<Item = VoteOption> + '_ {
+    ctx.db.vote_option().by_vote().filter(vote_id)
+}
+
 
 #[cfg(test)]
 mod tests {
