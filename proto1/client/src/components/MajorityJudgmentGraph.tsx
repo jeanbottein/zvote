@@ -30,13 +30,13 @@ const MajorityJudgmentGraph: React.FC<MajorityJudgmentGraphProps> = ({
   }, []);
 
   // Palettes
-  // Color: red -> blue -> green across the five mentions
+  // Color: red -> orange -> yellow -> light green -> dark green
   const judgmentColorsColor = {
     ToReject: '#dc2626',   // red-600
-    Passable: '#3b82f6',   // blue-500
-    Good: '#60a5fa',       // blue-400
-    VeryGood: '#22c55e',   // green-500
-    Excellent: '#16a34a'   // green-600
+    Passable: '#f97316',   // orange-500
+    Good: '#facc15',       // yellow-400
+    VeryGood: '#4ade80',   // green-400 (light green)
+    Excellent: '#16a34a'   // green-600 (dark green)
   } as const;
 
   // Colorblind: dark gray -> white
@@ -92,7 +92,9 @@ const MajorityJudgmentGraph: React.FC<MajorityJudgmentGraphProps> = ({
                 const light = ['Good','VeryGood','Excellent'];
                 return light.includes(majorityJudgment as string) ? '#0b0b0b' : '#ffffff';
               }
-              return '#ffffff';
+              // For bright backgrounds (yellow, light green), use dark text
+              const bright = ['Good','VeryGood'];
+              return bright.includes(majorityJudgment as string) ? '#0b0b0b' : '#ffffff';
             })()
           }}>
             {majorityJudgment ? judgmentLabels[majorityJudgment as keyof typeof judgmentLabels] : '—'}

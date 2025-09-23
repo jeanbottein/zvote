@@ -321,7 +321,7 @@ const VotingInterface: React.FC<VotingInterfaceProps> = ({ vote, onVoteCast, onE
             const mentionLabel = (m: string) => m.replace(/([A-Z])/g, ' $1').trim();
             const trackGradient = colorMode === 'colorblind'
               ? 'linear-gradient(90deg, #1f2937 0%, #4b5563 25%, #9ca3af 50%, #d1d5db 75%, #ffffff 100%)'
-              : 'linear-gradient(90deg, #dc2626 0%, #3b82f6 25%, #60a5fa 50%, #22c55e 75%, #16a34a 100%)';
+              : 'linear-gradient(90deg, #dc2626 0%, #f97316 25%, #facc15 50%, #4ade80 75%, #16a34a 100%)';
 
             return (
               <div key={option.id} style={{ position: 'relative', padding: '10px', border: '1px solid var(--border)', borderRadius: '8px' }}>
