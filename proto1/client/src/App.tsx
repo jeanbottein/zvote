@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Header from './components/Header';
 import Modal from './components/Modal';
 import CreateVoteForm from './components/CreateVoteForm';
@@ -44,6 +44,15 @@ function App() {
   const [selectedVote, setSelectedVote] = useState<VoteWithOptions | null>(null);
   const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const { myVotes, publicVotes, isLoading, error, refreshVotes } = useVotes();
+
+  // Keep selectedVote fresh as live data updates come in
+  useEffect(() => {
+    if (!selectedVote) return;
+    const updated = [...myVotes, ...publicVotes].find(v => v.id === selectedVote.id);
+    if (updated) {
+      setSelectedVote(updated);
+    }
+  }, [myVotes, publicVotes, selectedVote?.id]);
 
   const handleVoteCreated = (voteId: string) => {
     console.log('Vote créé avec l\'ID:', voteId);
