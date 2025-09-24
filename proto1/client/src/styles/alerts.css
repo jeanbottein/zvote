@@ -1,0 +1,43 @@
+/* Alerts and small status UI, one-class-per-element with ID for variants */
+
+.alert {
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #101010;
+  color: var(--fg);
+  font-size: 14px;
+}
+
+#alert-success {
+  background: #0f2317;
+  border-color: #86efac;
+  color: #86efac;
+}
+
+#alert-error {
+  background: #2b0f12;
+  border-color: #fecaca;
+  color: #fecaca;
+}
+
+#alert-warning {
+  background: #2a2715;
+  border-color: #fde68a;
+  color: #fde68a;
+}
+
+/* Simple spinner */
+.spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent-solid);
+  border-radius: 50%;
+  display: inline-block;
+  animation: spin 0.9s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}

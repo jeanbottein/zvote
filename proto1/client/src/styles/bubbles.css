@@ -1,10 +1,18 @@
 /* Bubble selectors for visibility and voting system */
 
+.bubble-section {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
 .bubble-group {
   display: flex;
   align-items: center;
   gap: 12px;
   flex-wrap: wrap;
+  justify-content: center;
+  flex: 1;
 }
 
 .bubble {

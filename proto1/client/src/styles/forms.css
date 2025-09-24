@@ -7,6 +7,12 @@
   color: var(--fg);
 }
 
+/* Label inside bubble-section should not have bottom margin */
+.bubble-section .form-label {
+  margin: 0;
+  min-width: 120px;
+}
+
 .form-input,
 .form-textarea {
   width: 100%;

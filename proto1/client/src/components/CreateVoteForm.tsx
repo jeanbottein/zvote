@@ -221,8 +221,9 @@ const CreateVoteForm: React.FC<CreateVoteFormProps> = ({ onVoteCreated, onError,
 
         {/* Visibility */}
         <div className="section">
-          <label className="form-label">Visibility</label>
-          <div className="bubble-group">
+          <div className="bubble-section">
+            <label className="form-label">Visibility</label>
+            <div className="bubble-group">
             {[
               { key: 'Public', label: 'Public', value: Visibility.Public as Visibility },
               { key: 'Unlisted', label: 'Unlisted', value: Visibility.Unlisted as Visibility },
@@ -242,14 +243,16 @@ const CreateVoteForm: React.FC<CreateVoteFormProps> = ({ onVoteCreated, onError,
                 </button>
               );
             })}
+            </div>
           </div>
           <div className="helper">{visibilityHelper()}</div>
         </div>
 
         {/* Voting system */}
         <div className="section">
-          <label className="form-label">Voting system</label>
-          <div className="bubble-group" {...(isVotingInvalid ? { id: 'invalid-vsystem' } : {})}>
+          <div className="bubble-section">
+            <label className="form-label">Voting system</label>
+            <div className="bubble-group" {...(isVotingInvalid ? { id: 'invalid-vsystem' } : {})}>
             {[
               { key: 'Approval', label: 'Approval', value: VotingSystem.Approval as VotingSystem },
               { key: 'MajorityJudgment', label: 'Majority judgment', value: VotingSystem.MajorityJudgment as VotingSystem },
@@ -268,6 +271,7 @@ const CreateVoteForm: React.FC<CreateVoteFormProps> = ({ onVoteCreated, onError,
                 </button>
               );
             })}
+            </div>
           </div>
           <div className="helper">{votingHelper()}</div>
         </div>
