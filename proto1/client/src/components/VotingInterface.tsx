@@ -123,15 +123,43 @@ const VotingInterface: React.FC<VotingInterfaceProps> = ({ vote, onVoteCast, onE
     
     setIsVoting(true);
     try {
-      // Convert string to Mention tagged union
+      // Optimistic UI: mirror server behavior on first judgment
+      setUserJudgments(prev => {
+        const next = { ...prev } as Record<string, string>;
+        const isFirst = Object.keys(prev).length === 0;
+        if (isFirst) {
+          for (const opt of (vote.options || [])) {
+            next[String(opt.id)] = 'ToReject';
+          }
+        }
+        next[String(optionId)] = mention;
+        return next;
+      });
+
+      // Convert string to Mention tagged union and send to server
       const mentionValue = (Mention as any)[mention] as any;
       await spacetimeDB.call('castJudgment', optionId, mentionValue);
-      setUserJudgments(prev => ({ ...prev, [optionId]: mention }));
-      
       if (onVoteCast) onVoteCast();
     } catch (error) {
       console.error('Error casting judgment:', error);
       if (onError) onError('Failed to cast judgment. Please try again.');
+      // Best-effort resync from local cache on error
+      if (spacetimeDB.connection && spacetimeDB.currentUser) {
+        try {
+          const connection = spacetimeDB.connection;
+          const currentIdentity = spacetimeDB.currentUser.identity;
+          const newJudgments: Record<string, string> = {};
+          for (const row of (connection.db as any).judgment.iter() as Iterable<any>) {
+            try {
+              const sameVoter = row.voter?.toString?.() === currentIdentity;
+              if (sameVoter) {
+                newJudgments[String(row.optionId)] = row.mention?.tag;
+              }
+            } catch (_) {}
+          }
+          setUserJudgments(newJudgments);
+        } catch (_) {}
+      }
     } finally {
       setIsVoting(false);
     }
@@ -355,7 +383,7 @@ const VotingInterface: React.FC<VotingInterfaceProps> = ({ vote, onVoteCast, onE
             </div>
           )}
           {(vote.options || []).map((option) => {
-            const userJudgment = userJudgments[option.id];
+            const userJudgment = userJudgments[String(option.id)];
 
             // Slider value mapping 0..4 - no default selection if user hasn't voted
             const sliderValue = userJudgment ? (mentionOrder[userJudgment] - 1) : -1; // no default selection
@@ -431,10 +459,9 @@ const VotingInterface: React.FC<VotingInterfaceProps> = ({ vote, onVoteCast, onE
                         zIndex: 5,
                       }}
                     />
-                    
-                    {/* Custom thumb - only show if user has voted */}
+                    {/* Custom thumb - show only when user has voted */}
                     {sliderValue >= 0 && (
-                      <div 
+                      <div
                         style={{
                           position: 'absolute',
                           top: '50%',
@@ -445,6 +472,7 @@ const VotingInterface: React.FC<VotingInterfaceProps> = ({ vote, onVoteCast, onE
                           borderRadius: '50%',
                           background: '#fff',
                           border: '2px solid #333',
+                          boxShadow: '0 0 0 2px rgba(0,0,0,0.4)',
                           pointerEvents: 'none',
                           zIndex: 10,
                         }}
@@ -452,31 +480,26 @@ const VotingInterface: React.FC<VotingInterfaceProps> = ({ vote, onVoteCast, onE
                     )}
                   </div>
                   
-                  {/* Hide default thumb with CSS */}
+                  {/* Hide native thumb; we render our own aligned dot */}
                   <style>{`
-                    .mj-slider::-webkit-slider-thumb {
-                      -webkit-appearance: none;
-                      appearance: none;
-                      width: 0;
-                      height: 0;
+                    .mj-slider::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 0; height: 0; background: transparent; border: none; }
+                    .mj-slider::-moz-range-thumb { width: 0; height: 0; background: transparent; border: none; }
+                    .mj-slider::-webkit-slider-runnable-track {
+                      height: 8px;
+                      border-radius: 9999px;
                       background: transparent;
-                      border: none;
-                      cursor: pointer;
                     }
-                    .mj-slider::-moz-range-thumb {
-                      width: 0;
-                      height: 0;
+                    .mj-slider::-moz-range-track {
+                      height: 8px;
+                      border-radius: 9999px;
                       background: transparent;
-                      border: none;
-                      cursor: pointer;
-                      border-radius: 0;
                     }
                   `}</style>
 
                   {/* Mention labels under the slider, clickable to set value */}
                   <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px', marginTop: '8px' }}>
-                    {mentionKeys.map((m, idx) => {
-                      const selected = sliderValue >= 0 && sliderValue === idx;
+                    {mentionKeys.map((m) => {
+                      const selected = userJudgment === (m as string);
                       const mentionColor = getMentionColor(m);
                       return (
                         <button
@@ -493,6 +516,7 @@ const VotingInterface: React.FC<VotingInterfaceProps> = ({ vote, onVoteCast, onE
                             color: selected ? (colorMode === 'colorblind' && (m === 'VeryGood' || m === 'Excellent') ? '#000' : '#fff') : 'var(--fg)',
                             cursor: isVoting ? 'not-allowed' : 'pointer',
                             textAlign: 'center',
+                            fontWeight: selected ? 700 : 500,
                           }}
                           title={mentionLabel(m)}
                         >
