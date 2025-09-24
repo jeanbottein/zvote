@@ -1,0 +1,60 @@
+/* Buttons - single-class per element. Use IDs for minor variations. */
+:root {
+  --btn-bg: var(--accent-solid, #26a69a);
+  --btn-fg: #0b0b0b;
+  --btn-border: var(--border, #2a2a2a);
+  --btn-muted-bg: transparent;
+  --btn-muted-fg: var(--fg, #f3f3f3);
+  --danger-bg: #dc2626; /* high-contrast red */
+  --danger-fg: #ffffff;
+}
+
+/* Colorblind mode can be toggled by setting data-colorblind="true" on <body> */
+body[data-colorblind="true"] {
+  --danger-bg: #a60000; /* deeper red for clarity */
+}
+
+/* Light theme overrides */
+body[data-theme="light"] {
+  --btn-border: #e5e7eb;
+  --btn-fg: #111827;
+}
+
+/* Dark theme overrides */
+body[data-theme="dark"] {
+  --btn-border: #2a2a2a;
+}
+
+.btn {
+  appearance: none;
+  background: var(--btn-bg);
+  color: var(--btn-fg);
+  border: 1px solid var(--btn-border);
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-secondary {
+  background: var(--btn-muted-bg);
+  color: var(--btn-muted-fg);
+}
+
+.btn-danger {
+  background: var(--danger-bg);
+  color: var(--danger-fg);
+  border: 1px solid var(--danger-bg);
+}
+
+/* Minor variation via ID for circular icon button */
+#circle {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  font-weight: 700;
+}

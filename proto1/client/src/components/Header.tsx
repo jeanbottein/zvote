@@ -40,6 +40,15 @@ const Header: React.FC<HeaderProps> = ({ onViewChange, currentView }) => {
     };
   }, []);
 
+  // Reflect color mode in the DOM for CSS (colorblind-friendly palettes)
+  useEffect(() => {
+    if (colorMode === 'colorblind') {
+      document.body.setAttribute('data-colorblind', 'true');
+    } else {
+      document.body.removeAttribute('data-colorblind');
+    }
+  }, [colorMode]);
+
   const handleResetIdentity = () => {
     if (confirm('Switch to a fresh identity? This will reconnect and give you a new identity.')) {
       spacetimeDB.resetIdentity();
@@ -98,7 +107,7 @@ const Header: React.FC<HeaderProps> = ({ onViewChange, currentView }) => {
               <button
                 onClick={handleResetIdentity}
                 disabled={!connected}
-                className="secondary"
+                className="btn-secondary"
                 title="Switch to a fresh identity"
               >
                 Switch user
@@ -119,19 +128,19 @@ const Header: React.FC<HeaderProps> = ({ onViewChange, currentView }) => {
               />
               <button
                 onClick={handleSetServer}
-                className="primary"
+                className="btn"
               >
                 Set
               </button>
               <button
                 onClick={handleResetServer}
-                className="secondary"
+                className="btn-secondary"
               >
                 Reset
               </button>
               <button
                 onClick={handleToggleColorMode}
-                className="secondary"
+                className="btn-secondary"
                 title="Toggle colorblind-friendly grayscale palette"
               >
                 {colorMode === 'color' ? 'Colorblind' : 'Colors'}

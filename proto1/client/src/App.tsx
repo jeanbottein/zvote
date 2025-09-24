@@ -207,7 +207,7 @@ function App() {
           <div className="panel">
             <button
               onClick={handleBackToHome}
-              className="secondary"
+              className="btn-secondary"
               style={{ marginBottom: '16px' }}
             >
               ← Back to votes

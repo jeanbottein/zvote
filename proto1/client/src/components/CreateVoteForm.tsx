@@ -187,10 +187,10 @@ const CreateVoteForm: React.FC<CreateVoteFormProps> = ({ onVoteCreated, onError,
     <div style={{ maxHeight: '70vh', overflowY: 'auto' }}>
       {/* Title removed since it's in modal header */}
       
-      <form onSubmit={handleSubmit} className="space-y-6">
+      <form onSubmit={handleSubmit}>
         {/* Title */}
-        <div>
-          <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-2">
+        <div className="section" {...(isTitleInvalid ? { id: 'invalid-title' } : {})}>
+          <label htmlFor="title" className="form-label">
             Vote title
           </label>
           <input
@@ -198,15 +198,15 @@ const CreateVoteForm: React.FC<CreateVoteFormProps> = ({ onVoteCreated, onError,
             id="title"
             value={formData.title}
             onChange={(e) => updateFormData({ title: e.target.value })}
-            className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${isTitleInvalid ? 'border-red-500' : 'border-gray-300'}`}
+            className="form-input"
             placeholder="e.g. Where should we go for team lunch?"
           />
           {/* No inline error text; border indicates missing after submit */}
         </div>
 
         {/* Description */}
-        <div>
-          <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-2">
+        <div className="section">
+          <label htmlFor="description" className="form-label">
             Description (optional)
           </label>
           <textarea
@@ -214,15 +214,15 @@ const CreateVoteForm: React.FC<CreateVoteFormProps> = ({ onVoteCreated, onError,
             value={formData.description}
             onChange={(e) => updateFormData({ description: e.target.value })}
             rows={3}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="form-textarea"
             placeholder="Additional information about this vote..."
           />
         </div>
 
         {/* Visibility */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Visibility</label>
-          <div className="flex items-center gap-3">
+        <div className="section">
+          <label className="form-label">Visibility</label>
+          <div className="bubble-group">
             {[
               { key: 'Public', label: 'Public', value: Visibility.Public as Visibility },
               { key: 'Unlisted', label: 'Unlisted', value: Visibility.Unlisted as Visibility },
@@ -234,7 +234,8 @@ const CreateVoteForm: React.FC<CreateVoteFormProps> = ({ onVoteCreated, onError,
                   type="button"
                   key={v.key}
                   onClick={() => updateFormData({ visibility: v.value })}
-                  className={`px-4 py-2 text-sm rounded-full border-2 font-medium transition-all duration-200 ${active ? 'bg-blue-100 text-blue-800 border-blue-400 shadow-sm' : 'bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100'}`}
+                  className="bubble"
+                  {...(active ? { id: `active-${v.key.toLowerCase()}` } : {})}
                   aria-pressed={active}
                 >
                   {v.label}
@@ -242,13 +243,13 @@ const CreateVoteForm: React.FC<CreateVoteFormProps> = ({ onVoteCreated, onError,
               );
             })}
           </div>
-          <div className="mt-1 text-sm text-gray-600 italic">{visibilityHelper()}</div>
+          <div className="helper">{visibilityHelper()}</div>
         </div>
 
         {/* Voting system */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Voting system</label>
-          <div className={`flex items-center gap-3 ${isVotingInvalid ? 'ring-2 ring-red-400 rounded-lg p-2' : ''}`}>
+        <div className="section">
+          <label className="form-label">Voting system</label>
+          <div className="bubble-group" {...(isVotingInvalid ? { id: 'invalid-vsystem' } : {})}>
             {[
               { key: 'Approval', label: 'Approval', value: VotingSystem.Approval as VotingSystem },
               { key: 'MajorityJudgment', label: 'Majority judgment', value: VotingSystem.MajorityJudgment as VotingSystem },
@@ -259,7 +260,8 @@ const CreateVoteForm: React.FC<CreateVoteFormProps> = ({ onVoteCreated, onError,
                   type="button"
                   key={v.key}
                   onClick={() => updateFormData({ votingSystem: v.value })}
-                  className={`px-4 py-2 text-sm rounded-full border-2 font-medium transition-all duration-200 ${active ? 'bg-blue-100 text-blue-800 border-blue-400 shadow-sm' : 'bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100'}`}
+                  className="bubble"
+                  {...(active ? { id: `active-${v.key.toLowerCase()}` } : {})}
                   aria-pressed={active}
                 >
                   {v.label}
@@ -267,13 +269,13 @@ const CreateVoteForm: React.FC<CreateVoteFormProps> = ({ onVoteCreated, onError,
               );
             })}
           </div>
-          <div className="mt-1 text-sm text-gray-600 italic">{votingHelper()}</div>
+          <div className="helper">{votingHelper()}</div>
         </div>
 
         {/* Options */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Options</label>
-          <div className="space-y-2">
+        <div className="section">
+          <label className="form-label">Options</label>
+          <div className="options-list">
             {formData.options.map((option, index) => {
               const isTrailingEmpty = index === lastIndex && option.trim() === '';
               const isEmptyInvalid = submitted && !isTrailingEmpty && option.trim() === '';
@@ -281,24 +283,22 @@ const CreateVoteForm: React.FC<CreateVoteFormProps> = ({ onVoteCreated, onError,
               const invalid = isEmptyInvalid || isDupInvalid;
               const showDelete = !isTrailingEmpty;
               return (
-                <div key={index} className="flex items-center space-x-2">
-                  <span className="text-sm text-gray-500 w-8">{index + 1}.</span>
+                <div key={index} className="option-row" {...(invalid ? { id: `invalid-option-${index}` } : {})}>
                   <input
                     ref={(el) => optionRefs.current[index] = el}
                     type="text"
                     value={option}
                     onChange={(e) => updateOption(index, e.target.value)}
                     onKeyPress={(e) => handleOptionKeyPress(index, e)}
-                    className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${invalid ? 'border-red-500' : 'border-gray-300'}`}
-                    style={{ width: '90%' }}
+                    className="form-input"
                     placeholder={`Option ${index + 1}`}
                   />
                   {showDelete && (
                     <button
                       type="button"
                       onClick={() => removeOption(index)}
-                      className="w-8 h-8 flex items-center justify-center bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors duration-200"
-                      style={{ fontSize: '18px', fontWeight: 'bold' }}
+                      className="btn-danger"
+                      id="circle"
                       title="Delete this option"
                     >
                       ×
@@ -312,8 +312,8 @@ const CreateVoteForm: React.FC<CreateVoteFormProps> = ({ onVoteCreated, onError,
 
         {/* Erreur de soumission */}
         {errors.submit && (
-          <div className="p-3 bg-red-50 border border-red-200 rounded-md">
-            <p className="text-sm text-red-600">{errors.submit}</p>
+          <div className="error-box">
+            <p>{errors.submit}</p>
           </div>
         )}
 
@@ -323,7 +323,7 @@ const CreateVoteForm: React.FC<CreateVoteFormProps> = ({ onVoteCreated, onError,
             <button
               type="button"
               onClick={onCancel}
-              className="secondary"
+              className="btn-secondary"
             >
               Cancel
             </button>
@@ -331,6 +331,7 @@ const CreateVoteForm: React.FC<CreateVoteFormProps> = ({ onVoteCreated, onError,
           <button
             type="submit"
             disabled={!canSubmit || isCreating}
+            className="btn"
           >
             {isCreating ? 'Creating...' : 'Create vote'}
           </button>

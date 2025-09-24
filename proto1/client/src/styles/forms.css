@@ -1,0 +1,87 @@
+/* Base form styles with single-class constraint */
+
+.form-label {
+  display: block;
+  margin: 8px 0 6px 0;
+  font-size: 14px;
+  color: var(--fg);
+}
+
+.form-input,
+.form-textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: #0e0e0e;
+  color: var(--fg);
+}
+
+/* Light theme tweaks */
+body[data-theme="light"] .form-input,
+body[data-theme="light"] .form-textarea {
+  background: #ffffff;
+  color: #111827;
+  border-color: #e5e7eb;
+}
+
+/* Invalid state via id prefix on container (e.g., id="invalid-title") */
+[id^="invalid-"] .form-input,
+[id^="invalid-"] .form-textarea {
+  border-color: #dc2626;
+}
+
+/* Helper text below a control */
+.helper {
+  font-style: italic;
+  font-size: 13px;
+  color: var(--muted);
+  margin-top: 4px;
+}
+
+/* Vertical section spacing */
+.section {
+  margin-bottom: 16px;
+}
+
+/* Options list */
+.options-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.option-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: none;
+  background: none;
+}
+
+.option-number {
+  width: 22px;
+  text-align: right;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+/* Option field width tweak via context to keep single-class constraint */
+.option-row .form-input {
+  width: 90%;
+}
+
+/* Error box for submission errors */
+.error-box {
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid #fecaca;
+  background: #2b0f12;
+  color: #fecaca;
+}
+
+/* Light theme variant */
+body[data-theme="light"] .error-box {
+  background: #fff1f2;
+  color: #b91c1c;
+}

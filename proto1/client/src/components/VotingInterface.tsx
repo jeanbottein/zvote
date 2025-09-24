@@ -156,6 +156,17 @@ const VotingInterface: React.FC<VotingInterfaceProps> = ({ vote, onVoteCast, onE
   const isApprovalVoting = vote.voting_system?.tag === 'Approval';
   const isMajorityJudgment = vote.voting_system?.tag === 'MajorityJudgment';
 
+  // Check if user has voted (either approvals or judgments)
+  const hasUserVoted = useMemo(() => {
+    if (isApprovalVoting) {
+      return userApprovals.size > 0;
+    }
+    if (isMajorityJudgment) {
+      return Object.keys(userJudgments).length > 0;
+    }
+    return false;
+  }, [isApprovalVoting, isMajorityJudgment, userApprovals.size, userJudgments]);
+
   // Derive approved/unapproved lists for tag UI
   const { approvedOptions, unapprovedOptions } = useMemo(() => {
     const approved: typeof vote.options = [];
@@ -271,6 +282,35 @@ const VotingInterface: React.FC<VotingInterfaceProps> = ({ vote, onVoteCast, onE
 
       {isApprovalVoting && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          {hasUserVoted && (
+            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <button
+                onClick={async () => {
+                  if (isVoting) return;
+                  setIsVoting(true);
+                  try {
+                    // Remove all user's approvals for this vote
+                    for (const optionId of userApprovals) {
+                      await spacetimeDB.call('unapprove', vote.id, optionId);
+                    }
+                    setUserApprovals(new Set());
+                    if (onVoteCast) onVoteCast();
+                  } catch (error) {
+                    console.error('Error withdrawing approvals:', error);
+                    if (onError) onError('Failed to withdraw your approvals. Please try again.');
+                  } finally {
+                    setIsVoting(false);
+                  }
+                }}
+                disabled={isVoting}
+                className="btn-danger"
+                title="Remove all your approvals for this vote"
+              >
+                Withdraw my vote
+              </button>
+            </div>
+          )}
+
           {approvedOptions && approvedOptions.length > 0 && (
             <div>
               <div style={{ fontSize: '12px', color: 'var(--muted)', marginBottom: '6px' }}>Your approvals</div>
@@ -327,22 +367,18 @@ const VotingInterface: React.FC<VotingInterfaceProps> = ({ vote, onVoteCast, onE
 
       {isMajorityJudgment && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-            <button
-              onClick={handleWithdrawMJ}
-              disabled={isVoting}
-              className="secondary"
-              style={{
-                padding: '6px 10px',
-                borderRadius: '6px',
-                border: '1px solid var(--border)',
-                cursor: isVoting ? 'not-allowed' : 'pointer'
-              }}
-              title="Remove all your judgments for this vote"
-            >
-              Withdraw my vote
-            </button>
-          </div>
+          {hasUserVoted && (
+            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <button
+                onClick={handleWithdrawMJ}
+                disabled={isVoting}
+                className="btn-danger"
+                title="Remove all your judgments for this vote"
+              >
+                Withdraw my vote
+              </button>
+            </div>
+          )}
           {(vote.options || []).map((option) => {
             const userJudgment = userJudgments[option.id];
 
