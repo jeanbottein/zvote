@@ -33,14 +33,14 @@ import {
   type SubscriptionEventContextInterface,
 } from "@clockworklabs/spacetimedb-sdk";
 
-export type DeleteVote = {
+export type WithdrawJudgments = {
   voteId: number,
 };
 
 /**
  * A namespace for generated helper functions.
  */
-export namespace DeleteVote {
+export namespace WithdrawJudgments {
   /**
   * A function which returns this type represented as an AlgebraicType.
   * This function is derived from the AlgebraicType used to generate this type.
@@ -51,12 +51,12 @@ export namespace DeleteVote {
     ]);
   }
 
-  export function serialize(writer: BinaryWriter, value: DeleteVote): void {
-    DeleteVote.getTypeScriptAlgebraicType().serialize(writer, value);
+  export function serialize(writer: BinaryWriter, value: WithdrawJudgments): void {
+    WithdrawJudgments.getTypeScriptAlgebraicType().serialize(writer, value);
   }
 
-  export function deserialize(reader: BinaryReader): DeleteVote {
-    return DeleteVote.getTypeScriptAlgebraicType().deserialize(reader);
+  export function deserialize(reader: BinaryReader): WithdrawJudgments {
+    return WithdrawJudgments.getTypeScriptAlgebraicType().deserialize(reader);
   }
 
 }

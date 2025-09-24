@@ -51,6 +51,7 @@ export const spacetimeDB = {
           `SELECT * FROM vote_option WHERE vote_id = (SELECT id FROM vote WHERE token = '${token}')`,
           `SELECT * FROM approval WHERE vote_id = (SELECT id FROM vote WHERE token = '${token}')`,
           `SELECT * FROM judgment WHERE option_id IN (SELECT id FROM vote_option WHERE vote_id = (SELECT id FROM vote WHERE token = '${token}'))`,
+          `SELECT * FROM mj_summary WHERE vote_id = (SELECT id FROM vote WHERE token = '${token}')`,
         ]);
     } catch (e) {
       console.warn('Failed to apply focused subscriptions by token:', e);
@@ -141,6 +142,7 @@ export const spacetimeDB = {
               `SELECT * FROM vote_option WHERE vote_id = (SELECT id FROM vote WHERE token = '${pathToken}')`,
               `SELECT * FROM approval WHERE vote_id = (SELECT id FROM vote WHERE token = '${pathToken}')`,
               `SELECT * FROM judgment WHERE option_id IN (SELECT id FROM vote_option WHERE vote_id = (SELECT id FROM vote WHERE token = '${pathToken}'))`,
+              `SELECT * FROM mj_summary WHERE vote_id = (SELECT id FROM vote WHERE token = '${pathToken}')`,
             ]);
         } else {
           // Initial wide subscriptions for lists
@@ -153,7 +155,8 @@ export const spacetimeDB = {
               'SELECT * FROM vote',
               'SELECT * FROM vote_option', 
               'SELECT * FROM approval',
-              'SELECT * FROM judgment'
+              'SELECT * FROM judgment',
+              'SELECT * FROM mj_summary'
             ]);
         }
       };
@@ -228,6 +231,7 @@ export const spacetimeDB = {
           `SELECT * FROM vote_option WHERE vote_id = ${idLiteral}`,
           `SELECT * FROM approval WHERE vote_id = ${idLiteral}`,
           `SELECT * FROM judgment WHERE option_id IN (SELECT id FROM vote_option WHERE vote_id = ${idLiteral})`,
+          `SELECT * FROM mj_summary WHERE vote_id = ${idLiteral}`,
         ]);
     } catch (e) {
       console.warn('Failed to apply focused subscriptions:', e);
@@ -266,6 +270,13 @@ export const spacetimeDB = {
         const [optionId, mention] = args;
         console.log('Calling castJudgment reducer:', { optionId, mention });
         connection.reducers.castJudgment(parseInt(optionId), mention);
+        return { success: true };
+      }
+      
+      if (reducerName === 'withdrawJudgments') {
+        const [voteId] = args;
+        console.log('Calling withdrawJudgments reducer:', { voteId });
+        connection.reducers.withdrawJudgments(Number.parseInt(voteId, 10));
         return { success: true };
       }
       

@@ -32,26 +32,25 @@ import {
   type ReducerEventContextInterface,
   type SubscriptionEventContextInterface,
 } from "@clockworklabs/spacetimedb-sdk";
-import { Vote } from "./vote_type";
-import { Visibility as __Visibility } from "./visibility_type";
-import { VotingSystem as __VotingSystem } from "./voting_system_type";
+import { MjSummary } from "./mj_summary_type";
+import { Mention as __Mention } from "./mention_type";
 
 import { type EventContext, type Reducer, RemoteReducers, RemoteTables } from ".";
 
 /**
- * Table handle for the table `vote`.
+ * Table handle for the table `mj_summary`.
  *
- * Obtain a handle from the [`vote`] property on [`RemoteTables`],
- * like `ctx.db.vote`.
+ * Obtain a handle from the [`mjSummary`] property on [`RemoteTables`],
+ * like `ctx.db.mjSummary`.
  *
  * Users are encouraged not to explicitly reference this type,
  * but to directly chain method calls,
- * like `ctx.db.vote.on_insert(...)`.
+ * like `ctx.db.mjSummary.on_insert(...)`.
  */
-export class VoteTableHandle {
-  tableCache: TableCache<Vote>;
+export class MjSummaryTableHandle {
+  tableCache: TableCache<MjSummary>;
 
-  constructor(tableCache: TableCache<Vote>) {
+  constructor(tableCache: TableCache<MjSummary>) {
     this.tableCache = tableCache;
   }
 
@@ -59,53 +58,53 @@ export class VoteTableHandle {
     return this.tableCache.count();
   }
 
-  iter(): Iterable<Vote> {
+  iter(): Iterable<MjSummary> {
     return this.tableCache.iter();
   }
   /**
-   * Access to the `id` unique index on the table `vote`,
+   * Access to the `optionId` unique index on the table `mj_summary`,
    * which allows point queries on the field of the same name
-   * via the [`VoteIdUnique.find`] method.
+   * via the [`MjSummaryOptionIdUnique.find`] method.
    *
    * Users are encouraged not to explicitly reference this type,
    * but to directly chain method calls,
-   * like `ctx.db.vote.id().find(...)`.
+   * like `ctx.db.mjSummary.optionId().find(...)`.
    *
-   * Get a handle on the `id` unique index on the table `vote`.
+   * Get a handle on the `optionId` unique index on the table `mj_summary`.
    */
-  id = {
-    // Find the subscribed row whose `id` column value is equal to `col_val`,
+  optionId = {
+    // Find the subscribed row whose `optionId` column value is equal to `col_val`,
     // if such a row is present in the client cache.
-    find: (col_val: number): Vote | undefined => {
+    find: (col_val: number): MjSummary | undefined => {
       for (let row of this.tableCache.iter()) {
-        if (deepEqual(row.id, col_val)) {
+        if (deepEqual(row.optionId, col_val)) {
           return row;
         }
       }
     },
   };
 
-  onInsert = (cb: (ctx: EventContext, row: Vote) => void) => {
+  onInsert = (cb: (ctx: EventContext, row: MjSummary) => void) => {
     return this.tableCache.onInsert(cb);
   }
 
-  removeOnInsert = (cb: (ctx: EventContext, row: Vote) => void) => {
+  removeOnInsert = (cb: (ctx: EventContext, row: MjSummary) => void) => {
     return this.tableCache.removeOnInsert(cb);
   }
 
-  onDelete = (cb: (ctx: EventContext, row: Vote) => void) => {
+  onDelete = (cb: (ctx: EventContext, row: MjSummary) => void) => {
     return this.tableCache.onDelete(cb);
   }
 
-  removeOnDelete = (cb: (ctx: EventContext, row: Vote) => void) => {
+  removeOnDelete = (cb: (ctx: EventContext, row: MjSummary) => void) => {
     return this.tableCache.removeOnDelete(cb);
   }
 
   // Updates are only defined for tables with primary keys.
-  onUpdate = (cb: (ctx: EventContext, oldRow: Vote, newRow: Vote) => void) => {
+  onUpdate = (cb: (ctx: EventContext, oldRow: MjSummary, newRow: MjSummary) => void) => {
     return this.tableCache.onUpdate(cb);
   }
 
-  removeOnUpdate = (cb: (ctx: EventContext, onRow: Vote, newRow: Vote) => void) => {
+  removeOnUpdate = (cb: (ctx: EventContext, onRow: MjSummary, newRow: MjSummary) => void) => {
     return this.tableCache.removeOnUpdate(cb);
   }}

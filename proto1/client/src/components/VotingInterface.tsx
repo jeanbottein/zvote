@@ -35,7 +35,7 @@ const VotingInterface: React.FC<VotingInterfaceProps> = ({ vote, onVoteCast, onE
     const initial = new Set<string>();
     for (const row of (connection.db as any).approval.iter() as Iterable<any>) {
       try {
-        const sameVote = row.voteId?.toString() === BigInt(vote.id).toString();
+        const sameVote = String(row.voteId) === Number.parseInt(vote.id, 10).toString();
         const sameVoter = row.voter?.toString?.() === currentIdentity;
         if (sameVote && sameVoter) {
           initial.add(String(row.optionId));
@@ -49,7 +49,7 @@ const VotingInterface: React.FC<VotingInterfaceProps> = ({ vote, onVoteCast, onE
     // Live updates: subscribe to approval table changes
     const onInsert = (_ctx: any, row: any) => {
       try {
-        const sameVote = row.voteId?.toString() === BigInt(vote.id).toString();
+        const sameVote = String(row.voteId) === Number.parseInt(vote.id, 10).toString();
         const sameVoter = row.voter?.toString?.() === currentIdentity;
         if (sameVote && sameVoter) {
           setUserApprovals(prev => new Set([...prev, String(row.optionId)]));
@@ -61,7 +61,7 @@ const VotingInterface: React.FC<VotingInterfaceProps> = ({ vote, onVoteCast, onE
 
     const onDelete = (_ctx: any, row: any) => {
       try {
-        const sameVote = row.voteId?.toString() === BigInt(vote.id).toString();
+        const sameVote = String(row.voteId) === Number.parseInt(vote.id, 10).toString();
         const sameVoter = row.voter?.toString?.() === currentIdentity;
         if (sameVote && sameVoter) {
           setUserApprovals(prev => {
@@ -132,6 +132,22 @@ const VotingInterface: React.FC<VotingInterfaceProps> = ({ vote, onVoteCast, onE
     } catch (error) {
       console.error('Error casting judgment:', error);
       if (onError) onError('Failed to cast judgment. Please try again.');
+    } finally {
+      setIsVoting(false);
+    }
+  };
+
+  const handleWithdrawMJ = async () => {
+    if (isVoting) return;
+    setIsVoting(true);
+    try {
+      await spacetimeDB.call('withdrawJudgments', vote.id);
+      // Clear local state for this vote
+      setUserJudgments({});
+      if (onVoteCast) onVoteCast();
+    } catch (error) {
+      console.error('Error withdrawing judgments:', error);
+      if (onError) onError('Failed to withdraw your judgments. Please try again.');
     } finally {
       setIsVoting(false);
     }
@@ -311,6 +327,22 @@ const VotingInterface: React.FC<VotingInterfaceProps> = ({ vote, onVoteCast, onE
 
       {isMajorityJudgment && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+            <button
+              onClick={handleWithdrawMJ}
+              disabled={isVoting}
+              className="secondary"
+              style={{
+                padding: '6px 10px',
+                borderRadius: '6px',
+                border: '1px solid var(--border)',
+                cursor: isVoting ? 'not-allowed' : 'pointer'
+              }}
+              title="Remove all your judgments for this vote"
+            >
+              Withdraw my vote
+            </button>
+          </div>
           {(vote.options || []).map((option) => {
             const userJudgment = userJudgments[option.id];
 

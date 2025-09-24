@@ -48,12 +48,16 @@ import { SetApprovals } from "./set_approvals_reducer.ts";
 export { SetApprovals };
 import { Unapprove } from "./unapprove_reducer.ts";
 export { Unapprove };
+import { WithdrawJudgments } from "./withdraw_judgments_reducer.ts";
+export { WithdrawJudgments };
 
 // Import and reexport all table handle types
 import { ApprovalTableHandle } from "./approval_table.ts";
 export { ApprovalTableHandle };
 import { JudgmentTableHandle } from "./judgment_table.ts";
 export { JudgmentTableHandle };
+import { MjSummaryTableHandle } from "./mj_summary_table.ts";
+export { MjSummaryTableHandle };
 import { ServerInfoTableHandle } from "./server_info_table.ts";
 export { ServerInfoTableHandle };
 import { VoteTableHandle } from "./vote_table.ts";
@@ -68,6 +72,8 @@ import { Judgment } from "./judgment_type.ts";
 export { Judgment };
 import { Mention } from "./mention_type.ts";
 export { Mention };
+import { MjSummary } from "./mj_summary_type.ts";
+export { MjSummary };
 import { ServerInfo } from "./server_info_type.ts";
 export { ServerInfo };
 import { Visibility } from "./visibility_type.ts";
@@ -92,6 +98,15 @@ const REMOTE_MODULE = {
       primaryKeyInfo: {
         colName: "id",
         colType: Judgment.getTypeScriptAlgebraicType().product.elements[0].algebraicType,
+      },
+    },
+    mj_summary: {
+      tableName: "mj_summary",
+      rowType: MjSummary.getTypeScriptAlgebraicType(),
+      primaryKey: "optionId",
+      primaryKeyInfo: {
+        colName: "optionId",
+        colType: MjSummary.getTypeScriptAlgebraicType().product.elements[0].algebraicType,
       },
     },
     server_info: {
@@ -151,6 +166,10 @@ const REMOTE_MODULE = {
       reducerName: "unapprove",
       argsType: Unapprove.getTypeScriptAlgebraicType(),
     },
+    withdraw_judgments: {
+      reducerName: "withdraw_judgments",
+      argsType: WithdrawJudgments.getTypeScriptAlgebraicType(),
+    },
   },
   versionInfo: {
     cliVersion: "1.3.2",
@@ -188,12 +207,13 @@ export type Reducer = never
 | { name: "EnsureServerInfo", args: EnsureServerInfo }
 | { name: "SetApprovals", args: SetApprovals }
 | { name: "Unapprove", args: Unapprove }
+| { name: "WithdrawJudgments", args: WithdrawJudgments }
 ;
 
 export class RemoteReducers {
   constructor(private connection: DbConnectionImpl, private setCallReducerFlags: SetReducerFlags) {}
 
-  approve(voteId: bigint, optionId: number) {
+  approve(voteId: number, optionId: number) {
     const __args = { voteId, optionId };
     let __writer = new BinaryWriter(1024);
     Approve.getTypeScriptAlgebraicType().serialize(__writer, __args);
@@ -201,11 +221,11 @@ export class RemoteReducers {
     this.connection.callReducer("approve", __argsBuffer, this.setCallReducerFlags.approveFlags);
   }
 
-  onApprove(callback: (ctx: ReducerEventContext, voteId: bigint, optionId: number) => void) {
+  onApprove(callback: (ctx: ReducerEventContext, voteId: number, optionId: number) => void) {
     this.connection.onReducer("approve", callback);
   }
 
-  removeOnApprove(callback: (ctx: ReducerEventContext, voteId: bigint, optionId: number) => void) {
+  removeOnApprove(callback: (ctx: ReducerEventContext, voteId: number, optionId: number) => void) {
     this.connection.offReducer("approve", callback);
   }
 
@@ -241,7 +261,7 @@ export class RemoteReducers {
     this.connection.offReducer("create_vote", callback);
   }
 
-  deleteVote(voteId: bigint) {
+  deleteVote(voteId: number) {
     const __args = { voteId };
     let __writer = new BinaryWriter(1024);
     DeleteVote.getTypeScriptAlgebraicType().serialize(__writer, __args);
@@ -249,11 +269,11 @@ export class RemoteReducers {
     this.connection.callReducer("delete_vote", __argsBuffer, this.setCallReducerFlags.deleteVoteFlags);
   }
 
-  onDeleteVote(callback: (ctx: ReducerEventContext, voteId: bigint) => void) {
+  onDeleteVote(callback: (ctx: ReducerEventContext, voteId: number) => void) {
     this.connection.onReducer("delete_vote", callback);
   }
 
-  removeOnDeleteVote(callback: (ctx: ReducerEventContext, voteId: bigint) => void) {
+  removeOnDeleteVote(callback: (ctx: ReducerEventContext, voteId: number) => void) {
     this.connection.offReducer("delete_vote", callback);
   }
 
@@ -269,7 +289,7 @@ export class RemoteReducers {
     this.connection.offReducer("ensure_server_info", callback);
   }
 
-  setApprovals(voteId: bigint, optionIds: number[]) {
+  setApprovals(voteId: number, optionIds: number[]) {
     const __args = { voteId, optionIds };
     let __writer = new BinaryWriter(1024);
     SetApprovals.getTypeScriptAlgebraicType().serialize(__writer, __args);
@@ -277,15 +297,15 @@ export class RemoteReducers {
     this.connection.callReducer("set_approvals", __argsBuffer, this.setCallReducerFlags.setApprovalsFlags);
   }
 
-  onSetApprovals(callback: (ctx: ReducerEventContext, voteId: bigint, optionIds: number[]) => void) {
+  onSetApprovals(callback: (ctx: ReducerEventContext, voteId: number, optionIds: number[]) => void) {
     this.connection.onReducer("set_approvals", callback);
   }
 
-  removeOnSetApprovals(callback: (ctx: ReducerEventContext, voteId: bigint, optionIds: number[]) => void) {
+  removeOnSetApprovals(callback: (ctx: ReducerEventContext, voteId: number, optionIds: number[]) => void) {
     this.connection.offReducer("set_approvals", callback);
   }
 
-  unapprove(voteId: bigint, optionId: number) {
+  unapprove(voteId: number, optionId: number) {
     const __args = { voteId, optionId };
     let __writer = new BinaryWriter(1024);
     Unapprove.getTypeScriptAlgebraicType().serialize(__writer, __args);
@@ -293,12 +313,28 @@ export class RemoteReducers {
     this.connection.callReducer("unapprove", __argsBuffer, this.setCallReducerFlags.unapproveFlags);
   }
 
-  onUnapprove(callback: (ctx: ReducerEventContext, voteId: bigint, optionId: number) => void) {
+  onUnapprove(callback: (ctx: ReducerEventContext, voteId: number, optionId: number) => void) {
     this.connection.onReducer("unapprove", callback);
   }
 
-  removeOnUnapprove(callback: (ctx: ReducerEventContext, voteId: bigint, optionId: number) => void) {
+  removeOnUnapprove(callback: (ctx: ReducerEventContext, voteId: number, optionId: number) => void) {
     this.connection.offReducer("unapprove", callback);
+  }
+
+  withdrawJudgments(voteId: number) {
+    const __args = { voteId };
+    let __writer = new BinaryWriter(1024);
+    WithdrawJudgments.getTypeScriptAlgebraicType().serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("withdraw_judgments", __argsBuffer, this.setCallReducerFlags.withdrawJudgmentsFlags);
+  }
+
+  onWithdrawJudgments(callback: (ctx: ReducerEventContext, voteId: number) => void) {
+    this.connection.onReducer("withdraw_judgments", callback);
+  }
+
+  removeOnWithdrawJudgments(callback: (ctx: ReducerEventContext, voteId: number) => void) {
+    this.connection.offReducer("withdraw_judgments", callback);
   }
 
 }
@@ -339,6 +375,11 @@ export class SetReducerFlags {
     this.unapproveFlags = flags;
   }
 
+  withdrawJudgmentsFlags: CallReducerFlags = 'FullUpdate';
+  withdrawJudgments(flags: CallReducerFlags) {
+    this.withdrawJudgmentsFlags = flags;
+  }
+
 }
 
 export class RemoteTables {
@@ -350,6 +391,10 @@ export class RemoteTables {
 
   get judgment(): JudgmentTableHandle {
     return new JudgmentTableHandle(this.connection.clientCache.getOrCreateTable<Judgment>(REMOTE_MODULE.tables.judgment));
+  }
+
+  get mjSummary(): MjSummaryTableHandle {
+    return new MjSummaryTableHandle(this.connection.clientCache.getOrCreateTable<MjSummary>(REMOTE_MODULE.tables.mj_summary));
   }
 
   get serverInfo(): ServerInfoTableHandle {

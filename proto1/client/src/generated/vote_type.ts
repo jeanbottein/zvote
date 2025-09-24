@@ -36,7 +36,7 @@ import { Visibility as __Visibility } from "./visibility_type";
 import { VotingSystem as __VotingSystem } from "./voting_system_type";
 
 export type Vote = {
-  id: bigint,
+  id: number,
   creator: Identity,
   title: string,
   visibility: __Visibility,
@@ -55,7 +55,7 @@ export namespace Vote {
   */
   export function getTypeScriptAlgebraicType(): AlgebraicType {
     return AlgebraicType.createProductType([
-      new ProductTypeElement("id", AlgebraicType.createU64Type()),
+      new ProductTypeElement("id", AlgebraicType.createU32Type()),
       new ProductTypeElement("creator", AlgebraicType.createIdentityType()),
       new ProductTypeElement("title", AlgebraicType.createStringType()),
       new ProductTypeElement("visibility", __Visibility.getTypeScriptAlgebraicType()),

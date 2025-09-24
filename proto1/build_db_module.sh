@@ -13,14 +13,26 @@ if ! command -v spacetime >/dev/null 2>&1; then
   exit 1
 fi
 
-# Ensure wasm32 target (safe if already installed)
+echo "[build] Ensuring wasm32 target..."
 if command -v rustup >/dev/null 2>&1; then
   if ! rustup target list --installed | grep -q '^wasm32-unknown-unknown$'; then
-    echo "Installing wasm32-unknown-unknown target..."
-    rustup target add wasm32-unknown-unknown
+    echo "[build] Installing wasm32-unknown-unknown target..."
+    rustup target add wasm32-unknown-unknown 1>/dev/null
   fi
 fi
 
-( cd "$MODULE_DIR" && spacetime build && rm -rf ../client/src/generated && spacetime generate --lang typescript --out-dir ../client/src/generated)
+# Run tests
+echo "[build] Running tests..."
+./test.sh 1>/dev/null || exit 2
+
+cd "$MODULE_DIR" || exit 1
+
+# Build the WASM module and regenerate the client SDK
+echo "[build] Building SpacetimeDB module..."
+spacetime build 1>/dev/null || exit 3
+
+echo "[build] Regenerating client SDK..."
+rm -rf ../client/src/generated || exit 4
+spacetime generate --lang typescript --out-dir ../client/src/generated 1>/dev/null || exit 5
 
 echo "Build finished."

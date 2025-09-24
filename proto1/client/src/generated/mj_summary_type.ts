@@ -32,32 +32,52 @@ import {
   type ReducerEventContextInterface,
   type SubscriptionEventContextInterface,
 } from "@clockworklabs/spacetimedb-sdk";
+import { Mention as __Mention } from "./mention_type";
 
-export type DeleteVote = {
+export type MjSummary = {
+  optionId: number,
   voteId: number,
+  total: number,
+  toReject: number,
+  passable: number,
+  good: number,
+  veryGood: number,
+  excellent: number,
+  majority: __Mention,
+  second: __Mention | undefined,
 };
 
 /**
  * A namespace for generated helper functions.
  */
-export namespace DeleteVote {
+export namespace MjSummary {
   /**
   * A function which returns this type represented as an AlgebraicType.
   * This function is derived from the AlgebraicType used to generate this type.
   */
   export function getTypeScriptAlgebraicType(): AlgebraicType {
     return AlgebraicType.createProductType([
+      new ProductTypeElement("optionId", AlgebraicType.createU32Type()),
       new ProductTypeElement("voteId", AlgebraicType.createU32Type()),
+      new ProductTypeElement("total", AlgebraicType.createU32Type()),
+      new ProductTypeElement("toReject", AlgebraicType.createU32Type()),
+      new ProductTypeElement("passable", AlgebraicType.createU32Type()),
+      new ProductTypeElement("good", AlgebraicType.createU32Type()),
+      new ProductTypeElement("veryGood", AlgebraicType.createU32Type()),
+      new ProductTypeElement("excellent", AlgebraicType.createU32Type()),
+      new ProductTypeElement("majority", __Mention.getTypeScriptAlgebraicType()),
+      new ProductTypeElement("second", AlgebraicType.createOptionType(__Mention.getTypeScriptAlgebraicType())),
     ]);
   }
 
-  export function serialize(writer: BinaryWriter, value: DeleteVote): void {
-    DeleteVote.getTypeScriptAlgebraicType().serialize(writer, value);
+  export function serialize(writer: BinaryWriter, value: MjSummary): void {
+    MjSummary.getTypeScriptAlgebraicType().serialize(writer, value);
   }
 
-  export function deserialize(reader: BinaryReader): DeleteVote {
-    return DeleteVote.getTypeScriptAlgebraicType().deserialize(reader);
+  export function deserialize(reader: BinaryReader): MjSummary {
+    return MjSummary.getTypeScriptAlgebraicType().deserialize(reader);
   }
 
 }
+
 

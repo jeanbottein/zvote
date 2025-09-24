@@ -256,12 +256,25 @@ function App() {
                       const medianIdx = Math.floor(expanded.length / 2);
                       return expanded[medianIdx] || null;
                     };
+                    const computeSecondMention = (counts?: Record<string, number>, total?: number, majority?: string | null) => {
+                      const c = { ...(counts || { ToReject: 0, Passable: 0, Good: 0, VeryGood: 0, Excellent: 0 } as Record<string, number>) };
+                      const t = total || 0;
+                      if (t <= 1 || !majority) return null;
+                      if (c[majority] > 0) c[majority] -= 1;
+                      return computeMajorityMention(c, t - 1);
+                    };
                     const sorted = [...(selectedVote.options || [])].sort((a, b) => {
-                      const ma = computeMajorityMention(a.judgment_counts as any, a.total_judgments);
-                      const mb = computeMajorityMention(b.judgment_counts as any, b.total_judgments);
+                      const ma = a.majority_tag || computeMajorityMention(a.judgment_counts as any, a.total_judgments);
+                      const mb = b.majority_tag || computeMajorityMention(b.judgment_counts as any, b.total_judgments);
                       const ra = ma ? mentionOrder[ma] : 0;
                       const rb = mb ? mentionOrder[mb] : 0;
-                      return rb - ra;
+                      if (rb !== ra) return rb - ra;
+                      // Tie-breaker: use server-provided second mention if available, else compute
+                      const sa = a.second_tag || computeSecondMention(a.judgment_counts as any, a.total_judgments, ma);
+                      const sb = b.second_tag || computeSecondMention(b.judgment_counts as any, b.total_judgments, mb);
+                      const rsa = sa ? mentionOrder[sa] : 0;
+                      const rsb = sb ? mentionOrder[sb] : 0;
+                      return rsb - rsa;
                     });
                     return sorted.map((option) => {
                       const judgmentCounts = option.judgment_counts || {
@@ -278,6 +291,8 @@ function App() {
                           optionLabel={option.label}
                           judgmentCounts={judgmentCounts}
                           totalJudgments={totalJudgments}
+                          majorityTag={option.majority_tag}
+                          secondTag={option.second_tag}
                           compact={false}
                         />
                       );

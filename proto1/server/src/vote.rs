@@ -6,7 +6,7 @@ use std::collections::HashSet;
 use crate::utils::normalize_label;
 // Bring table traits into scope for method resolution on `ctx.db.*()`.
 use crate::approval::approval;
-use crate::judgment::{judgment, Mention};
+use crate::judgment::judgment;
 use crate::judgment::mj_summary as mj_summary_table;
 
 // Maximum number of options allowed per vote (server-enforced)

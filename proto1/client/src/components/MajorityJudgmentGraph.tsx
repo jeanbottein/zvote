@@ -14,13 +14,17 @@ interface MajorityJudgmentGraphProps {
   judgmentCounts: JudgmentCounts;
   totalJudgments: number;
   compact?: boolean;
+  majorityTag?: string | null;
+  secondTag?: string | null;
 }
 
 const MajorityJudgmentGraph: React.FC<MajorityJudgmentGraphProps> = ({ 
   optionLabel, 
   judgmentCounts, 
   totalJudgments,
-  compact = false 
+  compact = false,
+  majorityTag,
+  secondTag,
 }) => {
   // React to color mode (color vs colorblind)
   const [mode, setMode] = useState(getColorMode());
@@ -58,12 +62,35 @@ const MajorityJudgmentGraph: React.FC<MajorityJudgmentGraphProps> = ({
     Excellent: 'Excellent'
   };
 
-  // Calculate majority judgment (median) — if no judgments, show placeholder
-  const sortedJudgments = Object.entries(judgmentCounts)
-    .flatMap(([judgment, count]) => Array(count).fill(judgment))
-    .sort();
-  const medianIndex = Math.floor(sortedJudgments.length / 2);
-  const majorityJudgment = totalJudgments > 0 ? (sortedJudgments[medianIndex] || 'Passable') : null;
+  // Correct order for mentions (for computing median)
+  const mentionOrder: Record<keyof JudgmentCounts, number> = {
+    ToReject: 1,
+    Passable: 2,
+    Good: 3,
+    VeryGood: 4,
+    Excellent: 5,
+  };
+
+  const computeMajority = (counts: JudgmentCounts, total: number): keyof JudgmentCounts | null => {
+    if (total <= 0) return null;
+    const expanded: Array<keyof JudgmentCounts> = (Object.entries(counts) as Array<[
+      keyof JudgmentCounts,
+      number
+    ]>).flatMap(([m, n]) => Array(n).fill(m));
+    expanded.sort((a, b) => mentionOrder[a] - mentionOrder[b]);
+    const medianIdx = Math.floor(expanded.length / 2);
+    return expanded[medianIdx] || null;
+  };
+
+  const computeSecond = (counts: JudgmentCounts, total: number, majority: keyof JudgmentCounts | null): keyof JudgmentCounts | null => {
+    if (total <= 1 || !majority) return null;
+    const copy: JudgmentCounts = { ...counts } as any;
+    if (copy[majority] > 0) copy[majority] -= 1;
+    return computeMajority(copy, total - 1);
+  };
+
+  const majorityJudgment = majorityTag as keyof JudgmentCounts | null ?? computeMajority(judgmentCounts, totalJudgments);
+  const secondJudgment = secondTag as keyof JudgmentCounts | null ?? computeSecond(judgmentCounts, totalJudgments, majorityJudgment);
 
   return (
     <div style={{ 
@@ -80,7 +107,7 @@ const MajorityJudgmentGraph: React.FC<MajorityJudgmentGraphProps> = ({
       }}>
         <div style={{ fontWeight: '500' }}>{optionLabel}</div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <span style={{ fontSize: '12px', color: 'var(--muted)' }}>Majority mention</span>
+          <span style={{ fontSize: '12px', color: 'var(--muted)' }}>Majority</span>
           <div style={{ 
             fontSize: '12px',
             padding: '2px 6px',
@@ -98,6 +125,25 @@ const MajorityJudgmentGraph: React.FC<MajorityJudgmentGraphProps> = ({
             })()
           }}>
             {majorityJudgment ? judgmentLabels[majorityJudgment as keyof typeof judgmentLabels] : '—'}
+          </div>
+          <span style={{ fontSize: '12px', color: 'var(--muted)', marginLeft: '8px' }}>Second</span>
+          <div style={{ 
+            fontSize: '12px',
+            padding: '2px 6px',
+            borderRadius: '4px',
+            backgroundColor: secondJudgment ? judgmentColors[secondJudgment as keyof typeof judgmentColors] : 'var(--border)',
+            border: '1px dashed var(--border)',
+            color: (() => {
+              if (!secondJudgment) return 'var(--muted)';
+              if (mode === 'colorblind') {
+                const light = ['Good','VeryGood','Excellent'];
+                return light.includes(secondJudgment as string) ? '#0b0b0b' : '#ffffff';
+              }
+              const bright = ['Good','VeryGood'];
+              return bright.includes(secondJudgment as string) ? '#0b0b0b' : '#ffffff';
+            })()
+          }} title="Tie-break mention">
+            {secondJudgment ? judgmentLabels[secondJudgment as keyof typeof judgmentLabels] : '—'}
           </div>
         </div>
       </div>

@@ -27,6 +27,8 @@ export interface VoteWithOptions {
       Excellent: number;
     };
     total_judgments?: number;
+    majority_tag?: string | null;
+    second_tag?: string | null;
   }>;
 }
 
@@ -46,6 +48,16 @@ export const useVotes = () => {
 
     try {
       const allVotes: VoteWithOptions[] = [];
+
+      // Build a lookup for MJ summaries by optionId for fast access
+      const summaryByOptionId = new Map<string, any>();
+      try {
+        for (const s of (spacetimeDB.connection.db as any).mjSummary.iter() as Iterable<any>) {
+          summaryByOptionId.set(String(s.optionId), s);
+        }
+      } catch (_) {
+        // If mj_summary is not available yet, we'll fall back to judgment scan
+      }
       
       // Get all votes from the database
       for (const vote of (spacetimeDB.connection.db as any).vote.iter() as Iterable<any>) {
@@ -74,23 +86,35 @@ export const useVotes = () => {
                 approvalsCount++;
               }
             }
-
-            // Count judgments for this option (for majority judgment)
-            const judgmentCounts = {
+            // Majority Judgment counts: prefer mj_summary, fallback to scanning judgment table
+            let judgmentCounts = {
               ToReject: 0,
               Passable: 0,
               Good: 0,
               VeryGood: 0,
               Excellent: 0
-            };
-            
-            for (const judgment of (spacetimeDB.connection.db as any).judgment.iter() as Iterable<any>) {
-              if (judgment.optionId?.toString() === option.id.toString()) {
-                const mention = judgment.mention?.tag;
-                if (mention && judgmentCounts.hasOwnProperty(mention)) {
-                  judgmentCounts[mention as keyof typeof judgmentCounts]++;
+            } as Record<string, number>;
+            let totalJudgments = 0;
+            const sumRow = summaryByOptionId.get(String(option.id));
+            if (sumRow) {
+              judgmentCounts = {
+                ToReject: Number(sumRow.toReject || 0),
+                Passable: Number(sumRow.passable || 0),
+                Good: Number(sumRow.good || 0),
+                VeryGood: Number(sumRow.veryGood || 0),
+                Excellent: Number(sumRow.excellent || 0)
+              };
+              totalJudgments = Number(sumRow.total || 0);
+            } else {
+              for (const judgment of (spacetimeDB.connection.db as any).judgment.iter() as Iterable<any>) {
+                if (judgment.optionId?.toString() === option.id.toString()) {
+                  const mention = judgment.mention?.tag;
+                  if (mention && (judgmentCounts as any).hasOwnProperty(mention)) {
+                    judgmentCounts[mention as keyof typeof judgmentCounts]++;
+                  }
                 }
               }
+              totalJudgments = Object.values(judgmentCounts).reduce((a, b) => a + b, 0);
             }
 
             options.push({
@@ -98,7 +122,9 @@ export const useVotes = () => {
               label: option.label,
               approvals_count: approvalsCount,
               judgment_counts: judgmentCounts,
-              total_judgments: Object.values(judgmentCounts).reduce((a, b) => a + b, 0)
+              total_judgments: totalJudgments,
+              majority_tag: sumRow?.majority?.tag ?? null,
+              second_tag: sumRow?.second?.tag ?? null
             });
           }
         }
@@ -216,6 +242,25 @@ export const useVotes = () => {
         console.log('Judgment deleted - updating list', row);
         updateVotes();
       });
+
+      // Listen for MJ summary changes (server precomputed)
+      try {
+        const mjs = (spacetimeDB.connection.db as any).mjSummary;
+        mjs.onInsert((_ctx: any, row: any) => {
+          console.log('MJ summary inserted - updating list', row);
+          updateVotes();
+        });
+        mjs.onUpdate((_ctx: any, oldRow: any, newRow: any) => {
+          console.log('MJ summary updated - updating list', oldRow, newRow);
+          updateVotes();
+        });
+        mjs.onDelete((_ctx: any, row: any) => {
+          console.log('MJ summary deleted - updating list', row);
+          updateVotes();
+        });
+      } catch (_) {
+        // Older servers may not have mj_summary; ignore
+      }
     }
 
     return () => {

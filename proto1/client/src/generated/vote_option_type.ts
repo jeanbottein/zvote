@@ -34,7 +34,7 @@ import {
 } from "@clockworklabs/spacetimedb-sdk";
 export type VoteOption = {
   id: number,
-  voteId: bigint,
+  voteId: number,
   label: string,
   approvalsCount: number,
   orderIndex: number,
@@ -51,7 +51,7 @@ export namespace VoteOption {
   export function getTypeScriptAlgebraicType(): AlgebraicType {
     return AlgebraicType.createProductType([
       new ProductTypeElement("id", AlgebraicType.createU32Type()),
-      new ProductTypeElement("voteId", AlgebraicType.createU64Type()),
+      new ProductTypeElement("voteId", AlgebraicType.createU32Type()),
       new ProductTypeElement("label", AlgebraicType.createStringType()),
       new ProductTypeElement("approvalsCount", AlgebraicType.createU32Type()),
       new ProductTypeElement("orderIndex", AlgebraicType.createU32Type()),

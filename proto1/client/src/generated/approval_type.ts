@@ -33,7 +33,7 @@ import {
   type SubscriptionEventContextInterface,
 } from "@clockworklabs/spacetimedb-sdk";
 export type Approval = {
-  voteId: bigint,
+  voteId: number,
   optionId: number,
   voter: Identity,
   ts: Timestamp,
@@ -49,7 +49,7 @@ export namespace Approval {
   */
   export function getTypeScriptAlgebraicType(): AlgebraicType {
     return AlgebraicType.createProductType([
-      new ProductTypeElement("voteId", AlgebraicType.createU64Type()),
+      new ProductTypeElement("voteId", AlgebraicType.createU32Type()),
       new ProductTypeElement("optionId", AlgebraicType.createU32Type()),
       new ProductTypeElement("voter", AlgebraicType.createIdentityType()),
       new ProductTypeElement("ts", AlgebraicType.createTimestampType()),
