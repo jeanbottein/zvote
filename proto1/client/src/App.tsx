@@ -205,13 +205,26 @@ function App() {
         <Header onViewChange={handleViewChange} currentView={currentView} />
         <main>
           <div className="panel">
-            <button
-              onClick={handleBackToHome}
-              className="btn-secondary"
-              style={{ marginBottom: '16px' }}
-            >
-              ← Back to votes
-            </button>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <button
+                onClick={handleBackToHome}
+                className="btn-secondary"
+              >
+                ← Back to votes
+              </button>
+              <div className="header-badges">
+                {/* Visibility tag */}
+                <div className="badge" style={getVisibilityBadgeStyle(selectedVote)}>
+                  {getVisibilityDisplayName(selectedVote)}
+                </div>
+                {/* Total judgments tag (green) for majority judgment */}
+                {getVotingSystemDisplayName(selectedVote.voting_system) === 'MajorityJudgment' && (
+                  <div className="badge" style={{ backgroundColor: '#16a34a', color: 'white' }}>
+                    {Math.max(0, ...((selectedVote.options || []).map(o => o.total_judgments || 0)))} judgments
+                  </div>
+                )}
+              </div>
+            </div>
             <h2>{selectedVote.title}</h2>
             
             {/* Vote Results */}

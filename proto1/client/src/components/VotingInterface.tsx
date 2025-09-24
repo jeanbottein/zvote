@@ -247,19 +247,6 @@ const VotingInterface: React.FC<VotingInterfaceProps> = ({ vote, onVoteCast, onE
     };
   }, [vote.id]);
 
-  // Visibility badge style (same as App.tsx)
-  const getVisibilityBadgeStyle = (visibilityTag?: string): React.CSSProperties => {
-    switch (visibilityTag) {
-      case 'Public':
-        return { backgroundColor: '#15803d', color: 'white' };
-      case 'Unlisted':
-        return { backgroundColor: '#b45309', color: 'white' };
-      case 'Private':
-        return { backgroundColor: '#dc2626', color: 'white' };
-      default:
-        return {};
-    }
-  };
 
   if (!vote.options || vote.options.length === 0) {
     return <div>No voting options available.</div>;
@@ -267,18 +254,6 @@ const VotingInterface: React.FC<VotingInterfaceProps> = ({ vote, onVoteCast, onE
 
   return (
     <div style={{ marginTop: '16px' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
-        {/* Visibility tag */}
-        <div className="badge" style={getVisibilityBadgeStyle(vote.visibility?.tag)}>
-          {vote.visibility?.tag || (vote.public ? 'Public' : 'Private')}
-        </div>
-        {/* Total judgments tag (green) */}
-        {isMajorityJudgment && (
-          <div className="badge" style={{ backgroundColor: '#16a34a', color: 'white' }}>
-            {Math.max(0, ...((vote.options || []).map(o => o.total_judgments || 0)))} judgments
-          </div>
-        )}
-      </div>
 
       {isApprovalVoting && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -382,79 +357,123 @@ const VotingInterface: React.FC<VotingInterfaceProps> = ({ vote, onVoteCast, onE
           {(vote.options || []).map((option) => {
             const userJudgment = userJudgments[option.id];
 
-            // Slider value mapping 0..4
-            const sliderValue = userJudgment ? (mentionOrder[userJudgment] - 1) : 2; // default mid
+            // Slider value mapping 0..4 - no default selection if user hasn't voted
+            const sliderValue = userJudgment ? (mentionOrder[userJudgment] - 1) : -1; // no default selection
 
             const mentionKeys: Array<keyof typeof mentionOrder> = ['ToReject','Passable','Good','VeryGood','Excellent'];
             const mentionLabel = (m: string) => m.replace(/([A-Z])/g, ' $1').trim();
             const trackGradient = colorMode === 'colorblind'
               ? 'linear-gradient(90deg, #1f2937 0%, #4b5563 25%, #9ca3af 50%, #d1d5db 75%, #ffffff 100%)'
               : 'linear-gradient(90deg, #dc2626 0%, #f97316 25%, #facc15 50%, #4ade80 75%, #16a34a 100%)';
+            
+            // Get color for each mention
+            const getMentionColor = (mentionKey: string) => {
+              if (colorMode === 'colorblind') {
+                const grayColors = ['#1f2937', '#4b5563', '#9ca3af', '#d1d5db', '#ffffff'];
+                const index = mentionKeys.indexOf(mentionKey as keyof typeof mentionOrder);
+                return grayColors[index] || '#9ca3af';
+              } else {
+                const colors = ['#dc2626', '#f97316', '#facc15', '#4ade80', '#16a34a'];
+                const index = mentionKeys.indexOf(mentionKey as keyof typeof mentionOrder);
+                return colors[index] || '#facc15';
+              }
+            };
 
             return (
               <div key={option.id} style={{ position: 'relative', padding: '10px', border: '1px solid var(--border)', borderRadius: '8px' }}>
                 <div style={{ fontWeight: 500, marginBottom: '8px' }}>{option.label}</div>
 
                 {/* Slider voting only (no results) */}
-                <div style={{ position: 'relative' }}>
+                <div style={{ position: 'relative', padding: '0 12px' }}>
                   {/* Ticks above the slider */}
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
-                    {mentionKeys.map((m) => (
-                      <div key={m} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '20%' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px', position: 'relative' }}>
+                    {mentionKeys.map((m, idx) => (
+                      <div key={m} style={{ position: 'absolute', left: `${idx * 25}%`, transform: 'translateX(-50%)' }}>
                         <div style={{ width: '2px', height: '10px', background: 'var(--border)' }} />
                       </div>
                     ))}
                   </div>
 
-                  <input
-                    type="range"
-                    min={0}
-                    max={4}
-                    step={1}
-                    value={sliderValue}
-                    onChange={(e) => {
-                      const val = Number(e.target.value);
-                      const mention = mentionKeys[val] as string;
-                      handleJudgmentVote(option.id, mention);
-                    }}
-                    disabled={isVoting}
-                    style={{
-                      width: '100%',
-                      appearance: 'none',
-                      height: '8px',
-                      borderRadius: '9999px',
-                      background: trackGradient,
-                      outline: 'none',
-                    }}
-                  />
-                  {/* Custom thumb styling */}
+                  <div style={{ position: 'relative' }}>
+                    <input
+                      type="range"
+                      min={0}
+                      max={4}
+                      step={1}
+                      value={sliderValue >= 0 ? sliderValue : 2}
+                      onChange={(e) => {
+                        const val = Number(e.target.value);
+                        const mention = mentionKeys[val] as string;
+                        handleJudgmentVote(option.id, mention);
+                      }}
+                      disabled={isVoting}
+                      className="mj-slider"
+                      style={{
+                        width: '100%',
+                        appearance: 'none',
+                        height: '8px',
+                        borderRadius: '9999px',
+                        background: trackGradient,
+                        outline: 'none',
+                        margin: '0',
+                      }}
+                    />
+                    
+                    {/* Custom thumb - only show if user has voted */}
+                    {sliderValue >= 0 && (
+                      <div 
+                        style={{
+                          position: 'absolute',
+                          top: '50%',
+                          left: `${(sliderValue / 4) * 100}%`,
+                          transform: 'translate(-50%, -50%)',
+                          width: '12px',
+                          height: '12px',
+                          borderRadius: '50%',
+                          background: '#fff',
+                          border: '2px solid #333',
+                          pointerEvents: 'none',
+                          zIndex: 10,
+                        }}
+                      />
+                    )}
+                  </div>
+
+                  {/* Ticks below the slider */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '6px', position: 'relative' }}>
+                    {mentionKeys.map((m, idx) => (
+                      <div key={m} style={{ position: 'absolute', left: `${idx * 25}%`, transform: 'translateX(-50%)' }}>
+                        <div style={{ width: '2px', height: '10px', background: 'var(--border)' }} />
+                      </div>
+                    ))}
+                  </div>
+                  
+                  {/* Hide default thumb with CSS */}
                   <style>{`
-                    input[type="range"]::-webkit-slider-thumb {
+                    .mj-slider::-webkit-slider-thumb {
                       -webkit-appearance: none;
                       appearance: none;
-                      width: 18px;
-                      height: 18px;
-                      border-radius: 50%;
-                      background: #111;
-                      border: 2px solid white;
-                      box-shadow: 0 0 0 2px #111;
+                      width: 0;
+                      height: 0;
+                      background: transparent;
+                      border: none;
                       cursor: pointer;
                     }
-                    input[type="range"]::-moz-range-thumb {
-                      width: 18px;
-                      height: 18px;
-                      border-radius: 50%;
-                      background: #111;
-                      border: 2px solid white;
-                      box-shadow: 0 0 0 2px #111;
+                    .mj-slider::-moz-range-thumb {
+                      width: 0;
+                      height: 0;
+                      background: transparent;
+                      border: none;
                       cursor: pointer;
+                      border-radius: 0;
                     }
                   `}</style>
 
                   {/* Mention labels under the slider, clickable to set value */}
                   <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px', marginTop: '8px' }}>
                     {mentionKeys.map((m, idx) => {
-                      const selected = sliderValue === idx;
+                      const selected = sliderValue >= 0 && sliderValue === idx;
+                      const mentionColor = getMentionColor(m);
                       return (
                         <button
                           key={m}
@@ -465,9 +484,9 @@ const VotingInterface: React.FC<VotingInterfaceProps> = ({ vote, onVoteCast, onE
                             padding: '6px 8px',
                             fontSize: '11px',
                             borderRadius: '9999px',
-                            border: '1px solid var(--border)',
-                            background: selected ? 'var(--accent-solid)' : 'transparent',
-                            color: selected ? '#0b0b0b' : 'var(--fg)',
+                            border: selected ? `2px solid ${mentionColor}` : '1px solid var(--border)',
+                            background: selected ? mentionColor : 'transparent',
+                            color: selected ? (colorMode === 'colorblind' && (m === 'VeryGood' || m === 'Excellent') ? '#000' : '#fff') : 'var(--fg)',
                             cursor: isVoting ? 'not-allowed' : 'pointer',
                             textAlign: 'center',
                           }}

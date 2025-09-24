@@ -10,19 +10,9 @@ interface HeaderProps {
 const Header: React.FC<HeaderProps> = ({ onViewChange, currentView }) => {
   const [user, setUser] = useState(spacetimeDB.currentUser);
   const [connected, setConnected] = useState(false);
-  const [serverHost, setServerHost] = useState('');
   const [colorMode, setColorMode] = useState(getColorMode());
-  const [currentServerUri, setCurrentServerUri] = useState('');
 
   useEffect(() => {
-    // Set default server URI display
-    const scheme = location.protocol === 'https:' ? 'wss' : 'ws';
-    const hostForDefault = location.hostname || 'localhost';
-    const defaultUri = `${scheme}://${hostForDefault === 'localhost' ? '127.0.0.1' : hostForDefault}:3000`;
-    const overrideUri = localStorage.getItem('server_uri_override');
-    
-    setCurrentServerUri(overrideUri || defaultUri);
-    
     const handleConnectionChange = (isConnected: boolean) => {
       setConnected(isConnected);
       if (isConnected) {
@@ -55,26 +45,6 @@ const Header: React.FC<HeaderProps> = ({ onViewChange, currentView }) => {
     }
   };
 
-  const handleSetServer = () => {
-    if (!serverHost.trim()) return;
-    
-    try {
-      // Validate server URI format
-      const nextUri = serverHost.startsWith('ws://') || serverHost.startsWith('wss://') 
-        ? serverHost 
-        : `ws://${serverHost}`;
-      
-      localStorage.setItem('server_uri_override', nextUri);
-      location.reload();
-    } catch {
-      alert('Invalid server URI. Use ws://host:port or wss://host:port');
-    }
-  };
-
-  const handleResetServer = () => {
-    localStorage.removeItem('server_uri_override');
-    location.reload();
-  };
 
   const handleToggleColorMode = () => {
     const next = colorMode === 'color' ? 'colorblind' : 'color';
@@ -114,30 +84,8 @@ const Header: React.FC<HeaderProps> = ({ onViewChange, currentView }) => {
               </button>
             </div>
 
-            {/* Server section */}
-            <div className="server">
-              <span className="muted">Server:</span>
-              <span style={{ fontSize: '12px', color: 'var(--muted)', marginRight: '8px' }}>
-                {currentServerUri}
-              </span>
-              <input
-                type="text"
-                value={serverHost}
-                onChange={(e) => setServerHost(e.target.value)}
-                placeholder="host or ws://..."
-              />
-              <button
-                onClick={handleSetServer}
-                className="btn"
-              >
-                Set
-              </button>
-              <button
-                onClick={handleResetServer}
-                className="btn-secondary"
-              >
-                Reset
-              </button>
+            {/* Color mode toggle */}
+            <div>
               <button
                 onClick={handleToggleColorMode}
                 className="btn-secondary"
