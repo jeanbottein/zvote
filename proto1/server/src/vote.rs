@@ -6,7 +6,8 @@ use std::collections::HashSet;
 use crate::utils::normalize_label;
 // Bring table traits into scope for method resolution on `ctx.db.*()`.
 use crate::approval::approval;
-use crate::judgment::judgment;
+use crate::judgment::{judgment, Mention};
+use crate::judgment::mj_summary as mj_summary_table;
 
 // Maximum number of options allowed per vote (server-enforced)
 pub const MAX_OPTIONS: usize = 20;
@@ -35,7 +36,7 @@ pub enum Visibility {
 pub struct Vote {
     #[auto_inc]
     #[primary_key]
-    pub id: u64,
+    pub id: u32,
     pub creator: Identity,
     pub title: String,
     pub visibility: Visibility,
@@ -56,7 +57,7 @@ pub struct VoteOption {
     #[auto_inc]
     #[primary_key]
     pub id: u32,
-    pub vote_id: u64,
+    pub vote_id: u32,
     pub label: String,
     pub approvals_count: u32,
     pub order_index: u32,
@@ -162,10 +163,15 @@ pub fn ensure_server_info(ctx: &ReducerContext) -> Result<(), String> {
 
 // Reducer: delete a vote (only creator can delete)
 #[spacetimedb::reducer]
-pub fn delete_vote(ctx: &ReducerContext, vote_id: u64) -> Result<(), String> {
+pub fn delete_vote(ctx: &ReducerContext, vote_id: u32) -> Result<(), String> {
     if let Some(vote) = ctx.db.vote().id().find(vote_id) {
         if vote.creator != ctx.sender {
             return Err("Only the vote creator can delete this vote".into());
+        }
+
+        // Delete MJ summaries for this vote
+        for s in ctx.db.mj_summary().by_vote().filter(vote_id) {
+            ctx.db.mj_summary().delete(s);
         }
 
         // Delete approvals
@@ -191,12 +197,12 @@ pub fn delete_vote(ctx: &ReducerContext, vote_id: u64) -> Result<(), String> {
 // --- Public helpers for cross-module access to primary-key operations ---
 
 /// Return true if a vote with the given id exists.
-pub fn vote_exists(ctx: &ReducerContext, vote_id: u64) -> bool {
+pub fn vote_exists(ctx: &ReducerContext, vote_id: u32) -> bool {
     ctx.db.vote().id().find(vote_id).is_some()
 }
 
 /// Find a vote by id.
-pub fn find_vote_by_id(ctx: &ReducerContext, vote_id: u64) -> Option<Vote> {
+pub fn find_vote_by_id(ctx: &ReducerContext, vote_id: u32) -> Option<Vote> {
     ctx.db.vote().id().find(vote_id)
 }
 
@@ -228,7 +234,7 @@ pub fn set_vote_option_approvals_count(ctx: &ReducerContext, opt: VoteOption, ne
 }
 
 /// Get the parent vote id for a vote option.
-pub fn vote_option_vote_id(opt: &VoteOption) -> u64 {
+pub fn vote_option_vote_id(opt: &VoteOption) -> u32 {
     opt.vote_id
 }
 
@@ -238,7 +244,7 @@ pub fn vote_option_approvals_count(opt: &VoteOption) -> u32 {
 }
 
 /// Get all options for a given vote.
-pub fn get_vote_options(ctx: &ReducerContext, vote_id: u64) -> impl Iterator<Item = VoteOption> + '_ {
+pub fn get_vote_options(ctx: &ReducerContext, vote_id: u32) -> impl Iterator<Item = VoteOption> + '_ {
     ctx.db.vote_option().by_vote().filter(vote_id)
 }
 

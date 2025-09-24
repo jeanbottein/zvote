@@ -15,7 +15,7 @@ use self::approval as approval_table;
     index(name = by_vote_voter_option, btree(columns = [vote_id, voter, option_id]))
 )]
 pub struct Approval {
-    vote_id: u64,
+    vote_id: u32,
     option_id: u32,
     voter: Identity,
     ts: Timestamp,
@@ -23,7 +23,7 @@ pub struct Approval {
 
 // Reducer: approve a single option
 #[spacetimedb::reducer]
-pub fn approve(ctx: &ReducerContext, vote_id: u64, option_id: u32) -> Result<(), String> {
+pub fn approve(ctx: &ReducerContext, vote_id: u32, option_id: u32) -> Result<(), String> {
     let Some(opt) = find_vote_option_by_id(ctx, option_id) else {
         return Err("Option not found".into());
     };
@@ -67,7 +67,7 @@ pub fn approve(ctx: &ReducerContext, vote_id: u64, option_id: u32) -> Result<(),
 
 // Reducer: remove approval for a single option
 #[spacetimedb::reducer]
-pub fn unapprove(ctx: &ReducerContext, vote_id: u64, option_id: u32) -> Result<(), String> {
+pub fn unapprove(ctx: &ReducerContext, vote_id: u32, option_id: u32) -> Result<(), String> {
     let Some(opt) = find_vote_option_by_id(ctx, option_id) else {
         return Err("Option not found".into());
     };
@@ -100,7 +100,7 @@ pub fn unapprove(ctx: &ReducerContext, vote_id: u64, option_id: u32) -> Result<(
 
 // Reducer: set the full approval set for the caller for a given vote
 #[spacetimedb::reducer]
-pub fn set_approvals(ctx: &ReducerContext, vote_id: u64, option_ids: Vec<u32>) -> Result<(), String> {
+pub fn set_approvals(ctx: &ReducerContext, vote_id: u32, option_ids: Vec<u32>) -> Result<(), String> {
     // Validate vote exists
     // Validate vote exists and is of the correct type
     let Some(vote) = find_vote_by_id(ctx, vote_id) else {

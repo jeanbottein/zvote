@@ -27,6 +27,110 @@ pub struct Judgment {
     mention: Mention,
 }
 
+// Precomputed summary for Majority Judgment per option
+#[spacetimedb::table(
+    name = mj_summary,
+    public,
+    index(name = by_vote, btree(columns = [vote_id]))
+)]
+pub struct MjSummary {
+    // Use option_id as primary key for convenient upserts
+    #[primary_key]
+    pub option_id: u32,
+    pub vote_id: u32,
+    pub total: u32,
+    pub to_reject: u32,
+    pub passable: u32,
+    pub good: u32,
+    pub very_good: u32,
+    pub excellent: u32,
+    pub majority: Mention,
+    pub second: Option<Mention>,
+}
+
+fn compute_majority_from_counts(counts: &[u32; 5], total: u32) -> Mention {
+    // Order: ToReject(0) < Passable(1) < Good(2) < VeryGood(3) < Excellent(4)
+    let order = [Mention::ToReject, Mention::Passable, Mention::Good, Mention::VeryGood, Mention::Excellent];
+    if total == 0 {
+        return Mention::ToReject; // default when no judgments
+    }
+    let target = (total + 1) / 2; // median position (1-indexed)
+    let mut cum = 0u32;
+    for (i, m) in order.iter().enumerate() {
+        cum = cum.saturating_add(counts[i]);
+        if cum >= target {
+            return *m;
+        }
+    }
+    // Fallback (shouldn't happen)
+    Mention::Excellent
+}
+
+fn compute_second_from_counts(counts: &[u32; 5], total: u32, majority: Mention) -> Option<Mention> {
+    if total <= 1 { return None; }
+    let mut counts2 = *counts;
+    let idx = match majority {
+        Mention::ToReject => 0,
+        Mention::Passable => 1,
+        Mention::Good => 2,
+        Mention::VeryGood => 3,
+        Mention::Excellent => 4,
+    };
+    if counts2[idx] == 0 { return None; }
+    counts2[idx] -= 1;
+    let t2 = total - 1;
+    Some(compute_majority_from_counts(&counts2, t2))
+}
+
+fn recompute_mj_summary_for_option(ctx: &ReducerContext, option_id: u32) {
+    // Gather counts
+    let mut counts = [0u32; 5];
+    let mut total: u32 = 0;
+    for j in ctx.db.judgment().by_option().filter(option_id) {
+        match j.mention {
+            Mention::ToReject => counts[0] += 1,
+            Mention::Passable => counts[1] += 1,
+            Mention::Good => counts[2] += 1,
+            Mention::VeryGood => counts[3] += 1,
+            Mention::Excellent => counts[4] += 1,
+        }
+        total = total.saturating_add(1);
+    }
+    let majority = compute_majority_from_counts(&counts, total);
+    let second = compute_second_from_counts(&counts, total, majority);
+    let vote_id = match find_vote_option_by_id(ctx, option_id) { Some(opt) => opt.vote_id, None => 0 };
+
+    // Upsert summary row
+    if let Some(existing) = ctx.db.mj_summary().id().find(option_id) {
+        ctx.db.mj_summary().id().update(MjSummary {
+            option_id,
+            vote_id,
+            total,
+            to_reject: counts[0],
+            passable: counts[1],
+            good: counts[2],
+            very_good: counts[3],
+            excellent: counts[4],
+            majority,
+            second,
+            ..existing
+        });
+    } else {
+        ctx.db.mj_summary().insert(MjSummary {
+            option_id,
+            vote_id,
+            total,
+            to_reject: counts[0],
+            passable: counts[1],
+            good: counts[2],
+            very_good: counts[3],
+            excellent: counts[4],
+            majority,
+            second,
+        });
+    }
+}
+
 #[spacetimedb::reducer]
 pub fn cast_judgment(ctx: &ReducerContext, option_id: u32, mention: Mention) -> Result<(), String> {
     // 1. Find the vote option
@@ -53,11 +157,14 @@ pub fn cast_judgment(ctx: &ReducerContext, option_id: u32, mention: Mention) -> 
         // Default all options to `ToReject`.
         for opt in get_vote_options(ctx, vote.id) {
             ctx.db.judgment().insert(Judgment {
-                id: 0,
                 option_id: opt.id,
                 voter: ctx.sender,
                 mention: Mention::ToReject, // Default mention
             });
+        }
+        // Recompute summaries for all options of this vote
+        for opt in get_vote_options(ctx, vote.id) {
+            recompute_mj_summary_for_option(ctx, opt.id);
         }
     }
 
@@ -74,12 +181,14 @@ pub fn cast_judgment(ctx: &ReducerContext, option_id: u32, mention: Mention) -> 
     } else {
         // This case should not be reached if the logic above is correct, but as a safeguard:
         ctx.db.judgment().insert(Judgment {
-            id: 0,
             option_id,
             voter: ctx.sender,
             mention,
         });
     }
+
+    // Recompute summary for this option
+    recompute_mj_summary_for_option(ctx, option_id);
 
     Ok(())
 }

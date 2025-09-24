@@ -217,7 +217,7 @@ export const spacetimeDB = {
       return;
     }
     try {
-      const idLiteral = BigInt(voteId).toString();
+      const idLiteral = Number.parseInt(voteId, 10).toString();
       connection
         .subscriptionBuilder()
         .onApplied(() => {
@@ -251,14 +251,14 @@ export const spacetimeDB = {
       if (reducerName === 'approve') {
         const [voteId, optionId] = args;
         console.log('Calling approve reducer:', { voteId, optionId });
-        connection.reducers.approve(BigInt(voteId), parseInt(optionId));
+        connection.reducers.approve(Number.parseInt(voteId, 10), Number.parseInt(optionId, 10));
         return { success: true };
       }
       
       if (reducerName === 'unapprove') {
         const [voteId, optionId] = args;
         console.log('Calling unapprove reducer:', { voteId, optionId });
-        connection.reducers.unapprove(BigInt(voteId), parseInt(optionId));
+        connection.reducers.unapprove(Number.parseInt(voteId, 10), Number.parseInt(optionId, 10));
         return { success: true };
       }
       
