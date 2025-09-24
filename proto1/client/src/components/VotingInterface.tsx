@@ -398,7 +398,7 @@ const VotingInterface: React.FC<VotingInterfaceProps> = ({ vote, onVoteCast, onE
                             top: '50%',
                             transform: 'translate(-50%, -50%)',
                             width: '2px', 
-                            height: '16px', 
+                            height: '42px', 
                             background: 'var(--border)',
                             zIndex: 1
                           }} 
