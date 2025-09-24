@@ -384,17 +384,28 @@ const VotingInterface: React.FC<VotingInterfaceProps> = ({ vote, onVoteCast, onE
                 <div style={{ fontWeight: 500, marginBottom: '8px' }}>{option.label}</div>
 
                 {/* Slider voting only (no results) */}
-                <div style={{ position: 'relative', padding: '0 12px' }}>
-                  {/* Ticks above the slider */}
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px', position: 'relative' }}>
-                    {mentionKeys.map((m, idx) => (
-                      <div key={m} style={{ position: 'absolute', left: `${idx * 25}%`, transform: 'translateX(-50%)' }}>
-                        <div style={{ width: '2px', height: '10px', background: 'var(--border)' }} />
-                      </div>
-                    ))}
-                  </div>
-
+                <div style={{ position: 'relative' }}>
                   <div style={{ position: 'relative' }}>
+                    {/* Tick marks behind the slider */}
+                    {mentionKeys.map((m, idx) => {
+                      const tickPositions = [10, 30, 50, 70, 90];
+                      return (
+                        <div 
+                          key={m} 
+                          style={{ 
+                            position: 'absolute', 
+                            left: `${tickPositions[idx]}%`, 
+                            top: '50%',
+                            transform: 'translate(-50%, -50%)',
+                            width: '2px', 
+                            height: '16px', 
+                            background: 'var(--border)',
+                            zIndex: 1
+                          }} 
+                        />
+                      );
+                    })}
+
                     <input
                       type="range"
                       min={0}
@@ -416,6 +427,8 @@ const VotingInterface: React.FC<VotingInterfaceProps> = ({ vote, onVoteCast, onE
                         background: trackGradient,
                         outline: 'none',
                         margin: '0',
+                        position: 'relative',
+                        zIndex: 5,
                       }}
                     />
                     
@@ -425,7 +438,7 @@ const VotingInterface: React.FC<VotingInterfaceProps> = ({ vote, onVoteCast, onE
                         style={{
                           position: 'absolute',
                           top: '50%',
-                          left: `${(sliderValue / 4) * 100}%`,
+                          left: `${[10, 30, 50, 70, 90][sliderValue]}%`,
                           transform: 'translate(-50%, -50%)',
                           width: '12px',
                           height: '12px',
@@ -437,15 +450,6 @@ const VotingInterface: React.FC<VotingInterfaceProps> = ({ vote, onVoteCast, onE
                         }}
                       />
                     )}
-                  </div>
-
-                  {/* Ticks below the slider */}
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '6px', position: 'relative' }}>
-                    {mentionKeys.map((m, idx) => (
-                      <div key={m} style={{ position: 'absolute', left: `${idx * 25}%`, transform: 'translateX(-50%)' }}>
-                        <div style={{ width: '2px', height: '10px', background: 'var(--border)' }} />
-                      </div>
-                    ))}
                   </div>
                   
                   {/* Hide default thumb with CSS */}
