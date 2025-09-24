@@ -63,26 +63,27 @@ pub struct VoteOption {
     pub order_index: u32,
 }
 
-/// Validate, normalize, deduplicate, and return the cleaned list of options.
-/// - Requires at least 1 option after cleaning
+/// Validate, normalize, deduplicate (case-insensitive), and return the cleaned list of options.
+/// - Requires at least 2 options after cleaning
 /// - If more than MAX_OPTIONS options remain after cleaning, extras are ignored (truncated)
 /// - Uses `normalize_label` to trim/validate each option
-/// - Deduplicates options case-sensitively after normalization
+/// - Deduplicates options case-insensitively after normalization (preserving first occurrence casing)
 pub(crate) fn validate_and_clean_options(options: Vec<String>) -> Result<Vec<String>, String> {
     if options.is_empty() {
-        return Err("At least one option is required".into());
+        return Err("At least two options are required".into());
     }
 
-    let mut seen = HashSet::<String>::new();
+    let mut seen_lower = HashSet::<String>::new();
     let mut cleaned: Vec<String> = Vec::with_capacity(options.len());
     for opt in options {
         let o = normalize_label(&opt)?;
-        if seen.insert(o.clone()) {
+        let key = o.to_lowercase();
+        if seen_lower.insert(key) {
             cleaned.push(o);
         }
     }
-    if cleaned.is_empty() {
-        return Err("All options were empty/duplicate after normalization".into());
+    if cleaned.len() < 2 {
+        return Err("At least two unique non-empty options are required".into());
     }
     if cleaned.len() > MAX_OPTIONS {
         cleaned.truncate(MAX_OPTIONS);
@@ -257,6 +258,12 @@ mod tests {
     fn validate_and_clean_rejects_empty() {
         let res = validate_and_clean_options(vec![]);
         assert!(res.is_err());
+    }
+
+    #[test]
+    fn validate_and_clean_rejects_only_one() {
+        let res = validate_and_clean_options(vec![" OnlyOne ".into()]);
+        assert!(res.is_err(), "Should require at least two options");
     }
 
     #[test]
