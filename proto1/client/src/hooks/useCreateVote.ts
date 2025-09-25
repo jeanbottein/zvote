@@ -1,11 +1,11 @@
 import { useState, useCallback } from 'react';
-import { VotingSystem, Visibility } from '../generated/index';
+import { VotingSystem } from '../generated/index';
 import { spacetimeDB } from '../lib/spacetimeClient';
 
 interface CreateVoteParams {
   title: string;
   description?: string;
-  visibility: Visibility;
+  visibility: number; // 0=Public, 1=Unlisted, 2=Private
   votingSystem: VotingSystem;
   options: string[];
 }

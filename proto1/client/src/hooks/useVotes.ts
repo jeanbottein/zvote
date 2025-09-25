@@ -1,7 +1,22 @@
 import { useState, useEffect, useCallback } from 'react';
+import { deepEqual } from '@clockworklabs/spacetimedb-sdk';
 import { spacetimeDB } from '../lib/spacetimeClient';
 import { VotingSystem } from '../generated/voting_system_type';
-import { Visibility } from '../generated/visibility_type';
+
+// Visibility constants matching server
+export const VISIBILITY_PUBLIC = 0;
+export const VISIBILITY_UNLISTED = 1;
+export const VISIBILITY_PRIVATE = 2;
+
+// Helper function to convert visibility number to display name
+export function getVisibilityDisplayName(visibility: number): string {
+  switch (visibility) {
+    case VISIBILITY_PUBLIC: return 'Public';
+    case VISIBILITY_UNLISTED: return 'Unlisted';
+    case VISIBILITY_PRIVATE: return 'Private';
+    default: return 'Unknown';
+  }
+}
 
 // Extended vote type with options and backward compatibility
 export interface VoteWithOptions {
@@ -9,7 +24,7 @@ export interface VoteWithOptions {
   creator: string; // Convert Identity to string for compatibility
   title: string;
   public: boolean; // Computed from visibility for backward compatibility
-  visibility: Visibility;
+  visibility: number; // 0=Public, 1=Unlisted, 2=Private
   created_at: number; // Convert Timestamp to number for compatibility
   createdAt: number;
   token: string;
@@ -58,6 +73,7 @@ export const useVotes = () => {
       } catch {}
 
       const allVotes: VoteWithOptions[] = [];
+      const creatorById = new Map<string, any>();
 
       // Build a lookup for MJ summaries by optionId for fast access
       const summaryByOptionId = new Map<string, any>();
@@ -73,10 +89,10 @@ export const useVotes = () => {
       for (const vote of (spacetimeDB.connection.db as any).vote.iter() as Iterable<any>) {
         const voteData: VoteWithOptions = {
           id: vote.id.toString(),
-          creator: vote.creator.toString(), // Convert Identity to string
+          creator: vote.creator.toString(), // Keep string for display, but store raw in map below
           title: vote.title,
-          public: vote.visibility?.tag === 'Public', // Convert visibility to boolean
-          visibility: vote.visibility,
+          public: vote.visibility === VISIBILITY_PUBLIC, // Convert visibility to boolean
+          visibility: Number(vote.visibility || VISIBILITY_PUBLIC),
           created_at: Number(vote.createdAt || 0),
           createdAt: Number(vote.createdAt || 0),
           token: vote.token || '',
@@ -84,6 +100,9 @@ export const useVotes = () => {
           votingSystem: vote.votingSystem,
           options: []
         };
+
+        // Save raw creator object for robust comparisons later
+        try { creatorById.set(voteData.id, vote.creator); } catch {}
 
         // Get options for this vote
         const options: any[] = [];
@@ -134,24 +153,45 @@ export const useVotes = () => {
       // Sort votes by creation date (newest first)
       allVotes.sort((a, b) => (b.created_at || 0) - (a.created_at || 0));
 
-      // Separate my votes from public votes
-      const normalizeId = (s: string) => s.toLowerCase().replace(/^identity\(0x/,'0x').replace(/\)$/,'').replace(/^0x/,'');
-      const currentUserIdentity = spacetimeDB.currentUser.identity.toString();
-      const currentNorm = normalizeId(currentUserIdentity);
-      const focusedId = spacetimeDB.focusedVoteId;
-      const myVotesList = allVotes.filter(vote => normalizeId(vote.creator) === currentNorm);
+      // With RLS, the server is the source of truth. The client receives only the votes it's allowed to see.
+      // We just need to separate them into 'my' and 'other' votes. Compare identities robustly.
+      const normalizeId = (s: string) => {
+        const m = s?.toString?.().match(/0x([0-9a-f]+)/i);
+        return m ? m[1].toLowerCase() : s?.toString?.().toLowerCase?.() || '';
+      };
+      const idObj = spacetimeDB.identityObject;
+      const rawCurrent = idObj?.toString?.() || spacetimeDB.currentUser.identity;
+      const currentNorm = normalizeId(rawCurrent);
+
+      const myVotesList = allVotes.filter(vote => {
+        const creatorObj = creatorById.get(vote.id);
+        const isMine = creatorObj ? deepEqual(creatorObj, idObj) : normalizeId(vote.creator) === currentNorm;
+        if (!isMine) {
+          // Temporary debug to diagnose why votes might not appear under "My Votes"
+          console.debug('[useVotes] identity compare', {
+            title: vote.title,
+            creatorRaw: vote.creator,
+            creatorStr: vote.creator?.toString?.(),
+            creatorNorm: normalizeId(vote.creator),
+            currentRaw: rawCurrent,
+            currentNorm,
+            isMine
+          });
+        }
+        return isMine;
+      });
       const publicVotesList = allVotes.filter(vote => {
-        const isMine = normalizeId(vote.creator) === currentNorm;
-        const isPublic = vote.public;
-        const isFocused = focusedId ? vote.id === focusedId : false;
-        return (!isMine && (isPublic || isFocused));
+        const creatorObj = creatorById.get(vote.id);
+        const isMine = creatorObj ? deepEqual(creatorObj, idObj) : normalizeId(vote.creator) === currentNorm;
+        return !isMine;
       });
 
-      console.debug('[useVotes] built lists', {
-        all: allVotes.length,
+      console.debug('[useVotes] built lists from RLS-filtered data', {
+        totalReceived: allVotes.length,
         my: myVotesList.length,
-        pub: publicVotesList.length,
+        public: publicVotesList.length,
       });
+
       setMyVotes(myVotesList);
       setPublicVotes(publicVotesList);
       setIsLoading(false);

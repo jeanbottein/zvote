@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { VotingSystem, Visibility } from '../generated/index';
+import { VotingSystem } from '../generated/index';
 import { useCreateVote } from '../hooks/useCreateVote';
+import { VISIBILITY_PUBLIC, VISIBILITY_UNLISTED, VISIBILITY_PRIVATE } from '../hooks/useVotes';
 
 interface VoteFormData {
   title: string;
   description: string;
-  visibility: Visibility;
+  visibility: number; // 0=Public, 1=Unlisted, 2=Private
   votingSystem: VotingSystem | null;
   options: string[];
 }
@@ -23,10 +24,14 @@ const CreateVoteForm: React.FC<CreateVoteFormProps> = ({ onVoteCreated, onError,
   const [formData, setFormData] = useState<VoteFormData>({
     title: '',
     description: '',
-    visibility: Visibility.Public as Visibility,
+    visibility: VISIBILITY_PUBLIC,
     votingSystem: null,
     options: ['', '']
   });
+
+  const handleVisibilityChange = (visibility: number) => {
+    setFormData(prev => ({ ...prev, visibility }));
+  };
 
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitted, setSubmitted] = useState(false);
@@ -132,7 +137,7 @@ const CreateVoteForm: React.FC<CreateVoteFormProps> = ({ onVoteCreated, onError,
       setFormData({
         title: '',
         description: '',
-        visibility: Visibility.Public as Visibility,
+        visibility: VISIBILITY_PUBLIC,
         votingSystem: null,
         options: ['', '']
       });
@@ -153,10 +158,10 @@ const CreateVoteForm: React.FC<CreateVoteFormProps> = ({ onVoteCreated, onError,
   const isVotingInvalid = submitted && !!errors.votingSystem;
 
   const visibilityHelper = () => {
-    switch (formData.visibility?.tag) {
-      case 'Public': return 'Visible to everyone and listed publicly';
-      case 'Unlisted': return 'Accessible only via a shareable link';
-      case 'Private': return 'Restricted access to authorized users';
+    switch (formData.visibility) {
+      case VISIBILITY_PUBLIC: return 'Visible to everyone and listed publicly';
+      case VISIBILITY_UNLISTED: return 'Accessible only via a shareable link';
+      case VISIBILITY_PRIVATE: return 'Restricted access to authorized users';
       default: return '';
     }
   };
@@ -223,27 +228,11 @@ const CreateVoteForm: React.FC<CreateVoteFormProps> = ({ onVoteCreated, onError,
         <div className="section">
           <div className="bubble-section">
             <label className="form-label">Visibility</label>
-            <div className="bubble-group">
-            {[
-              { key: 'Public', label: 'Public', value: Visibility.Public as Visibility },
-              { key: 'Unlisted', label: 'Unlisted', value: Visibility.Unlisted as Visibility },
-              { key: 'Private', label: 'Private', value: Visibility.Private as Visibility },
-            ].map((v) => {
-              const active = formData.visibility?.tag === v.key;
-              return (
-                <button
-                  type="button"
-                  key={v.key}
-                  onClick={() => updateFormData({ visibility: v.value })}
-                  className="bubble"
-                  {...(active ? { id: `active-${v.key.toLowerCase()}` } : {})}
-                  aria-pressed={active}
-                >
-                  {v.label}
-                </button>
-              );
-            })}
-            </div>
+            <select value={formData.visibility} onChange={(e) => handleVisibilityChange(Number(e.target.value))}>
+              <option value={VISIBILITY_PUBLIC}>Public</option>
+              <option value={VISIBILITY_UNLISTED}>Unlisted</option>
+              <option value={VISIBILITY_PRIVATE}>Private</option>
+            </select>
           </div>
           <div className="helper">{visibilityHelper()}</div>
         </div>

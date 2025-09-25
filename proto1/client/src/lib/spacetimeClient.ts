@@ -3,6 +3,7 @@ import { DbConnection } from '../generated/index';
 
 let connection: DbConnection | null = null;
 let currentUser: { identity: string; token?: string } | null = null;
+let identityObject: any | null = null;
 let connectionCallbacks = new Set<(connected: boolean) => void>();
 let focusedVoteId: string | null = null;
 let subscriptionsApplied = false;
@@ -91,6 +92,10 @@ export const spacetimeDB = {
     return connection;
   },
 
+  get identityObject() {
+    return identityObject;
+  },
+
   get focusedVoteId() {
     return focusedVoteId;
   },
@@ -142,6 +147,7 @@ export const spacetimeDB = {
 
         console.log('Connected to SpacetimeDB!', { identity: identityStr, token });
         connection = conn;
+        identityObject = identity;
         currentUser = {
           identity: identityStr,
           token

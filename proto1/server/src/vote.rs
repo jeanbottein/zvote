@@ -1,4 +1,4 @@
-use spacetimedb::{ReducerContext, SpacetimeType, Table, Identity, Timestamp};
+use spacetimedb::{ReducerContext, SpacetimeType, Table, Identity, Timestamp, Filter, client_visibility_filter};
 use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine as _};
 use blake3;
 use std::collections::HashSet;
@@ -18,12 +18,13 @@ pub enum VotingSystem {
     MajorityJudgment,
 }
 
-#[derive(SpacetimeType, Copy, Clone, Debug, PartialEq, Eq)]
-pub enum Visibility {
-    Public,
-    Private,
-    Unlisted,
-}
+// Visibility levels as integers for RLS-friendly SQL comparisons
+// 0 = Public (visible to everyone)
+// 1 = Unlisted (visible via token sharing)  
+// 2 = Private (visible only to creator)
+pub const VISIBILITY_PUBLIC: u8 = 0;
+pub const VISIBILITY_UNLISTED: u8 = 1;
+pub const VISIBILITY_PRIVATE: u8 = 2;
 
 // Votes table: one row per vote
 #[spacetimedb::table(
@@ -39,12 +40,23 @@ pub struct Vote {
     pub id: u32,
     pub creator: Identity,
     pub title: String,
-    pub visibility: Visibility,
+    pub visibility: u8, // 0=Public, 1=Unlisted, 2=Private
     pub created_at: Timestamp,
     pub token: String,
     pub voting_system: VotingSystem,
 }
 
+
+
+// RLS DEBUGGING: Testing public filter only
+// #[client_visibility_filter]
+// const VOTE_RLS_PUBLIC: Filter = Filter::Sql("SELECT * FROM vote");
+
+// #[client_visibility_filter]
+// const VOTE_RLS_CREATOR: Filter = Filter::Sql("SELECT * FROM vote WHERE creator = :sender");
+
+// #[client_visibility_filter]
+// const VOTE_RLS_ACCESS: Filter = Filter::Sql("SELECT vote.* FROM vote JOIN vote_access ON vote.id = vote_access.vote_id WHERE vote_access.user_id = :sender");
 
 // Options table: up to 20 per vote
 #[spacetimedb::table(
@@ -64,6 +76,18 @@ pub struct VoteOption {
     pub order_index: u32,
 }
 
+
+
+
+// RLS DEBUGGING: Testing public filter only
+// #[client_visibility_filter]
+//const VOTE_OPTION_RLS_PUBLIC: Filter = Filter::Sql("SELECT vote_option.* FROM vote_option JOIN vote ON vote_option.vote_id = vote.id WHERE vote.title = 'public'");
+
+// #[client_visibility_filter]
+// const VOTE_OPTION_RLS_CREATOR: Filter = Filter::Sql("SELECT vote_option.* FROM vote_option JOIN vote ON vote_option.vote_id = vote.id WHERE vote.creator = :sender");
+
+// #[client_visibility_filter]
+// const VOTE_OPTION_RLS_ACCESS: Filter = Filter::Sql("SELECT vote_option.* FROM vote_option JOIN vote ON vote_option.vote_id = vote.id JOIN vote_access ON vote.id = vote_access.vote_id WHERE vote_access.user_id = :sender");
 
 /// Validate, normalize, deduplicate (case-insensitive), and return the cleaned list of options.
 /// - Requires at least 2 options after cleaning
@@ -99,19 +123,22 @@ pub fn create_vote(
     ctx: &ReducerContext,
     title: String,
     options: Vec<String>,
-    visibility: Option<Visibility>,
+    visibility: Option<u8>,
     voting_system: Option<VotingSystem>,
 ) -> Result<(), String> {
     let title = normalize_label(&title)?;
 
     let cleaned = validate_and_clean_options(options)?;
 
+    // Resolve visibility (default to Public)
+    let vis = visibility.unwrap_or(VISIBILITY_PUBLIC);
+
     // Pre-generate a unique token before inserting the vote
     let temp_vote_for_token = Vote {
         id: 0, // Temp value, will be auto-incremented on insert
         creator: ctx.sender,
         title: title.clone(),
-        visibility: visibility.unwrap_or(Visibility::Public),
+        visibility: vis,
         created_at: ctx.timestamp,
         token: String::new(), // Placeholder
         voting_system: voting_system.unwrap_or(VotingSystem::Approval),
@@ -128,7 +155,7 @@ pub fn create_vote(
         id: 0,
         creator: ctx.sender,
         title,
-        visibility: visibility.unwrap_or(Visibility::Public),
+        visibility: vis,
         created_at: ctx.timestamp,
         token,
         voting_system: voting_system.unwrap_or(VotingSystem::Approval),

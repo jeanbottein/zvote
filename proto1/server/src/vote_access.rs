@@ -1,5 +1,5 @@
 use spacetimedb::{ReducerContext, Table, Identity, Filter, client_visibility_filter};
-use crate::vote::{find_vote_by_token, Visibility};
+use crate::vote::{find_vote_by_token, VISIBILITY_UNLISTED};
 
 // VoteAccess table: tracks which users have access to which unlisted votes
 // Public with RLS: clients only see their own access grants
@@ -32,9 +32,8 @@ pub fn grant_access_by_token(ctx: &ReducerContext, token: String) -> Result<(), 
         return Err("Vote not found".into());
     };
 
-    // 2. Only grant access to Unlisted votes
-    // Public votes are already accessible, Private votes should remain private to creator
-    if vote.visibility != Visibility::Unlisted {
+    // 2. Only grant access to unlisted votes
+    if vote.visibility != VISIBILITY_UNLISTED {
         return Ok(()); // Not an error, just a no-op for public/private votes
     }
 

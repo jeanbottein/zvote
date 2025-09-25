@@ -80,8 +80,6 @@ import { MjSummary } from "./mj_summary_type.ts";
 export { MjSummary };
 import { ServerInfo } from "./server_info_type.ts";
 export { ServerInfo };
-import { Visibility } from "./visibility_type.ts";
-export { Visibility };
 import { Vote } from "./vote_type.ts";
 export { Vote };
 import { VoteAccess } from "./vote_access_type.ts";
@@ -265,7 +263,7 @@ export class RemoteReducers {
     this.connection.offReducer("cast_judgment", callback);
   }
 
-  createVote(title: string, options: string[], visibility: Visibility | undefined, votingSystem: VotingSystem | undefined) {
+  createVote(title: string, options: string[], visibility: number | undefined, votingSystem: VotingSystem | undefined) {
     const __args = { title, options, visibility, votingSystem };
     let __writer = new BinaryWriter(1024);
     CreateVote.getTypeScriptAlgebraicType().serialize(__writer, __args);
@@ -273,11 +271,11 @@ export class RemoteReducers {
     this.connection.callReducer("create_vote", __argsBuffer, this.setCallReducerFlags.createVoteFlags);
   }
 
-  onCreateVote(callback: (ctx: ReducerEventContext, title: string, options: string[], visibility: Visibility | undefined, votingSystem: VotingSystem | undefined) => void) {
+  onCreateVote(callback: (ctx: ReducerEventContext, title: string, options: string[], visibility: number | undefined, votingSystem: VotingSystem | undefined) => void) {
     this.connection.onReducer("create_vote", callback);
   }
 
-  removeOnCreateVote(callback: (ctx: ReducerEventContext, title: string, options: string[], visibility: Visibility | undefined, votingSystem: VotingSystem | undefined) => void) {
+  removeOnCreateVote(callback: (ctx: ReducerEventContext, title: string, options: string[], visibility: number | undefined, votingSystem: VotingSystem | undefined) => void) {
     this.connection.offReducer("create_vote", callback);
   }
 

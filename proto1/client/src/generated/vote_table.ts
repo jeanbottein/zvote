@@ -33,7 +33,6 @@ import {
   type SubscriptionEventContextInterface,
 } from "@clockworklabs/spacetimedb-sdk";
 import { Vote } from "./vote_type";
-import { Visibility as __Visibility } from "./visibility_type";
 import { VotingSystem as __VotingSystem } from "./voting_system_type";
 
 import { type EventContext, type Reducer, RemoteReducers, RemoteTables } from ".";

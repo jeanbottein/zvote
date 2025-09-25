@@ -32,14 +32,13 @@ import {
   type ReducerEventContextInterface,
   type SubscriptionEventContextInterface,
 } from "@clockworklabs/spacetimedb-sdk";
-import { Visibility as __Visibility } from "./visibility_type";
 import { VotingSystem as __VotingSystem } from "./voting_system_type";
 
 export type Vote = {
   id: number,
   creator: Identity,
   title: string,
-  visibility: __Visibility,
+  visibility: number,
   createdAt: Timestamp,
   token: string,
   votingSystem: __VotingSystem,
@@ -58,7 +57,7 @@ export namespace Vote {
       new ProductTypeElement("id", AlgebraicType.createU32Type()),
       new ProductTypeElement("creator", AlgebraicType.createIdentityType()),
       new ProductTypeElement("title", AlgebraicType.createStringType()),
-      new ProductTypeElement("visibility", __Visibility.getTypeScriptAlgebraicType()),
+      new ProductTypeElement("visibility", AlgebraicType.createU8Type()),
       new ProductTypeElement("createdAt", AlgebraicType.createTimestampType()),
       new ProductTypeElement("token", AlgebraicType.createStringType()),
       new ProductTypeElement("votingSystem", __VotingSystem.getTypeScriptAlgebraicType()),

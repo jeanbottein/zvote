@@ -33,13 +33,12 @@ import {
   type SubscriptionEventContextInterface,
 } from "@clockworklabs/spacetimedb-sdk";
 
-import { Visibility as __Visibility } from "./visibility_type";
 import { VotingSystem as __VotingSystem } from "./voting_system_type";
 
 export type CreateVote = {
   title: string,
   options: string[],
-  visibility: __Visibility | undefined,
+  visibility: number | undefined,
   votingSystem: __VotingSystem | undefined,
 };
 
@@ -55,7 +54,7 @@ export namespace CreateVote {
     return AlgebraicType.createProductType([
       new ProductTypeElement("title", AlgebraicType.createStringType()),
       new ProductTypeElement("options", AlgebraicType.createArrayType(AlgebraicType.createStringType())),
-      new ProductTypeElement("visibility", AlgebraicType.createOptionType(__Visibility.getTypeScriptAlgebraicType())),
+      new ProductTypeElement("visibility", AlgebraicType.createOptionType(AlgebraicType.createU8Type())),
       new ProductTypeElement("votingSystem", AlgebraicType.createOptionType(__VotingSystem.getTypeScriptAlgebraicType())),
     ]);
   }
