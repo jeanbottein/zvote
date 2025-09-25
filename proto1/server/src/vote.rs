@@ -50,7 +50,7 @@ pub struct Vote {
 
 // RLS DEBUGGING: Testing public filter only
 #[client_visibility_filter]
-const VOTE_RLS_PUBLIC: Filter = Filter::Sql("SELECT * FROM vote");
+const VOTE_RLS_PUBLIC: Filter = Filter::Sql("SELECT * FROM vote WHERE visibility = 0");
 
 #[client_visibility_filter]
 const VOTE_RLS_CREATOR: Filter = Filter::Sql("SELECT * FROM vote WHERE creator = :sender");

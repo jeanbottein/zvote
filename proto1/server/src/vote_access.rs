@@ -21,7 +21,7 @@ pub struct VoteAccess {
 // RLS: A user can only see their own access grants
 #[client_visibility_filter]
 const VOTE_ACCESS_RLS: Filter = Filter::Sql(
-    "SELECT vote_access.* FROM vote_access WHERE vote_access.user_id = :sender"
+    "SELECT * FROM vote_access WHERE vote_access.user_id = :sender"
 );
 
 // Reducer: grant access to an unlisted vote via token
