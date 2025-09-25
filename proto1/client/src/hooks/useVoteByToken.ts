@@ -233,6 +233,8 @@ export function useVoteByToken(token: string | null) {
 
     // Ensure focused subscriptions for this token
     if (token) {
+      // Grant access to unlisted votes via token (no-op for public/private votes)
+      spacetimeDB.call('grant_access_by_token', token).catch(console.error);
       spacetimeDB.setFocusedVoteByToken(token).catch(() => {});
     }
 

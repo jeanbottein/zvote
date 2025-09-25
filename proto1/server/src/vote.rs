@@ -45,6 +45,7 @@ pub struct Vote {
     pub voting_system: VotingSystem,
 }
 
+
 // Options table: up to 20 per vote
 #[spacetimedb::table(
     name = vote_option,
@@ -62,6 +63,7 @@ pub struct VoteOption {
     pub approvals_count: u32,
     pub order_index: u32,
 }
+
 
 /// Validate, normalize, deduplicate (case-insensitive), and return the cleaned list of options.
 /// - Requires at least 2 options after cleaning
@@ -248,9 +250,6 @@ pub fn vote_option_approvals_count(opt: &VoteOption) -> u32 {
 pub fn get_vote_options(ctx: &ReducerContext, vote_id: u32) -> impl Iterator<Item = VoteOption> + '_ {
     ctx.db.vote_option().by_vote().filter(vote_id)
 }
-
-
-
 
 #[cfg(test)]
 mod tests {

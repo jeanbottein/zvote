@@ -44,6 +44,8 @@ import { DeleteVote } from "./delete_vote_reducer.ts";
 export { DeleteVote };
 import { EnsureServerInfo } from "./ensure_server_info_reducer.ts";
 export { EnsureServerInfo };
+import { GrantAccessByToken } from "./grant_access_by_token_reducer.ts";
+export { GrantAccessByToken };
 import { SetApprovals } from "./set_approvals_reducer.ts";
 export { SetApprovals };
 import { Unapprove } from "./unapprove_reducer.ts";
@@ -62,6 +64,8 @@ import { ServerInfoTableHandle } from "./server_info_table.ts";
 export { ServerInfoTableHandle };
 import { VoteTableHandle } from "./vote_table.ts";
 export { VoteTableHandle };
+import { VoteAccessTableHandle } from "./vote_access_table.ts";
+export { VoteAccessTableHandle };
 import { VoteOptionTableHandle } from "./vote_option_table.ts";
 export { VoteOptionTableHandle };
 
@@ -80,6 +84,8 @@ import { Visibility } from "./visibility_type.ts";
 export { Visibility };
 import { Vote } from "./vote_type.ts";
 export { Vote };
+import { VoteAccess } from "./vote_access_type.ts";
+export { VoteAccess };
 import { VoteOption } from "./vote_option_type.ts";
 export { VoteOption };
 import { VotingSystem } from "./voting_system_type.ts";
@@ -127,6 +133,15 @@ const REMOTE_MODULE = {
         colType: Vote.getTypeScriptAlgebraicType().product.elements[0].algebraicType,
       },
     },
+    vote_access: {
+      tableName: "vote_access",
+      rowType: VoteAccess.getTypeScriptAlgebraicType(),
+      primaryKey: "id",
+      primaryKeyInfo: {
+        colName: "id",
+        colType: VoteAccess.getTypeScriptAlgebraicType().product.elements[0].algebraicType,
+      },
+    },
     vote_option: {
       tableName: "vote_option",
       rowType: VoteOption.getTypeScriptAlgebraicType(),
@@ -157,6 +172,10 @@ const REMOTE_MODULE = {
     ensure_server_info: {
       reducerName: "ensure_server_info",
       argsType: EnsureServerInfo.getTypeScriptAlgebraicType(),
+    },
+    grant_access_by_token: {
+      reducerName: "grant_access_by_token",
+      argsType: GrantAccessByToken.getTypeScriptAlgebraicType(),
     },
     set_approvals: {
       reducerName: "set_approvals",
@@ -205,6 +224,7 @@ export type Reducer = never
 | { name: "CreateVote", args: CreateVote }
 | { name: "DeleteVote", args: DeleteVote }
 | { name: "EnsureServerInfo", args: EnsureServerInfo }
+| { name: "GrantAccessByToken", args: GrantAccessByToken }
 | { name: "SetApprovals", args: SetApprovals }
 | { name: "Unapprove", args: Unapprove }
 | { name: "WithdrawJudgments", args: WithdrawJudgments }
@@ -289,6 +309,22 @@ export class RemoteReducers {
     this.connection.offReducer("ensure_server_info", callback);
   }
 
+  grantAccessByToken(token: string) {
+    const __args = { token };
+    let __writer = new BinaryWriter(1024);
+    GrantAccessByToken.getTypeScriptAlgebraicType().serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("grant_access_by_token", __argsBuffer, this.setCallReducerFlags.grantAccessByTokenFlags);
+  }
+
+  onGrantAccessByToken(callback: (ctx: ReducerEventContext, token: string) => void) {
+    this.connection.onReducer("grant_access_by_token", callback);
+  }
+
+  removeOnGrantAccessByToken(callback: (ctx: ReducerEventContext, token: string) => void) {
+    this.connection.offReducer("grant_access_by_token", callback);
+  }
+
   setApprovals(voteId: number, optionIds: number[]) {
     const __args = { voteId, optionIds };
     let __writer = new BinaryWriter(1024);
@@ -365,6 +401,11 @@ export class SetReducerFlags {
     this.ensureServerInfoFlags = flags;
   }
 
+  grantAccessByTokenFlags: CallReducerFlags = 'FullUpdate';
+  grantAccessByToken(flags: CallReducerFlags) {
+    this.grantAccessByTokenFlags = flags;
+  }
+
   setApprovalsFlags: CallReducerFlags = 'FullUpdate';
   setApprovals(flags: CallReducerFlags) {
     this.setApprovalsFlags = flags;
@@ -403,6 +444,10 @@ export class RemoteTables {
 
   get vote(): VoteTableHandle {
     return new VoteTableHandle(this.connection.clientCache.getOrCreateTable<Vote>(REMOTE_MODULE.tables.vote));
+  }
+
+  get voteAccess(): VoteAccessTableHandle {
+    return new VoteAccessTableHandle(this.connection.clientCache.getOrCreateTable<VoteAccess>(REMOTE_MODULE.tables.vote_access));
   }
 
   get voteOption(): VoteOptionTableHandle {

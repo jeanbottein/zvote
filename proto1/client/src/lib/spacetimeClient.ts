@@ -301,6 +301,13 @@ export const spacetimeDB = {
         return { success: true };
       }
       
+      if (reducerName === 'grant_access_by_token') {
+        const [token] = args;
+        console.log('Calling grant_access_by_token reducer:', { token });
+        connection.reducers.grantAccessByToken(token);
+        return { success: true };
+      }
+      
       // Note: Removed getMyApprovals/getMyJudgments reducers since SpacetimeDB reducers cannot return data.
       // Instead, we use filtered subscriptions: "SELECT * FROM approval WHERE voter = @caller"
       
