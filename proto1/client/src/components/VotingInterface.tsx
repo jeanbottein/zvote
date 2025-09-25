@@ -21,74 +21,36 @@ const VotingInterface: React.FC<VotingInterfaceProps> = ({ vote, onVoteCast, onE
     return () => off?.();
   }, []);
 
-  // Initialize current user's approvals for this vote and live-sync via subscriptions
+  // Initialize current user's approvals from localStorage (since private tables aren't accessible)
   useEffect(() => {
-    if (!spacetimeDB.connection || !spacetimeDB.currentUser) {
+    if (!spacetimeDB.currentUser) {
       setUserApprovals(new Set());
       return;
     }
 
-    const connection = spacetimeDB.connection;
-    const currentIdentity = spacetimeDB.currentUser.identity;
-
-    // Initial load from cache
-    const initial = new Set<string>();
-    for (const row of (connection.db as any).approval.iter() as Iterable<any>) {
-      try {
-        const sameVote = String(row.voteId) === Number.parseInt(vote.id, 10).toString();
-        const sameVoter = row.voter?.toString?.() === currentIdentity;
-        if (sameVote && sameVoter) {
-          initial.add(String(row.optionId));
-        }
-      } catch (_) {
-        // ignore
+    const storageKey = `approvals_${spacetimeDB.currentUser.identity}_${vote.id}`;
+    try {
+      const stored = localStorage.getItem(storageKey);
+      if (stored) {
+        const approvals = JSON.parse(stored) as string[];
+        setUserApprovals(new Set(approvals));
       }
+    } catch (e) {
+      console.warn('Failed to load approvals from localStorage:', e);
     }
-    setUserApprovals(initial);
+  }, [vote.id, spacetimeDB.currentUser?.identity]);
 
-    // Live updates: subscribe to approval table changes
-    const onInsert = (_ctx: any, row: any) => {
-      try {
-        const sameVote = String(row.voteId) === Number.parseInt(vote.id, 10).toString();
-        const sameVoter = row.voter?.toString?.() === currentIdentity;
-        if (sameVote && sameVoter) {
-          setUserApprovals(prev => new Set([...prev, String(row.optionId)]));
-        }
-      } catch (_) {
-        // ignore
-      }
-    };
-
-    const onDelete = (_ctx: any, row: any) => {
-      try {
-        const sameVote = String(row.voteId) === Number.parseInt(vote.id, 10).toString();
-        const sameVoter = row.voter?.toString?.() === currentIdentity;
-        if (sameVote && sameVoter) {
-          setUserApprovals(prev => {
-            const next = new Set(prev);
-            next.delete(String(row.optionId));
-            return next;
-          });
-        }
-      } catch (_) {
-        // ignore
-      }
-    };
-
-    const approvalHandle = connection.db.approval;
-    approvalHandle.onInsert(onInsert);
-    approvalHandle.onDelete(onDelete);
-
-    return () => {
-      // Clean up listeners
-      try {
-        approvalHandle.removeOnInsert(onInsert);
-        approvalHandle.removeOnDelete(onDelete);
-      } catch (_) {
-        // best-effort cleanup
-      }
-    };
-  }, [vote.id]);
+  // Save approvals to localStorage whenever they change
+  useEffect(() => {
+    if (!spacetimeDB.currentUser) return;
+    
+    const storageKey = `approvals_${spacetimeDB.currentUser.identity}_${vote.id}`;
+    try {
+      localStorage.setItem(storageKey, JSON.stringify([...userApprovals]));
+    } catch (e) {
+      console.warn('Failed to save approvals to localStorage:', e);
+    }
+  }, [userApprovals, vote.id, spacetimeDB.currentUser?.identity]);
 
   const handleApprovalVote = async (optionId: string, approved: boolean) => {
     if (isVoting) return;
@@ -148,11 +110,27 @@ const VotingInterface: React.FC<VotingInterfaceProps> = ({ vote, onVoteCast, onE
         try {
           const connection = spacetimeDB.connection;
           const currentIdentity = spacetimeDB.currentUser.identity;
+          
+          // Same identity matching logic as in the effect
+          const isMyVote = (voter: any): boolean => {
+            if (!voter) return false;
+            const voterStr = voter.toString?.() || '';
+            if (voterStr === currentIdentity) return true;
+            const match = voterStr.match(/Identity\(0x([a-f0-9]+)\)/i);
+            if (match && match[1]) {
+              return match[1].toLowerCase() === currentIdentity.toLowerCase();
+            }
+            const hexMatch = voterStr.match(/([a-f0-9]{40,})/i);
+            if (hexMatch && hexMatch[1]) {
+              return hexMatch[1].toLowerCase() === currentIdentity.toLowerCase();
+            }
+            return false;
+          };
+          
           const newJudgments: Record<string, string> = {};
           for (const row of (connection.db as any).judgment.iter() as Iterable<any>) {
             try {
-              const sameVoter = row.voter?.toString?.() === currentIdentity;
-              if (sameVoter) {
+              if (isMyVote(row.voter)) {
                 newJudgments[String(row.optionId)] = row.mention?.tag;
               }
             } catch (_) {}
@@ -217,63 +195,46 @@ const VotingInterface: React.FC<VotingInterfaceProps> = ({ vote, onVoteCast, onE
 
   // Note: do NOT sort MJ sliders; we keep original option order for voting UX
 
-  // Load current user's judgments and live-sync
+  // Initialize current user's judgments from localStorage (since private tables aren't accessible)
   useEffect(() => {
-    if (!spacetimeDB.connection || !spacetimeDB.currentUser) {
+    if (!spacetimeDB.currentUser) {
+      console.log('[VotingInterface] No current user, clearing judgments');
       setUserJudgments({});
       return;
     }
-    const connection = spacetimeDB.connection;
-    const currentIdentity = spacetimeDB.currentUser.identity;
 
-    const init: Record<string, string> = {};
-    for (const row of (connection.db as any).judgment.iter() as Iterable<any>) {
-      try {
-        const sameVoter = row.voter?.toString?.() === currentIdentity;
-        if (sameVoter) {
-          init[String(row.optionId)] = row.mention?.tag;
-        }
-      } catch (_) {}
+    const storageKey = `judgments_${spacetimeDB.currentUser.identity}_${vote.id}`;
+    console.log('[VotingInterface] Loading judgments from localStorage with key:', storageKey);
+    
+    try {
+      const stored = localStorage.getItem(storageKey);
+      console.log('[VotingInterface] Stored judgments:', stored);
+      
+      if (stored) {
+        const judgments = JSON.parse(stored) as Record<string, string>;
+        console.log('[VotingInterface] Parsed judgments:', judgments);
+        setUserJudgments(judgments);
+      } else {
+        console.log('[VotingInterface] No stored judgments found');
+        setUserJudgments({});
+      }
+    } catch (e) {
+      console.warn('Failed to load judgments from localStorage:', e);
+      setUserJudgments({});
     }
-    setUserJudgments(init);
+  }, [vote.id, spacetimeDB.currentUser?.identity]);
 
-    const onInsert = (_ctx: any, row: any) => {
-      try {
-        if (row.voter?.toString?.() === currentIdentity) {
-          setUserJudgments(prev => ({ ...prev, [String(row.optionId)]: row.mention?.tag }));
-        }
-      } catch (_) {}
-    };
-    const onUpdate = (_ctx: any, _oldRow: any, newRow: any) => {
-      try {
-        if (newRow.voter?.toString?.() === currentIdentity) {
-          setUserJudgments(prev => ({ ...prev, [String(newRow.optionId)]: newRow.mention?.tag }));
-        }
-      } catch (_) {}
-    };
-    const onDelete = (_ctx: any, row: any) => {
-      try {
-        if (row.voter?.toString?.() === currentIdentity) {
-          setUserJudgments(prev => {
-            const next = { ...prev };
-            delete next[String(row.optionId)];
-            return next;
-          });
-        }
-      } catch (_) {}
-    };
-    const h = connection.db.judgment;
-    h.onInsert(onInsert);
-    h.onUpdate(onUpdate);
-    h.onDelete(onDelete);
-    return () => {
-      try {
-        h.removeOnInsert(onInsert);
-        h.removeOnUpdate(onUpdate);
-        h.removeOnDelete(onDelete);
-      } catch (_) {}
-    };
-  }, [vote.id]);
+  // Save judgments to localStorage whenever they change
+  useEffect(() => {
+    if (!spacetimeDB.currentUser) return;
+    
+    const storageKey = `judgments_${spacetimeDB.currentUser.identity}_${vote.id}`;
+    try {
+      localStorage.setItem(storageKey, JSON.stringify(userJudgments));
+    } catch (e) {
+      console.warn('Failed to save judgments to localStorage:', e);
+    }
+  }, [userJudgments, vote.id, spacetimeDB.currentUser?.identity]);
 
 
   if (!vote.options || vote.options.length === 0) {

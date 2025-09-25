@@ -5,10 +5,9 @@ use crate::vote::{find_vote_by_id, find_vote_option_by_id, set_vote_option_appro
 // Bring the `approval` table trait into scope for method resolution on `ctx.db.approval()`.
 use self::approval as approval_table;
 
-// Approvals table: one row per (voter, option)
+// Approvals table: one row per (voter, option) - PRIVATE for voter privacy
 #[spacetimedb::table(
     name = approval,
-    public,
     index(name = by_vote, btree(columns = [vote_id])),
     index(name = by_vote_and_option, btree(columns = [vote_id, option_id])),
     index(name = by_vote_and_voter, btree(columns = [vote_id, voter])),
@@ -168,6 +167,10 @@ pub fn set_approvals(ctx: &ReducerContext, vote_id: u32, option_ids: Vec<u32>) -
     }
     Ok(())
 }
+
+// Note: SpacetimeDB reducers cannot return data directly.
+// Private tables are not accessible via client subscriptions.
+// We need to use optimistic UI updates and server-side validation.
 
 /// Compute which approvals to add and which to remove to transform `current` into `desired`.
 pub(crate) fn compute_approval_diffs(current: &HashSet<u32>, desired: &HashSet<u32>) -> (Vec<u32>, Vec<u32>) {

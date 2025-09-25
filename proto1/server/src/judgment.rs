@@ -11,10 +11,9 @@ pub enum Mention {
     Excellent,   // Très Bien
 }
 
-// Judgments table: one row per user per option for majority judgment votes
+// Judgments table: one row per user per option for majority judgment votes - PRIVATE for voter privacy
 #[spacetimedb::table(
     name = judgment,
-    public,
     index(name = by_option, btree(columns = [option_id])),
     index(name = by_option_and_user, btree(columns = [option_id, voter]))
 )]
@@ -171,6 +170,10 @@ fn recompute_mj_summary_for_vote(ctx: &ReducerContext, vote_id: u32) {
         }
     }
 }
+
+// Note: SpacetimeDB reducers cannot return data directly.
+// Private tables are not accessible via client subscriptions.
+// We need to use optimistic UI updates and server-side validation.
 
 fn recompute_mj_summary_for_option(ctx: &ReducerContext, option_id: u32) {
     let vote_id = match find_vote_option_by_id(ctx, option_id) { Some(opt) => opt.vote_id, None => 0 };

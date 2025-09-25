@@ -40,22 +40,49 @@ export const spacetimeDB = {
   },
 
   async setFocusedVoteByToken(token: string | null): Promise<void> {
-    if (!connection) return;
-    if (!token) return;
+    if (!connection) {
+      console.warn('setFocusedVoteByToken: no connection');
+      return;
+    }
+    if (!token) {
+      console.warn('setFocusedVoteByToken: no token');
+      return;
+    }
+    
+    console.log('setFocusedVoteByToken: starting focused subscription for token:', token);
+    
     try {
-      connection
-        .subscriptionBuilder()
-        .onApplied(() => {
-          console.log('Focused subscriptions applied for token');
-          subscriptionsApplied = true;
-          try { subscriptionsAppliedCallbacks.forEach(cb => cb()); } catch {}
-        })
-        .subscribe([
-          // Only include the vote row; other tables are covered by wide subscriptions
-          `SELECT * FROM vote WHERE token = '${token}'`
-        ]);
+      const builder = connection.subscriptionBuilder();
+      
+      builder.onApplied(() => {
+        console.log('✅ Focused subscriptions applied for token:', token);
+        subscriptionsApplied = true;
+        try { 
+          subscriptionsAppliedCallbacks.forEach(cb => cb()); 
+        } catch (e) {
+          console.warn('Error in subscriptionsAppliedCallbacks:', e);
+        }
+      });
+
+      const queries = [
+        // Vote row by token
+        `SELECT * FROM vote WHERE token = '${token}'`,
+        // Public related rows
+        `SELECT * FROM vote_option WHERE vote_id IN (SELECT id FROM vote WHERE token = '${token}')`,
+        `SELECT * FROM mj_summary WHERE vote_id IN (SELECT id FROM vote WHERE token = '${token}')`,
+        // Note: Private tables (approval, judgment) cannot be subscribed to directly
+        // We'll use localStorage to persist user's private selections
+      ];
+      
+      console.log('setFocusedVoteByToken: subscribing to queries:', queries);
+      
+      await builder.subscribe(queries);
+      
+      console.log('setFocusedVoteByToken: subscription request sent');
+      
     } catch (e) {
-      console.warn('Failed to apply focused subscriptions by token:', e);
+      console.error('❌ Failed to apply focused subscriptions by token:', e);
+      throw e;
     }
   },
   
@@ -130,12 +157,10 @@ export const spacetimeDB = {
           queryToken = sp.get('token');
         } catch {}
 
-        // Always include wide subscriptions; optionally include filtered vote row if token present
+        // Always include wide subscriptions for public data only
         const queries: string[] = [
           'SELECT * FROM vote',
           'SELECT * FROM vote_option', 
-          'SELECT * FROM approval',
-          'SELECT * FROM judgment',
           'SELECT * FROM mj_summary'
         ];
         if (queryToken) {
@@ -223,8 +248,9 @@ export const spacetimeDB = {
         .subscribe([
           `SELECT * FROM vote`,
           `SELECT * FROM vote_option WHERE vote_id = ${idLiteral}`,
-          `SELECT * FROM approval WHERE vote_id = ${idLiteral}`,
-          `SELECT * FROM judgment WHERE option_id IN (SELECT id FROM vote_option WHERE vote_id = ${idLiteral})`,
+          // Private tables scoped to current user only for this vote
+          `SELECT * FROM approval WHERE vote_id = ${idLiteral} AND voter = @caller`,
+          `SELECT * FROM judgment WHERE voter = @caller AND option_id IN (SELECT id FROM vote_option WHERE vote_id = ${idLiteral})`,
           `SELECT * FROM mj_summary WHERE vote_id = ${idLiteral}`,
         ]);
     } catch (e) {
@@ -273,6 +299,9 @@ export const spacetimeDB = {
         connection.reducers.withdrawJudgments(Number.parseInt(voteId, 10));
         return { success: true };
       }
+      
+      // Note: Removed getMyApprovals/getMyJudgments reducers since SpacetimeDB reducers cannot return data.
+      // Instead, we use filtered subscriptions: "SELECT * FROM approval WHERE voter = @caller"
       
       throw new Error(`Reducer ${reducerName} not implemented`);
     } catch (error) {

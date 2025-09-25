@@ -47,6 +47,16 @@ export const useVotes = () => {
     }
 
     try {
+      // Debug: table counts
+      try {
+        const db: any = spacetimeDB.connection.db;
+        console.debug('[useVotes] counts', {
+          vote: db.vote?.count?.(),
+          voteOption: db.voteOption?.count?.(),
+          mjSummary: (db as any).mjSummary?.count?.(),
+        });
+      } catch {}
+
       const allVotes: VoteWithOptions[] = [];
 
       // Build a lookup for MJ summaries by optionId for fast access
@@ -79,14 +89,9 @@ export const useVotes = () => {
         const options: any[] = [];
         for (const option of (spacetimeDB.connection.db as any).voteOption.iter() as Iterable<any>) {
           if (option.voteId?.toString() === vote.id.toString()) {
-            // Count approvals for this option
-            let approvalsCount = 0;
-            for (const approval of (spacetimeDB.connection.db as any).approval.iter() as Iterable<any>) {
-              if (approval.optionId?.toString() === option.id.toString()) {
-                approvalsCount++;
-              }
-            }
-            // Majority Judgment counts: prefer mj_summary, fallback to scanning judgment table
+            // Use server-maintained aggregates
+            const approvalsCount = Number(option.approvalsCount || 0);
+            // Majority Judgment counts: use mj_summary only (privacy-safe)
             let judgmentCounts = {
               ToReject: 0,
               Passable: 0,
@@ -105,16 +110,6 @@ export const useVotes = () => {
                 Excellent: Number(sumRow.excellent || 0)
               };
               totalJudgments = Number(sumRow.total || 0);
-            } else {
-              for (const judgment of (spacetimeDB.connection.db as any).judgment.iter() as Iterable<any>) {
-                if (judgment.optionId?.toString() === option.id.toString()) {
-                  const mention = judgment.mention?.tag;
-                  if (mention && (judgmentCounts as any).hasOwnProperty(mention)) {
-                    judgmentCounts[mention as keyof typeof judgmentCounts]++;
-                  }
-                }
-              }
-              totalJudgments = Object.values(judgmentCounts).reduce((a, b) => a + b, 0);
             }
 
             options.push({
@@ -140,16 +135,23 @@ export const useVotes = () => {
       allVotes.sort((a, b) => (b.created_at || 0) - (a.created_at || 0));
 
       // Separate my votes from public votes
+      const normalizeId = (s: string) => s.toLowerCase().replace(/^identity\(0x/,'0x').replace(/\)$/,'').replace(/^0x/,'');
       const currentUserIdentity = spacetimeDB.currentUser.identity.toString();
+      const currentNorm = normalizeId(currentUserIdentity);
       const focusedId = spacetimeDB.focusedVoteId;
-      const myVotesList = allVotes.filter(vote => vote.creator === currentUserIdentity);
+      const myVotesList = allVotes.filter(vote => normalizeId(vote.creator) === currentNorm);
       const publicVotesList = allVotes.filter(vote => {
-        const isMine = vote.creator === currentUserIdentity;
+        const isMine = normalizeId(vote.creator) === currentNorm;
         const isPublic = vote.public;
         const isFocused = focusedId ? vote.id === focusedId : false;
         return (!isMine && (isPublic || isFocused));
       });
 
+      console.debug('[useVotes] built lists', {
+        all: allVotes.length,
+        my: myVotesList.length,
+        pub: publicVotesList.length,
+      });
       setMyVotes(myVotesList);
       setPublicVotes(publicVotesList);
       setIsLoading(false);
@@ -271,6 +273,23 @@ export const useVotes = () => {
         // Note: SpacetimeDB should handle cleanup automatically when connection closes
         // but we could add specific cleanup here if needed
       }
+    };
+  }, [updateVotes]);
+
+  // Also rebuild once when the initial subscription snapshot is applied
+  // This ensures existing public votes are visible on first load even if
+  // table listeners don't emit events for the initial snapshot.
+  useEffect(() => {
+    // If subscriptions are already applied (race condition), rebuild now
+    if (spacetimeDB.subscriptionsApplied) {
+      try { updateVotes(); } catch {}
+    }
+    const onApplied = () => {
+      try { updateVotes(); } catch (e) { console.warn('useVotes: update onApplied failed', e); }
+    };
+    spacetimeDB.onSubscriptionsApplied(onApplied);
+    return () => {
+      try { spacetimeDB.offSubscriptionsApplied(onApplied); } catch {}
     };
   }, [updateVotes]);
 

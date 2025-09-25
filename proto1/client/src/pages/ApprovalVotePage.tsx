@@ -14,7 +14,26 @@ const ApprovalVotePage: React.FC = () => {
 
   useEffect(() => {
     if (token) {
-      spacetimeDB.setFocusedVoteByToken(token).catch(console.warn);
+      console.log('[ApprovalVotePage] Setting up focused subscription for token:', token);
+      // Wait for connection and initial subscriptions before applying focused ones
+      const tryFocus = async () => {
+        if (spacetimeDB.connection && spacetimeDB.subscriptionsApplied) {
+          console.log('[ApprovalVotePage] Applying focused subscription now');
+          try {
+            await spacetimeDB.setFocusedVoteByToken(token);
+            console.log('[ApprovalVotePage] Focused subscription completed successfully');
+          } catch (e) {
+            console.error('[ApprovalVotePage] Focused subscription failed:', e);
+          }
+        } else {
+          console.log('[ApprovalVotePage] Waiting for connection/subscriptions...', {
+            connected: !!spacetimeDB.connection,
+            subsApplied: spacetimeDB.subscriptionsApplied
+          });
+          setTimeout(tryFocus, 100);
+        }
+      };
+      tryFocus();
     }
   }, [token]);
 
