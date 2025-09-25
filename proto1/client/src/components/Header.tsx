@@ -1,13 +1,14 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { spacetimeDB } from '../lib/spacetimeClient';
 import { getColorMode, setColorMode as persistColorMode, onColorModeChange } from '../lib/colorMode';
 
 interface HeaderProps {
   onViewChange?: (view: 'home' | 'create' | 'vote') => void;
-  currentView?: 'home' | 'create' | 'vote';
 }
 
-const Header: React.FC<HeaderProps> = ({ onViewChange, currentView }) => {
+const Header: React.FC<HeaderProps> = ({ onViewChange }) => {
+  const navigate = useNavigate();
   const [user, setUser] = useState(spacetimeDB.currentUser);
   const [connected, setConnected] = useState(false);
   const [colorMode, setColorMode] = useState(getColorMode());
@@ -60,7 +61,10 @@ const Header: React.FC<HeaderProps> = ({ onViewChange, currentView }) => {
     <header>
       <h1>
         <button
-          onClick={() => onViewChange?.('home')}
+          onClick={() => {
+            if (onViewChange) onViewChange('home');
+            else navigate('/');
+          }}
           style={{ background: 'none', border: 'none', color: 'inherit', font: 'inherit', cursor: 'pointer' }}
         >
           zvote — proto1
@@ -68,6 +72,16 @@ const Header: React.FC<HeaderProps> = ({ onViewChange, currentView }) => {
       </h1>
       
       <div className="header-right">
+            {/* Navigation */}
+            <div>
+              <button
+                onClick={() => (onViewChange ? onViewChange('create') : navigate('/create'))}
+                className="btn-secondary"
+                title="Create a new vote"
+              >
+                Create
+              </button>
+            </div>
             {/* Identity section */}
             <div className="identity">
               <span className="muted">You:</span>

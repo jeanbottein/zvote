@@ -5,7 +5,8 @@ interface VotesListProps {
   title: string;
   isLoading: boolean;
   error?: string | null;
-  onVoteClick?: (vote: VoteWithOptions) => void;
+  onVoteClick?: (vote: VoteWithOptions) => void; // clicking the card => usually "view"
+  onVoteButtonClick?: (vote: VoteWithOptions) => void; // clicking the Vote button => usually "vote"
   emptyMessage?: string;
   showCreateButton?: boolean;
   onCreateClick?: () => void;
@@ -17,6 +18,7 @@ const VotesList: React.FC<VotesListProps> = ({
   isLoading,
   error,
   onVoteClick,
+  onVoteButtonClick,
   emptyMessage = "No votes found.",
   showCreateButton = false,
   onCreateClick
@@ -96,15 +98,37 @@ const VotesList: React.FC<VotesListProps> = ({
                 <div className="flex justify-between items-start mb-2">
                   <h3 className="font-medium text-gray-900 text-lg">{vote.title}</h3>
                   <div className="flex items-center space-x-2">
-                    {vote.public ? (
-                      <span className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
-                        Public
-                      </span>
-                    ) : (
-                      <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full">
-                        Private
-                      </span>
-                    )}
+                    {(() => {
+                      const vtag = ((vote as any).visibility?.tag ?? ((vote as any).public ? 'Public' : 'Private')) as string;
+                      const cls = vtag === 'Public'
+                        ? 'bg-green-100 text-green-800'
+                        : vtag === 'Unlisted'
+                        ? 'bg-amber-100 text-amber-800'
+                        : 'bg-red-100 text-red-800';
+                      return (
+                        <span className={`px-2 py-1 ${cls} text-xs rounded-full`}>
+                          {vtag}
+                        </span>
+                      );
+                    })()}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (onVoteButtonClick) onVoteButtonClick(vote);
+                        else onVoteClick?.(vote);
+                      }}
+                      style={{
+                        padding: '4px 8px',
+                        fontSize: '12px',
+                        borderRadius: '4px',
+                        backgroundColor: '#4CAF50',
+                        color: '#fff',
+                        border: 'none',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      Vote
+                    </button>
                   </div>
                 </div>
 

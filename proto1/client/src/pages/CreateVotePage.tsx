@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useToast } from '../components/ToastProvider';
 import CreateVoteForm from '../components/CreateVoteForm';
 import { useCreateVote } from '../hooks/useCreateVote';
 
@@ -11,12 +13,15 @@ const CreateVotePage: React.FC<CreateVotePageProps> = ({
   onNavigateHome, 
   onVoteCreated 
 }) => {
+  const navigate = useNavigate();
+  const { showToast } = useToast();
   const { lastResult } = useCreateVote();
   const [showSuccess, setShowSuccess] = useState(false);
 
   const handleVoteCreated = async (voteId: string) => {
     // Afficher un message de succès
     setShowSuccess(true);
+    showToast({ type: 'success', message: 'Vote created successfully! 🎉' });
     
     // Appeler le callback parent si fourni
     if (onVoteCreated) {
@@ -25,16 +30,14 @@ const CreateVotePage: React.FC<CreateVotePageProps> = ({
     
     // Retourner à l'accueil après un délai
     setTimeout(() => {
-      if (onNavigateHome) {
-        onNavigateHome();
-      }
+      if (onNavigateHome) onNavigateHome();
+      else navigate('/');
     }, 2000);
   };
 
   const handleCancel = () => {
-    if (onNavigateHome) {
-      onNavigateHome();
-    }
+    if (onNavigateHome) onNavigateHome();
+    else navigate('/');
   };
 
   return (
@@ -93,6 +96,7 @@ const CreateVotePage: React.FC<CreateVotePageProps> = ({
         {/* Formulaire de création */}
         <CreateVoteForm
           onVoteCreated={handleVoteCreated}
+          onError={(msg) => showToast({ type: 'error', message: msg })}
           onCancel={handleCancel}
         />
 

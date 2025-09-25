@@ -5,6 +5,8 @@ let connection: DbConnection | null = null;
 let currentUser: { identity: string; token?: string } | null = null;
 let connectionCallbacks = new Set<(connected: boolean) => void>();
 let focusedVoteId: string | null = null;
+let subscriptionsApplied = false;
+const subscriptionsAppliedCallbacks = new Set<() => void>();
 
 const AUTH_TOKEN_KEY = 'auth_token';
 
@@ -45,13 +47,12 @@ export const spacetimeDB = {
         .subscriptionBuilder()
         .onApplied(() => {
           console.log('Focused subscriptions applied for token');
+          subscriptionsApplied = true;
+          try { subscriptionsAppliedCallbacks.forEach(cb => cb()); } catch {}
         })
         .subscribe([
-          `SELECT * FROM vote`,
-          `SELECT * FROM vote_option WHERE vote_id = (SELECT id FROM vote WHERE token = '${token}')`,
-          `SELECT * FROM approval WHERE vote_id = (SELECT id FROM vote WHERE token = '${token}')`,
-          `SELECT * FROM judgment WHERE option_id IN (SELECT id FROM vote_option WHERE vote_id = (SELECT id FROM vote WHERE token = '${token}'))`,
-          `SELECT * FROM mj_summary WHERE vote_id = (SELECT id FROM vote WHERE token = '${token}')`,
+          // Only include the vote row; other tables are covered by wide subscriptions
+          `SELECT * FROM vote WHERE token = '${token}'`
         ]);
     } catch (e) {
       console.warn('Failed to apply focused subscriptions by token:', e);
@@ -122,49 +123,41 @@ export const spacetimeDB = {
         setCookie(AUTH_TOKEN_KEY, token);
         connectionCallbacks.forEach(cb => cb(true));
 
-        // Subscriptions: if URL carries a path token (/vote/<token>), scope to that vote; else subscribe wide
-        let pathToken: string | null = null;
+        // Subscriptions: if URL carries a token in query params, scope to that vote; else subscribe wide
+        let queryToken: string | null = null;
         try {
-          const path = window.location.pathname || '/';
-          const m = path.match(/^\/vote\/([^/]+)$/);
-          pathToken = m ? decodeURIComponent(m[1]) : null;
+          const sp = new URLSearchParams(window.location.search || '');
+          queryToken = sp.get('token');
         } catch {}
 
-        if (pathToken) {
-          console.log('Applying focused subscriptions from URL token');
-          conn.subscriptionBuilder()
-            .onApplied(() => {
-              console.log('SpacetimeDB focused subscriptions applied');
-              resolve();
-            })
-            .subscribe([
-              `SELECT * FROM vote`,
-              `SELECT * FROM vote_option WHERE vote_id = (SELECT id FROM vote WHERE token = '${pathToken}')`,
-              `SELECT * FROM approval WHERE vote_id = (SELECT id FROM vote WHERE token = '${pathToken}')`,
-              `SELECT * FROM judgment WHERE option_id IN (SELECT id FROM vote_option WHERE vote_id = (SELECT id FROM vote WHERE token = '${pathToken}'))`,
-              `SELECT * FROM mj_summary WHERE vote_id = (SELECT id FROM vote WHERE token = '${pathToken}')`,
-            ]);
-        } else {
-          // Initial wide subscriptions for lists
-          conn.subscriptionBuilder()
-            .onApplied(() => {
-              console.log('SpacetimeDB subscriptions applied');
-              resolve();
-            })
-            .subscribe([
-              'SELECT * FROM vote',
-              'SELECT * FROM vote_option', 
-              'SELECT * FROM approval',
-              'SELECT * FROM judgment',
-              'SELECT * FROM mj_summary'
-            ]);
+        // Always include wide subscriptions; optionally include filtered vote row if token present
+        const queries: string[] = [
+          'SELECT * FROM vote',
+          'SELECT * FROM vote_option', 
+          'SELECT * FROM approval',
+          'SELECT * FROM judgment',
+          'SELECT * FROM mj_summary'
+        ];
+        if (queryToken) {
+          console.log('Applying wide + (filtered vote) subscriptions from URL query token');
+          queries.push(`SELECT * FROM vote WHERE token = '${queryToken}'`);
         }
+        subscriptionsApplied = false;
+        conn.subscriptionBuilder()
+          .onApplied(() => {
+            console.log('SpacetimeDB subscriptions applied');
+            subscriptionsApplied = true;
+            try { subscriptionsAppliedCallbacks.forEach(cb => cb()); } catch {}
+            resolve();
+          })
+          .subscribe(queries);
       };
 
       const onDisconnect = () => {
         console.log('Disconnected from SpacetimeDB');
         connection = null;
         currentUser = null;
+        subscriptionsApplied = false;
         connectionCallbacks.forEach(cb => cb(false));
       };
 
@@ -187,6 +180,7 @@ export const spacetimeDB = {
   disconnect(): void {
     connection = null;
     currentUser = null;
+    subscriptionsApplied = false;
     connectionCallbacks.forEach(cb => cb(false));
   },
 
@@ -293,6 +287,18 @@ export const spacetimeDB = {
 
   offConnectionChange(callback: (connected: boolean) => void): void {
     connectionCallbacks.delete(callback);
+  },
+
+  get subscriptionsApplied() {
+    return subscriptionsApplied;
+  },
+
+  onSubscriptionsApplied(cb: () => void) {
+    subscriptionsAppliedCallbacks.add(cb);
+  },
+
+  offSubscriptionsApplied(cb: () => void) {
+    subscriptionsAppliedCallbacks.delete(cb);
   }
 };
 
