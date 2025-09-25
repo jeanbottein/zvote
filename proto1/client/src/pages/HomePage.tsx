@@ -41,7 +41,6 @@ const HomePage: React.FC = () => {
           onVoteClick={goToView}
           onVoteButtonClick={goToVote}
           emptyMessage="You haven't created any votes yet."
-          showCreateButton={true}
           onCreateClick={() => navigate('/create')}
         />
       </div>

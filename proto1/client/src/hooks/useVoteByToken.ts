@@ -33,13 +33,8 @@ function buildVoteByTokenFromCache(token: string): VoteWithOptions | null {
   const options: any[] = [];
   for (const option of db.voteOption.iter() as Iterable<any>) {
     if (option.voteId?.toString() === voteIdStr) {
-      // Count approvals
-      let approvalsCount = 0;
-      for (const approval of db.approval.iter() as Iterable<any>) {
-        if (approval.optionId?.toString() === option.id.toString()) {
-          approvalsCount++;
-        }
-      }
+      // Use server-maintained aggregated approvals count
+      const approvalsCount = Number(option.approvalsCount || 0);
       // MJ counts
       let judgmentCounts: Record<string, number> = { ToReject: 0, Passable: 0, Good: 0, VeryGood: 0, Excellent: 0 };
       let totalJudgments = 0;
