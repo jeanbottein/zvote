@@ -1,13 +1,15 @@
-use spacetimedb::{ReducerContext, Table, Identity, Timestamp};
+use spacetimedb::{ReducerContext, Table, Identity, Timestamp, Filter, client_visibility_filter};
 use std::collections::HashSet;
 
 use crate::vote::{find_vote_by_id, find_vote_option_by_id, set_vote_option_approvals_count, vote_option_vote_id, vote_option_approvals_count, VotingSystem};
 // Bring the `approval` table trait into scope for method resolution on `ctx.db.approval()`.
 use self::approval as approval_table;
 
-// Approvals table: one row per (voter, option) - PRIVATE for voter privacy
+// Approvals table: one row per (voter, option)
+// Public with RLS: clients only see their own rows via client visibility filters
 #[spacetimedb::table(
     name = approval,
+    public,
     index(name = by_vote, btree(columns = [vote_id])),
     index(name = by_vote_and_option, btree(columns = [vote_id, option_id])),
     index(name = by_vote_and_voter, btree(columns = [vote_id, voter])),
@@ -19,6 +21,12 @@ pub struct Approval {
     voter: Identity,
     ts: Timestamp,
 }
+
+// RLS: a client may only see their own approval rows
+#[client_visibility_filter]
+const APPROVAL_RLS: Filter = Filter::Sql(
+    "SELECT approval.* FROM approval WHERE approval.voter = :sender"
+);
 
 // Reducer: approve a single option
 #[spacetimedb::reducer]

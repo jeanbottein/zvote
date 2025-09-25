@@ -1,4 +1,4 @@
-use spacetimedb::{ReducerContext, SpacetimeType, Table, Identity};
+use spacetimedb::{ReducerContext, SpacetimeType, Table, Identity, Filter, client_visibility_filter};
 
 use crate::vote::{find_vote_by_id, find_vote_option_by_id, get_vote_options, VotingSystem};
 
@@ -11,9 +11,11 @@ pub enum Mention {
     Excellent,   // Très Bien
 }
 
-// Judgments table: one row per user per option for majority judgment votes - PRIVATE for voter privacy
+// Judgments table: one row per user per option for majority judgment votes
+// Public with RLS so each client only sees their own rows
 #[spacetimedb::table(
     name = judgment,
+    public,
     index(name = by_option, btree(columns = [option_id])),
     index(name = by_option_and_user, btree(columns = [option_id, voter]))
 )]
@@ -25,6 +27,12 @@ pub struct Judgment {
     voter: Identity,
     mention: Mention,
 }
+
+// RLS: a client may only see their own judgment rows
+#[client_visibility_filter]
+const JUDGMENT_RLS: Filter = Filter::Sql(
+    "SELECT judgment.* FROM judgment WHERE judgment.voter = :sender"
+);
 
 // Precomputed summary for Majority Judgment per option
 #[spacetimedb::table(
@@ -53,6 +61,8 @@ fn compute_majority_from_counts(counts: &[u32; 5], total: u32) -> Mention {
     if total == 0 {
         return Mention::ToReject; // default when no judgments
     }
+
+
     let target = (total + 1) / 2; // median position (1-indexed)
     let mut cum = 0u32;
     for (i, m) in order.iter().enumerate() {

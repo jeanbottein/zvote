@@ -70,8 +70,9 @@ export const spacetimeDB = {
         // Public related rows
         `SELECT * FROM vote_option WHERE vote_id IN (SELECT id FROM vote WHERE token = '${token}')`,
         `SELECT * FROM mj_summary WHERE vote_id IN (SELECT id FROM vote WHERE token = '${token}')`,
-        // Note: Private tables (approval, judgment) cannot be subscribed to directly
-        // We'll use localStorage to persist user's private selections
+        // With RLS enabled server-side, these subscriptions only return the caller's rows
+        `SELECT * FROM approval WHERE vote_id IN (SELECT id FROM vote WHERE token = '${token}')`,
+        `SELECT * FROM judgment WHERE option_id IN (SELECT id FROM vote_option WHERE vote_id IN (SELECT id FROM vote WHERE token = '${token}'))`,
       ];
       
       console.log('setFocusedVoteByToken: subscribing to queries:', queries);
