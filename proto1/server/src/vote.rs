@@ -49,14 +49,15 @@ pub struct Vote {
 
 
 // RLS DEBUGGING: Testing public filter only
-// #[client_visibility_filter]
-// const VOTE_RLS_PUBLIC: Filter = Filter::Sql("SELECT * FROM vote");
+#[client_visibility_filter]
+const VOTE_RLS_PUBLIC: Filter = Filter::Sql("SELECT * FROM vote");
 
-// #[client_visibility_filter]
-// const VOTE_RLS_CREATOR: Filter = Filter::Sql("SELECT * FROM vote WHERE creator = :sender");
+#[client_visibility_filter]
+const VOTE_RLS_CREATOR: Filter = Filter::Sql("SELECT * FROM vote WHERE creator = :sender");
 
 // #[client_visibility_filter]
 // const VOTE_RLS_ACCESS: Filter = Filter::Sql("SELECT vote.* FROM vote JOIN vote_access ON vote.id = vote_access.vote_id WHERE vote_access.user_id = :sender");
+// TODO: wait for a fix https://github.com/clockworklabs/SpacetimeDB/issues/2830
 
 // Options table: up to 20 per vote
 #[spacetimedb::table(
