@@ -67,7 +67,7 @@ const JudgmentVotePage: React.FC = () => {
         ))}
       </div>
 
-      <div className="voting-section">
+      <div className="ballot">
         <VotingInterface 
           vote={vote}
           onVoteCast={() => showToast({ type: 'success', message: 'Judgment recorded! ✅' })}

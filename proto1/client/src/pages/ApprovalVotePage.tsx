@@ -67,7 +67,7 @@ const ApprovalVotePage: React.FC = () => {
         ))}
       </div>
 
-      <div style={{ marginTop: '24px' }}>
+      <div className="ballot">
         <VotingInterface 
           vote={vote}
           onVoteCast={() => showToast({ type: 'success', message: 'Vote cast successfully! ✅' })}
