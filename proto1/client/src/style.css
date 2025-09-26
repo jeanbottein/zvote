@@ -353,7 +353,7 @@ body[data-colorblind="true"] .mj-bar[data-judgment="Excellent"], body[data-color
 /* ============================ */
 /* Voting Interface (tags etc.) */
 /* ============================ */
-.vi { margin-top: 16px; display: flex; flex-direction: column; gap: 12px; }
+.vi { margin-top: 8px; display: flex; flex-direction: column; gap: 12px; }
 .vi-right { display: flex; justify-content: flex-end; }
 .tags { display: flex; gap: 8px; flex-wrap: wrap; }
 .tag { padding: 6px 10px; border-radius: 9999px; border: 1px solid var(--border); background: transparent; color: var(--fg); font-size: 13px; font-weight: 500; cursor: pointer; }
@@ -386,7 +386,7 @@ body[data-colorblind="true"] .mj-slider {
 /* Tick marks behind the slider - positioned relative to slider */
 .mj-tick { 
   position: absolute; transform: translateX(-50%); 
-  width: 2px; height: 21px; background: rgba(0,0,0,0.4); z-index: 2; 
+  width: 2px; height: 21px; background: var(--border); z-index: 2; 
   left: var(--left); border-radius: 99px;
 }
 
@@ -448,3 +448,12 @@ body[data-colorblind="true"] .mj-mention[data-mention="Excellent"][data-selected
   box-shadow: 0 0 8px rgba(16, 185, 129, 0.4); z-index: 1;
 }
 
+.voting-section { 
+  margin-top: 24px;
+  background: rgba(197, 152, 66, 0.34);
+  border: 1px solid var(--border);
+  padding: 0px 20px;
+  border-radius: 8px;
+  backdrop-filter: blur(var(--glass-blur));
+  box-shadow: var(--glass-shadow);
+}
