@@ -269,7 +269,7 @@ footer { padding: 10px 16px; border-top: 1px solid var(--border); color: var(--m
 .header-actions { position: relative; display: flex; align-items: center; gap: 8px; }
 .back-button { 
   background: #22c55e; color: white; border: none; border-radius: 8px; 
-  padding: 10px; cursor: pointer; display: inline-flex; align-items: center; 
+  padding: 1px; cursor: pointer; display: inline-flex; align-items: center; 
   font-size: 32px; font-weight: 500; transition: all 0.15s ease;
   min-width: 80px; justify-content: center; line-height: 1;
 }
