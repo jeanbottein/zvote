@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { useVoteByToken } from '../hooks/useVoteByToken';
 import { spacetimeDB } from '../lib/spacetimeClient';
 import MajorityJudgmentGraph from '../components/MajorityJudgmentGraph';
+import { sortOptionsByMJ, findWinners } from '../utils/majorityJudgment';
 
 const JudgmentViewPage: React.FC = () => {
   const [params] = useSearchParams();
@@ -28,19 +29,31 @@ const JudgmentViewPage: React.FC = () => {
     return <div className="panel"><h2>Vote not found</h2></div>;
   }
 
+  const sortedOptions = sortOptionsByMJ(vote.options || []);
+  const winners = findWinners(sortedOptions);
+
   return (
     <div className="panel">
       <h2>{vote.title}</h2>
       <div style={{ marginTop: '16px' }}>
-        {(vote.options || []).map((option) => (
+        {sortedOptions.map((option) => (
           <MajorityJudgmentGraph
             key={option.id}
             optionLabel={option.label}
-            judgmentCounts={option.judgment_counts || { ToReject: 0, Passable: 0, Good: 0, VeryGood: 0, Excellent: 0 }}
+            judgmentCounts={option.judgment_counts || {
+              ToReject: 0,
+              Insufficient: 0,
+              OnlyAverage: 0,
+              GoodEnough: 0,
+              Good: 0,
+              VeryGood: 0,
+              Excellent: 0,
+            }}
             totalJudgments={option.total_judgments || 0}
             majorityTag={option.majority_tag}
-            secondTag={option.second_tag}
             compact={false}
+            isWinner={winners.has(option.id)}
+            showSecond={winners.size > 1 && winners.has(option.id)}
           />
         ))}
       </div>

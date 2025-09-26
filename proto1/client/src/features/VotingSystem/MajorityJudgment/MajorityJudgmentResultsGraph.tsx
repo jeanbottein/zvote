@@ -2,7 +2,9 @@ import React from 'react';
 
 interface JudgmentCounts {
   ToReject: number;
-  Passable: number;
+  Insufficient: number;
+  OnlyAverage: number;
+  GoodEnough: number;
   Good: number;
   VeryGood: number;
   Excellent: number;
@@ -15,6 +17,8 @@ interface MajorityJudgmentResultsGraphProps {
   compact?: boolean;
   majorityTag?: string | null;
   secondTag?: string | null;
+  isWinner?: boolean;
+  showSecond?: boolean;
 }
 
 const MajorityJudgmentResultsGraph: React.FC<MajorityJudgmentResultsGraphProps> = ({ 
@@ -24,22 +28,28 @@ const MajorityJudgmentResultsGraph: React.FC<MajorityJudgmentResultsGraphProps> 
   compact = false,
   majorityTag,
   secondTag,
+  isWinner = false,
+  showSecond = false,
 }) => {
   const judgmentLabels = {
     ToReject: 'To Reject',
-    Passable: 'Passable',
+    Insufficient: 'Insufficient',
+    OnlyAverage: 'Only Average',
+    GoodEnough: 'Good Enough',
     Good: 'Good',
     VeryGood: 'Very Good',
     Excellent: 'Excellent'
-  };
+  } as const;
 
   // Correct order for mentions (for computing median)
   const mentionOrder: Record<keyof JudgmentCounts, number> = {
     ToReject: 1,
-    Passable: 2,
-    Good: 3,
-    VeryGood: 4,
-    Excellent: 5,
+    Insufficient: 2,
+    OnlyAverage: 3,
+    GoodEnough: 4,
+    Good: 5,
+    VeryGood: 6,
+    Excellent: 7,
   };
 
   const computeMajority = (counts: JudgmentCounts, total: number): keyof JudgmentCounts | null => {
@@ -61,10 +71,15 @@ const MajorityJudgmentResultsGraph: React.FC<MajorityJudgmentResultsGraphProps> 
   };
 
   const majorityJudgment = majorityTag as keyof JudgmentCounts | null ?? computeMajority(judgmentCounts, totalBallots);
-  const secondJudgment = secondTag as keyof JudgmentCounts | null ?? computeSecond(judgmentCounts, totalBallots, majorityJudgment);
+  const secondJudgment = showSecond
+    ? (secondTag as keyof JudgmentCounts | null ?? computeSecond(judgmentCounts, totalBallots, majorityJudgment))
+    : null;
+
+  // List mentions best-to-worst for visual left-to-right ordering
+  const mentionsDesc: Array<keyof JudgmentCounts> = ['Excellent','VeryGood','Good','GoodEnough','OnlyAverage','Insufficient','ToReject'];
 
   return (
-    <div id={`mj-results-${optionLabel}`} className="mj-results-card" data-compact={compact ? 'true' : 'false'}>
+    <div id={`mj-results-${optionLabel}`} className="mj-results-card" data-compact={compact ? 'true' : 'false'} data-winner={isWinner ? 'true' : 'false'}>
       <div className="mj-results-header">
         <div className="mj-results-title">{optionLabel}</div>
         <div className="mj-results-badges">
@@ -72,16 +87,30 @@ const MajorityJudgmentResultsGraph: React.FC<MajorityJudgmentResultsGraphProps> 
           <div className="mj-results-badge" data-judgment={majorityJudgment || undefined}>
             {majorityJudgment ? judgmentLabels[majorityJudgment as keyof typeof judgmentLabels] : '—'}
           </div>
-          <span className="mj-results-hint" style={{ marginLeft: '8px' }}>Second</span>
-          <div className="mj-results-badge" data-variant="second" data-judgment={secondJudgment || undefined} title="Tie-break mention">
-            {secondJudgment ? judgmentLabels[secondJudgment as keyof typeof judgmentLabels] : '—'}
-          </div>
+          {showSecond && (
+            <>
+              <span className="mj-results-hint" style={{ marginLeft: '8px' }}>Second</span>
+              <div className="mj-results-badge" data-variant="second" data-judgment={secondJudgment || undefined} title="Tie-break mention">
+                {secondJudgment ? judgmentLabels[secondJudgment as keyof typeof judgmentLabels] : '—'}
+              </div>
+            </>
+          )}
         </div>
       </div>
 
       <div className="mj-results-chart">
-        {Object.entries(judgmentCounts).map(([judgment, count]) => {
-          const percentage = totalBallots > 0 ? (count / totalBallots) * 100 : 20;
+        {/* Ticks 0..100% with emphasized 50% above the graph */}
+        <div className="mj-results-ticks">
+          {[0,10,20,30,40,50,60,70,80,90,100].map((p) => (
+            <div key={p} className="mj-tick" data-major={p === 50 ? 'true' : 'false'} style={{ ['--left' as any]: `${p}%` }}>
+              <span className="mj-tick-label">{p}%</span>
+            </div>
+          ))}
+        </div>
+
+        {mentionsDesc.map((judgment) => {
+          const count = judgmentCounts[judgment] || 0;
+          const percentage = totalBallots > 0 ? (count / totalBallots) * 100 : 0;
           return (
             <div
               key={judgment}
@@ -89,7 +118,7 @@ const MajorityJudgmentResultsGraph: React.FC<MajorityJudgmentResultsGraphProps> 
               data-judgment={judgment}
               data-has={count > 0 ? 'true' : 'false'}
               style={{ ['--w' as any]: `${percentage}%` }}
-              title={`${judgmentLabels[judgment as keyof typeof judgmentLabels]}: ${count} ballots`}
+              title={`${judgmentLabels[judgment]}: ${count} ballots`}
             />
           );
         })}

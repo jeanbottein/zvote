@@ -36,14 +36,15 @@ export interface VoteWithOptions {
     approvals_count: number;
     judgment_counts?: {
       ToReject: number;
-      Passable: number;
+      Insufficient: number;
+      OnlyAverage: number;
+      GoodEnough: number;
       Good: number;
       VeryGood: number;
       Excellent: number;
     };
     total_judgments?: number;
     majority_tag?: string | null;
-    second_tag?: string | null;
   }>;
 }
 
@@ -113,32 +114,34 @@ export const useVotes = () => {
             // Majority Judgment counts: use mj_summary only (privacy-safe)
             let judgmentCounts = {
               ToReject: 0,
-              Passable: 0,
+              Insufficient: 0,
+              OnlyAverage: 0,
+              GoodEnough: 0,
               Good: 0,
               VeryGood: 0,
-              Excellent: 0
+              Excellent: 0,
             } as Record<string, number>;
             let totalJudgments = 0;
             const sumRow = summaryByOptionId.get(String(option.id));
             if (sumRow) {
               judgmentCounts = {
                 ToReject: Number(sumRow.toReject || 0),
-                Passable: Number(sumRow.passable || 0),
+                Insufficient: Number(sumRow.insufficient || 0),
+                OnlyAverage: Number(sumRow.onlyAverage || 0),
+                GoodEnough: Number(sumRow.goodEnough || 0),
                 Good: Number(sumRow.good || 0),
                 VeryGood: Number(sumRow.veryGood || 0),
-                Excellent: Number(sumRow.excellent || 0)
+                Excellent: Number(sumRow.excellent || 0),
               };
               totalJudgments = Number(sumRow.total || 0);
             }
 
             options.push({
-              id: option.id.toString(),
               label: option.label,
               approvals_count: approvalsCount,
               judgment_counts: judgmentCounts,
               total_judgments: totalJudgments,
               majority_tag: sumRow?.majority?.tag ?? null,
-              second_tag: sumRow?.second?.tag ?? null
             });
           }
         }

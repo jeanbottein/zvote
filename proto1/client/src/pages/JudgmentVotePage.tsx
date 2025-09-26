@@ -5,6 +5,7 @@ import { spacetimeDB } from '../lib/spacetimeClient';
 import BallotInterface from '../features/BallotInterface/BallotInterface';
 import MajorityJudgmentResultsGraph from '../features/VotingSystem/MajorityJudgment/MajorityJudgmentResultsGraph';
 import { useToast } from '../components/ToastProvider';
+import { sortOptionsByMJ, findWinners } from '../utils/majorityJudgment';
 
 const JudgmentVotePage: React.FC = () => {
   const [params] = useSearchParams();
@@ -50,23 +51,34 @@ const JudgmentVotePage: React.FC = () => {
     return <div className="panel"><h2>Vote not found</h2></div>;
   }
 
+  // Build sorted options by MJ ranking (winners first)
+  const sortedOptions = sortOptionsByMJ(vote.options || []);
+
+  // Find winners (all tied for first)
+  const winners = findWinners(sortedOptions);
+
   return (
     <div className="panel">
       <h2>{vote.title}</h2>
       <div style={{ marginTop: '16px' }}>
-        {(vote.options || []).map((option) => (
+        {sortedOptions.map((option) => (
           <MajorityJudgmentResultsGraph
             key={option.id}
             optionLabel={option.label}
             judgmentCounts={option.judgment_counts || {
               ToReject: 0,
-              Passable: 0,
+              Insufficient: 0,
+              OnlyAverage: 0,
+              GoodEnough: 0,
               Good: 0,
               VeryGood: 0,
               Excellent: 0
             }}
             totalBallots={option.total_judgments || 0}
             compact={false}
+            majorityTag={option.majority_tag}
+            isWinner={winners.has(option.id)}
+            showSecond={winners.size > 1 && winners.has(option.id)}
           />
         ))}
       </div>

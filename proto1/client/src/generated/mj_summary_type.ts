@@ -39,12 +39,13 @@ export type MjSummary = {
   voteId: number,
   total: number,
   toReject: number,
-  passable: number,
+  insufficient: number,
+  onlyAverage: number,
+  goodEnough: number,
   good: number,
   veryGood: number,
   excellent: number,
   majority: __Mention,
-  second: __Mention | undefined,
 };
 
 /**
@@ -61,12 +62,13 @@ export namespace MjSummary {
       new ProductTypeElement("voteId", AlgebraicType.createU32Type()),
       new ProductTypeElement("total", AlgebraicType.createU32Type()),
       new ProductTypeElement("toReject", AlgebraicType.createU32Type()),
-      new ProductTypeElement("passable", AlgebraicType.createU32Type()),
+      new ProductTypeElement("insufficient", AlgebraicType.createU32Type()),
+      new ProductTypeElement("onlyAverage", AlgebraicType.createU32Type()),
+      new ProductTypeElement("goodEnough", AlgebraicType.createU32Type()),
       new ProductTypeElement("good", AlgebraicType.createU32Type()),
       new ProductTypeElement("veryGood", AlgebraicType.createU32Type()),
       new ProductTypeElement("excellent", AlgebraicType.createU32Type()),
       new ProductTypeElement("majority", __Mention.getTypeScriptAlgebraicType()),
-      new ProductTypeElement("second", AlgebraicType.createOptionType(__Mention.getTypeScriptAlgebraicType())),
     ]);
   }
 

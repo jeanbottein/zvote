@@ -38,7 +38,9 @@ export namespace Mention {
   // One type is generated per variant and will be used in the `value` field of
   // the tagged union.
   export type ToReject = { tag: "ToReject" };
-  export type Passable = { tag: "Passable" };
+  export type Insufficient = { tag: "Insufficient" };
+  export type OnlyAverage = { tag: "OnlyAverage" };
+  export type GoodEnough = { tag: "GoodEnough" };
   export type Good = { tag: "Good" };
   export type VeryGood = { tag: "VeryGood" };
   export type Excellent = { tag: "Excellent" };
@@ -50,7 +52,9 @@ export namespace Mention {
   // assert!(foo.value === 42);
   // ```
   export const ToReject = { tag: "ToReject" };
-  export const Passable = { tag: "Passable" };
+  export const Insufficient = { tag: "Insufficient" };
+  export const OnlyAverage = { tag: "OnlyAverage" };
+  export const GoodEnough = { tag: "GoodEnough" };
   export const Good = { tag: "Good" };
   export const VeryGood = { tag: "VeryGood" };
   export const Excellent = { tag: "Excellent" };
@@ -58,7 +62,9 @@ export namespace Mention {
   export function getTypeScriptAlgebraicType(): AlgebraicType {
     return AlgebraicType.createSumType([
       new SumTypeVariant("ToReject", AlgebraicType.createProductType([])),
-      new SumTypeVariant("Passable", AlgebraicType.createProductType([])),
+      new SumTypeVariant("Insufficient", AlgebraicType.createProductType([])),
+      new SumTypeVariant("OnlyAverage", AlgebraicType.createProductType([])),
+      new SumTypeVariant("GoodEnough", AlgebraicType.createProductType([])),
       new SumTypeVariant("Good", AlgebraicType.createProductType([])),
       new SumTypeVariant("VeryGood", AlgebraicType.createProductType([])),
       new SumTypeVariant("Excellent", AlgebraicType.createProductType([])),
@@ -76,7 +82,7 @@ export namespace Mention {
 }
 
 // The tagged union or sum type for the algebraic type `Mention`.
-export type Mention = Mention.ToReject | Mention.Passable | Mention.Good | Mention.VeryGood | Mention.Excellent;
+export type Mention = Mention.ToReject | Mention.Insufficient | Mention.OnlyAverage | Mention.GoodEnough | Mention.Good | Mention.VeryGood | Mention.Excellent;
 
 export default Mention;
 

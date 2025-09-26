@@ -4,11 +4,14 @@ use crate::vote::{find_vote_by_id, find_vote_option_by_id, get_vote_options, Vot
 
 #[derive(SpacetimeType, Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Mention {
-    ToReject,    // À rejeter
-    Passable,    // Passable
-    Good,        // Assez Bien
-    VeryGood,    // Bien
-    Excellent,   // Très Bien
+    // Ordered from worst to best (lowest to highest)
+    ToReject,     // À rejeter
+    Insufficient, // Insuffisant
+    OnlyAverage,  // Médiocre / Moyen
+    GoodEnough,   // Assez Bien / Suffisant
+    Good,         // Bien
+    VeryGood,     // Très Bien
+    Excellent,    // Excellent
 }
 
 // Judgments table: represents user's judgment ballots for specific options
@@ -47,24 +50,34 @@ pub struct MjSummary {
     pub option_id: u32,
     pub vote_id: u32,
     pub total: u32,
+    // Counts per mention (ordered lowest to highest)
     pub to_reject: u32,
-    pub passable: u32,
+    pub insufficient: u32,
+    pub only_average: u32,
+    pub good_enough: u32,
     pub good: u32,
     pub very_good: u32,
     pub excellent: u32,
+    // Majority mention (median using lower median for even totals) - canonical, stored server-side
     pub majority: Mention,
-    pub second: Option<Mention>,
 }
 
-fn compute_majority_from_counts(counts: &[u32; 5], total: u32) -> Mention {
-    // Order: ToReject(0) < Passable(1) < Good(2) < VeryGood(3) < Excellent(4)
-    let order = [Mention::ToReject, Mention::Passable, Mention::Good, Mention::VeryGood, Mention::Excellent];
+fn compute_majority_from_counts(counts: &[u32; 7], total: u32) -> Mention {
+    // Order: ToReject(0) < Insufficient(1) < OnlyAverage(2) < GoodEnough(3) < Good(4) < VeryGood(5) < Excellent(6)
+    let order = [
+        Mention::ToReject,
+        Mention::Insufficient,
+        Mention::OnlyAverage,
+        Mention::GoodEnough,
+        Mention::Good,
+        Mention::VeryGood,
+        Mention::Excellent,
+    ];
     if total == 0 {
         return Mention::ToReject; // default when no judgments
     }
 
-
-    let target = (total + 1) / 2; // median position (1-indexed)
+    let target = (total + 1) / 2; // median position (1-indexed), lower median for even totals
     let mut cum = 0u32;
     for (i, m) in order.iter().enumerate() {
         cum = cum.saturating_add(counts[i]);
@@ -76,69 +89,25 @@ fn compute_majority_from_counts(counts: &[u32; 5], total: u32) -> Mention {
     Mention::Excellent
 }
 
-fn compute_second_from_counts(counts: &[u32; 5], total: u32, majority: Mention) -> Option<Mention> {
-    if total <= 1 { return None; }
-    let mut counts2 = *counts;
-    let idx = match majority {
-        Mention::ToReject => 0,
-        Mention::Passable => 1,
-        Mention::Good => 2,
-        Mention::VeryGood => 3,
-        Mention::Excellent => 4,
-    };
-    if counts2[idx] == 0 { return None; }
-    counts2[idx] -= 1;
-    let t2 = total - 1;
-    Some(compute_majority_from_counts(&counts2, t2))
-}
-
-// Compute majority and optional second for a whole vote's options, using Majority Judgment tie-breaking guidance:
-// - majority: median grade (lower median for even totals)
-// - second: only needed for options tied at the top majority grade to enable tie-breaking
-fn compute_majorities_and_seconds(counts_list: &[[u32; 5]]) -> Vec<(Mention, Option<Mention>)> {
-    let totals: Vec<u32> = counts_list.iter().map(|c| c.iter().sum()).collect();
-    let majorities: Vec<Mention> = counts_list
-        .iter()
-        .zip(totals.iter().copied())
-        .map(|(c, t)| compute_majority_from_counts(c, t))
-        .collect();
-
-    // Highest majority grade among options
-    let best_majority = majorities.iter().copied().max().unwrap_or(Mention::ToReject);
-    let winners_count = majorities.iter().filter(|&&m| m == best_majority).count();
-    let have_tie_among_winners = winners_count > 1;
-
-    let seconds: Vec<Option<Mention>> = counts_list
-        .iter()
-        .zip(totals.iter().copied())
-        .zip(majorities.iter().copied())
-        .map(|((c, t), m)| {
-            if have_tie_among_winners && m == best_majority {
-                compute_second_from_counts(c, t, m)
-            } else {
-                None
-            }
-        })
-        .collect();
-
-    majorities.into_iter().zip(seconds.into_iter()).collect()
-}
+// Server only computes and stores the canonical majority (median). Tie-breaking is client-side.
 
 fn recompute_mj_summary_for_vote(ctx: &ReducerContext, vote_id: u32) {
     // Collect options and their counts
     let options: Vec<_> = get_vote_options(ctx, vote_id).collect();
-    let mut counts_vec: Vec<[u32; 5]> = Vec::with_capacity(options.len());
+    let mut counts_vec: Vec<[u32; 7]> = Vec::with_capacity(options.len());
     let mut totals_vec: Vec<u32> = Vec::with_capacity(options.len());
     for opt in &options {
-        let mut counts = [0u32; 5];
+        let mut counts = [0u32; 7];
         let mut total: u32 = 0;
         for j in ctx.db.judgment().by_option().filter(opt.id) {
             match j.mention {
                 Mention::ToReject => counts[0] += 1,
-                Mention::Passable => counts[1] += 1,
-                Mention::Good => counts[2] += 1,
-                Mention::VeryGood => counts[3] += 1,
-                Mention::Excellent => counts[4] += 1,
+                Mention::Insufficient => counts[1] += 1,
+                Mention::OnlyAverage => counts[2] += 1,
+                Mention::GoodEnough => counts[3] += 1,
+                Mention::Good => counts[4] += 1,
+                Mention::VeryGood => counts[5] += 1,
+                Mention::Excellent => counts[6] += 1,
             }
             total = total.saturating_add(1);
         }
@@ -146,23 +115,23 @@ fn recompute_mj_summary_for_vote(ctx: &ReducerContext, vote_id: u32) {
         totals_vec.push(total);
     }
 
-    let majorities_seconds = compute_majorities_and_seconds(&counts_vec);
-
     // Upsert summaries for each option
-    for ((opt, counts), (majority, second)) in options.iter().zip(counts_vec.iter()).zip(majorities_seconds.into_iter()) {
+    for (opt, counts) in options.iter().zip(counts_vec.iter()) {
         let total = totals_vec[counts_vec.iter().position(|c| c == counts).unwrap_or(0)];
+        let majority = compute_majority_from_counts(counts, total);
         if let Some(existing) = ctx.db.mj_summary().option_id().find(opt.id) {
             ctx.db.mj_summary().option_id().update(MjSummary {
                 option_id: opt.id,
                 vote_id,
                 total,
                 to_reject: counts[0],
-                passable: counts[1],
-                good: counts[2],
-                very_good: counts[3],
-                excellent: counts[4],
+                insufficient: counts[1],
+                only_average: counts[2],
+                good_enough: counts[3],
+                good: counts[4],
+                very_good: counts[5],
+                excellent: counts[6],
                 majority,
-                second,
                 ..existing
             });
         } else {
@@ -171,12 +140,13 @@ fn recompute_mj_summary_for_vote(ctx: &ReducerContext, vote_id: u32) {
                 vote_id,
                 total,
                 to_reject: counts[0],
-                passable: counts[1],
-                good: counts[2],
-                very_good: counts[3],
-                excellent: counts[4],
+                insufficient: counts[1],
+                only_average: counts[2],
+                good_enough: counts[3],
+                good: counts[4],
+                very_good: counts[5],
+                excellent: counts[6],
                 majority,
-                second,
             });
         }
     }
@@ -185,13 +155,6 @@ fn recompute_mj_summary_for_vote(ctx: &ReducerContext, vote_id: u32) {
 // Note: SpacetimeDB reducers cannot return data directly.
 // Private tables are not accessible via client subscriptions.
 // We need to use optimistic UI updates and server-side validation.
-
-fn recompute_mj_summary_for_option(ctx: &ReducerContext, option_id: u32) {
-    let vote_id = match find_vote_option_by_id(ctx, option_id) { Some(opt) => opt.vote_id, None => 0 };
-    if vote_id != 0 {
-        recompute_mj_summary_for_vote(ctx, vote_id);
-    }
-}
 
 #[spacetimedb::reducer]
 pub fn cast_judgment(ctx: &ReducerContext, option_id: u32, mention: Mention) -> Result<(), String> {
@@ -259,14 +222,15 @@ pub fn cast_judgment(ctx: &ReducerContext, option_id: u32, mention: Mention) -> 
 mod tests {
     use super::*;
 
-    fn counts(tr: u32, pa: u32, gd: u32, vg: u32, ex: u32) -> [u32; 5] {
-        [tr, pa, gd, vg, ex]
+    // Helper to build 7-level counts array in worst..best order
+    fn counts(tr: u32, insuff: u32, only_avg: u32, good_enough: u32, gd: u32, vg: u32, ex: u32) -> [u32; 7] {
+        [tr, insuff, only_avg, good_enough, gd, vg, ex]
     }
 
     #[test]
     fn test_majority_median_odd_total() {
         // 3 voters: Good, VeryGood, Excellent => median is VeryGood
-        let c = counts(0, 0, 1, 1, 1);
+        let c = counts(0, 0, 0, 0, 1, 1, 1);
         let maj = compute_majority_from_counts(&c, 3);
         assert_eq!(maj, Mention::VeryGood);
     }
@@ -274,56 +238,12 @@ mod tests {
     #[test]
     fn test_majority_median_even_total_lower_median() {
         // 4 voters: Good, Good, VeryGood, Excellent => lower median is Good
-        let c = counts(0, 0, 2, 1, 1);
+        let c = counts(0, 0, 0, 0, 2, 1, 1);
         let maj = compute_majority_from_counts(&c, 4);
         assert_eq!(maj, Mention::Good);
     }
 
-    #[test]
-    fn test_second_computation_example() {
-        // counts: Good(1), VeryGood(1), Excellent(1)
-        // majority: VeryGood; second after removing one VeryGood => Good
-        let c = counts(0, 0, 1, 1, 1);
-        let maj = compute_majority_from_counts(&c, 3);
-        assert_eq!(maj, Mention::VeryGood);
-        let sec = compute_second_from_counts(&c, 3, maj);
-        assert_eq!(sec, Some(Mention::Good));
-    }
-
-    #[test]
-    fn test_second_only_for_tie_of_winners() {
-        // Option A: [Good(1), VeryGood(1), Excellent(1)] => majority VeryGood, second Good
-        // Option B: [VeryGood(2), Excellent(1)] => majority VeryGood, second VeryGood
-        // Option C: [Good(2), VeryGood(1)] => majority Good
-        let a = counts(0, 0, 1, 1, 1);
-        let b = counts(0, 0, 0, 2, 1);
-        let c = counts(0, 0, 2, 1, 0);
-        let out = compute_majorities_and_seconds(&[a, b, c]);
-
-        assert_eq!(out[0].0, Mention::VeryGood);
-        assert_eq!(out[1].0, Mention::VeryGood);
-        assert_eq!(out[2].0, Mention::Good);
-
-        // Winners tie among A and B at VeryGood => they get a second mention
-        assert_eq!(out[0].1, Some(Mention::Good));
-        assert_eq!(out[1].1, Some(Mention::VeryGood));
-        // Non-winner C gets no second mention stored
-        assert_eq!(out[2].1, None);
-    }
-
-    #[test]
-    fn test_no_second_when_unique_winner() {
-        // Option A: majority VeryGood
-        // Option B: majority Excellent (unique winner)
-        let a = counts(0, 0, 1, 2, 0);
-        let b = counts(0, 0, 0, 1, 2);
-        let out = compute_majorities_and_seconds(&[a, b]);
-        assert_eq!(out[0].0, Mention::VeryGood);
-        assert_eq!(out[1].0, Mention::Excellent);
-        // Unique winner => no second stored for either
-        assert_eq!(out[0].1, None);
-        assert_eq!(out[1].1, None);
-    }
+    // No server-side tests for tie-break 'second' — tie logic is client-side.
 }
 
 #[spacetimedb::reducer]

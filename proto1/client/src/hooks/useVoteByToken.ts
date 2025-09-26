@@ -35,14 +35,24 @@ function buildVoteByTokenFromCache(token: string): VoteWithOptions | null {
     if (option.voteId?.toString() === voteIdStr) {
       // Use server-maintained aggregated approvals count
       const approvalsCount = Number(option.approvalsCount || 0);
-      // MJ counts
-      let judgmentCounts: Record<string, number> = { ToReject: 0, Passable: 0, Good: 0, VeryGood: 0, Excellent: 0 };
+      // MJ counts (7-level)
+      let judgmentCounts: Record<string, number> = {
+        ToReject: 0,
+        Insufficient: 0,
+        OnlyAverage: 0,
+        GoodEnough: 0,
+        Good: 0,
+        VeryGood: 0,
+        Excellent: 0,
+      };
       let totalJudgments = 0;
       const sumRow = summaryByOptionId.get(String(option.id));
       if (sumRow) {
         judgmentCounts = {
           ToReject: Number(sumRow.toReject || 0),
-          Passable: Number(sumRow.passable || 0),
+          Insufficient: Number(sumRow.insufficient || 0),
+          OnlyAverage: Number(sumRow.onlyAverage || 0),
+          GoodEnough: Number(sumRow.goodEnough || 0),
           Good: Number(sumRow.good || 0),
           VeryGood: Number(sumRow.veryGood || 0),
           Excellent: Number(sumRow.excellent || 0)
@@ -64,7 +74,6 @@ function buildVoteByTokenFromCache(token: string): VoteWithOptions | null {
         judgment_counts: judgmentCounts,
         total_judgments: totalJudgments,
         majority_tag: sumRow?.majority?.tag ?? null,
-        second_tag: sumRow?.second?.tag ?? null,
       });
     }
   }

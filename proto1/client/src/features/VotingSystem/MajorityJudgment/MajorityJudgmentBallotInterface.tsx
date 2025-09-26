@@ -23,13 +23,9 @@ const MajorityJudgmentBallotInterface: React.FC<MajorityJudgmentBallotInterfaceP
 }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const mentionOrder: Record<string, number> = {
-    ToReject: 1,
-    Passable: 2,
-    Good: 3,
-    VeryGood: 4,
-    Excellent: 5,
-  };
+  // 7-level mentions best-to-worst (for UI header left-to-right)
+  const mentionKeys = ['Excellent','VeryGood','Good','GoodEnough','OnlyAverage','Insufficient','ToReject'] as const;
+  const mentionLabel = (m: string) => m.replace(/([A-Z])/g, ' $1').trim();
 
   const handleJudgmentSubmit = async (optionId: string, mention: string) => {
     if (isSubmitting) return;
@@ -38,25 +34,21 @@ const MajorityJudgmentBallotInterface: React.FC<MajorityJudgmentBallotInterfaceP
     try {
       // Check if this is the user's first judgment for this vote
       const isFirstJudgment = Object.keys(userJudgments).length === 0;
-      
+
       // Convert string to Mention tagged union and send to server
       const mentionValue = (Mention as any)[mention] as any;
       await spacetimeDB.call('submit_judgment_ballot', optionId, mentionValue);
-      
+
       if (isFirstJudgment) {
         // Server automatically set all options to ToReject, then updated this specific one
-        // We need to notify parent about all the default ToReject judgments
         for (const option of options) {
           if (option.id === optionId) {
-            // This is the option the user explicitly judged
             if (onJudgmentChanged) onJudgmentChanged(option.id, mention);
           } else {
-            // These options were automatically set to ToReject by the server
             if (onJudgmentChanged) onJudgmentChanged(option.id, 'ToReject');
           }
         }
       } else {
-        // Not the first judgment, just update the specific option
         if (onJudgmentChanged) onJudgmentChanged(optionId, mention);
       }
       
@@ -104,66 +96,44 @@ const MajorityJudgmentBallotInterface: React.FC<MajorityJudgmentBallotInterfaceP
         )}
       </div>
 
-      {options.map((option) => {
-        const userJudgment = userJudgments[String(option.id)];
-        const sliderValue = userJudgment ? (mentionOrder[userJudgment] - 1) : -1;
-        
-        const mentionKeys: Array<keyof typeof mentionOrder> = ['ToReject','Passable','Good','VeryGood','Excellent'];
-        const mentionLabel = (m: string) => m.replace(/([A-Z])/g, ' $1').trim();
-
-        return (
-          <div key={option.id} id={`mj-ballot-item-${option.id}`} className="ballot-item">
-            <div id={`mj-ballot-item-title-${option.id}`} className="ballot-item-title">{option.label}</div>
-
-            <div id={`mj-ballot-slider-wrap-${option.id}`} className="mj-ballot-slider-wrap">
-              {/* Tick marks behind the slider */}
-              {[10,30,50,70,90].map((left, idx) => (
-                <div key={idx} className="mj-ballot-tick" style={{ ['--left' as any]: `${left}%` }} />
-              ))}
-
-              <input
-                type="range"
-                min={0}
-                max={4}
-                step={1}
-                value={sliderValue >= 0 ? sliderValue : 2}
-                onChange={(e) => {
-                  const val = Number(e.target.value);
-                  const mention = mentionKeys[val] as string;
-                  handleJudgmentSubmit(option.id, mention);
-                }}
-                disabled={isSubmitting}
-                className="mj-ballot-slider"
-              />
-              
-              {/* Custom thumb - show only when user has voted */}
-              {sliderValue >= 0 && (
-                <div className="mj-ballot-thumb" style={{ ['--left' as any]: `${[10,30,50,70,90][sliderValue]}%` }} />
-              )}
-
-              {/* Mention labels under the slider, clickable to set value */}
-              <div id={`mj-ballot-mentions-${option.id}`} className="mj-ballot-mentions">
+      <table className="mj-ballot-table">
+        <thead>
+          <tr>
+            <th>Option</th>
+            {mentionKeys.map((m) => (
+              <th key={m}>{mentionLabel(m)}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {options.map((option) => {
+            const userJudgment = userJudgments[String(option.id)];
+            return (
+              <tr key={option.id}>
+                <td className="mj-option-title">{option.label}</td>
                 {mentionKeys.map((m) => {
                   const selected = userJudgment === (m as string);
                   return (
-                    <button
-                      key={m}
-                      onClick={() => handleJudgmentSubmit(option.id, m as string)}
-                      disabled={isSubmitting}
-                      className="mj-ballot-mention"
-                      data-selected={selected ? 'true' : 'false'}
-                      data-mention={m as string}
-                      title={mentionLabel(m)}
-                    >
-                      {mentionLabel(m)}
-                    </button>
+                    <td key={m}>
+                      <button
+                        type="button"
+                        className="mj-cell-btn"
+                        data-selected={selected ? 'true' : 'false'}
+                        data-mention={m as string}
+                        disabled={isSubmitting}
+                        onClick={() => handleJudgmentSubmit(option.id, m as string)}
+                        title={mentionLabel(m)}
+                      >
+                        {selected ? '✓' : ''}
+                      </button>
+                    </td>
                   );
                 })}
-              </div>
-            </div>
-          </div>
-        );
-      })}
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
     </div>
   );
 };
