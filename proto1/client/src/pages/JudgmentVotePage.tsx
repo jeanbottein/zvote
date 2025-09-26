@@ -2,8 +2,8 @@ import React, { useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useVoteByToken } from '../hooks/useVoteByToken';
 import { spacetimeDB } from '../lib/spacetimeClient';
-import MajorityJudgmentGraph from '../components/MajorityJudgmentGraph';
-import VotingInterface from '../components/VotingInterface';
+import BallotInterface from '../features/BallotInterface/BallotInterface';
+import MajorityJudgmentResultsGraph from '../features/VotingSystem/MajorityJudgment/MajorityJudgmentResultsGraph';
 import { useToast } from '../components/ToastProvider';
 
 const JudgmentVotePage: React.FC = () => {
@@ -55,23 +55,27 @@ const JudgmentVotePage: React.FC = () => {
       <h2>{vote.title}</h2>
       <div style={{ marginTop: '16px' }}>
         {(vote.options || []).map((option) => (
-          <MajorityJudgmentGraph
+          <MajorityJudgmentResultsGraph
             key={option.id}
             optionLabel={option.label}
-            judgmentCounts={option.judgment_counts || { ToReject: 0, Passable: 0, Good: 0, VeryGood: 0, Excellent: 0 }}
-            totalJudgments={option.total_judgments || 0}
-            majorityTag={option.majority_tag}
-            secondTag={option.second_tag}
+            judgmentCounts={option.judgment_counts || {
+              ToReject: 0,
+              Passable: 0,
+              Good: 0,
+              VeryGood: 0,
+              Excellent: 0
+            }}
+            totalBallots={option.total_judgments || 0}
             compact={false}
           />
         ))}
       </div>
 
       <div className="ballot">
-        <VotingInterface 
+        <BallotInterface 
           vote={vote}
-          onVoteCast={() => showToast({ type: 'success', message: 'Judgment recorded! ✅' })}
-          onError={(msg) => showToast({ type: 'error', message: msg })}
+          onBallotSubmitted={() => showToast({ type: 'success', message: 'Ballot submitted successfully! ✅' })}
+          onError={(msg: string) => showToast({ type: 'error', message: msg })}
         />
       </div>
     </div>

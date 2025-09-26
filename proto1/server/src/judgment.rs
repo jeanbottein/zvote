@@ -11,8 +11,9 @@ pub enum Mention {
     Excellent,   // Très Bien
 }
 
-// Judgments table: one row per user per option for majority judgment votes
-// Public with RLS so each client only sees their own rows
+// Judgments table: represents user's judgment ballots for specific options
+// This stores individual ballot ratings, not aggregated results
+// Public with RLS so each client only sees their own ballot rows
 #[spacetimedb::table(
     name = judgment,
     public,
@@ -28,7 +29,7 @@ pub struct Judgment {
     mention: Mention,
 }
 
-// RLS: a client may only see their own judgment rows
+// RLS: a client may only see their own judgment ballot rows
 #[client_visibility_filter]
 const JUDGMENT_RLS: Filter = Filter::Sql(
     "SELECT judgment.* FROM judgment WHERE judgment.voter = :sender"
@@ -354,4 +355,14 @@ pub fn withdraw_judgments(ctx: &ReducerContext, vote_id: u32) -> Result<(), Stri
     recompute_mj_summary_for_vote(ctx, vote_id);
 
     Ok(())
+}
+
+// ================================
+// Clear Ballot Terminology Aliases
+// ================================
+
+/// Submit a judgment ballot for a specific option (clearer alias for cast_judgment)
+#[spacetimedb::reducer]
+pub fn submit_judgment_ballot(ctx: &ReducerContext, option_id: u32, mention: Mention) -> Result<(), String> {
+    cast_judgment(ctx, option_id, mention)
 }

@@ -1,3 +1,7 @@
+/* Import feature-specific styles */
+@import url('./features/VotingSystem/ApprovalVoting/approval-voting.css');
+@import url('./features/VotingSystem/MajorityJudgment/majority-judgment.css');
+
 * { box-sizing: border-box; }
 :root {
   /* Default: Dark Solarpunk */

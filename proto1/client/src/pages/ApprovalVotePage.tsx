@@ -2,8 +2,8 @@ import React, { useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useVoteByToken } from '../hooks/useVoteByToken';
 import { spacetimeDB } from '../lib/spacetimeClient';
-import ApprovalVotingDisplay from '../components/ApprovalVotingDisplay';
-import VotingInterface from '../components/VotingInterface';
+import BallotInterface from '../features/BallotInterface/BallotInterface';
+import ApprovalResultsDisplay from '../features/VotingSystem/ApprovalVoting/ApprovalResultsDisplay';
 import { useToast } from '../components/ToastProvider';
 
 const ApprovalVotePage: React.FC = () => {
@@ -57,21 +57,21 @@ const ApprovalVotePage: React.FC = () => {
       <h2>{vote.title}</h2>
       <div style={{ marginTop: '16px' }}>
         {(vote.options || []).map((option) => (
-          <ApprovalVotingDisplay
+          <ApprovalResultsDisplay
             key={option.id}
             optionLabel={option.label}
             approvalsCount={option.approvals_count || 0}
-            totalVoters={totalVoters}
+            totalBallots={totalVoters}
             compact={false}
           />
         ))}
       </div>
 
       <div className="ballot">
-        <VotingInterface 
+        <BallotInterface 
           vote={vote}
-          onVoteCast={() => showToast({ type: 'success', message: 'Vote cast successfully! ✅' })}
-          onError={(msg) => showToast({ type: 'error', message: msg })}
+          onBallotSubmitted={() => showToast({ type: 'success', message: 'Ballot submitted successfully! ✅' })}
+          onError={(msg: string) => showToast({ type: 'error', message: msg })}
         />
       </div>
     </div>

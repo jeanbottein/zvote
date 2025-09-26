@@ -46,10 +46,18 @@ import { EnsureServerInfo } from "./ensure_server_info_reducer.ts";
 export { EnsureServerInfo };
 import { GrantAccessByToken } from "./grant_access_by_token_reducer.ts";
 export { GrantAccessByToken };
+import { SetApprovalBallot } from "./set_approval_ballot_reducer.ts";
+export { SetApprovalBallot };
 import { SetApprovals } from "./set_approvals_reducer.ts";
 export { SetApprovals };
+import { SubmitApprovalBallot } from "./submit_approval_ballot_reducer.ts";
+export { SubmitApprovalBallot };
+import { SubmitJudgmentBallot } from "./submit_judgment_ballot_reducer.ts";
+export { SubmitJudgmentBallot };
 import { Unapprove } from "./unapprove_reducer.ts";
 export { Unapprove };
+import { WithdrawApprovalBallot } from "./withdraw_approval_ballot_reducer.ts";
+export { WithdrawApprovalBallot };
 import { WithdrawJudgments } from "./withdraw_judgments_reducer.ts";
 export { WithdrawJudgments };
 
@@ -175,13 +183,29 @@ const REMOTE_MODULE = {
       reducerName: "grant_access_by_token",
       argsType: GrantAccessByToken.getTypeScriptAlgebraicType(),
     },
+    set_approval_ballot: {
+      reducerName: "set_approval_ballot",
+      argsType: SetApprovalBallot.getTypeScriptAlgebraicType(),
+    },
     set_approvals: {
       reducerName: "set_approvals",
       argsType: SetApprovals.getTypeScriptAlgebraicType(),
     },
+    submit_approval_ballot: {
+      reducerName: "submit_approval_ballot",
+      argsType: SubmitApprovalBallot.getTypeScriptAlgebraicType(),
+    },
+    submit_judgment_ballot: {
+      reducerName: "submit_judgment_ballot",
+      argsType: SubmitJudgmentBallot.getTypeScriptAlgebraicType(),
+    },
     unapprove: {
       reducerName: "unapprove",
       argsType: Unapprove.getTypeScriptAlgebraicType(),
+    },
+    withdraw_approval_ballot: {
+      reducerName: "withdraw_approval_ballot",
+      argsType: WithdrawApprovalBallot.getTypeScriptAlgebraicType(),
     },
     withdraw_judgments: {
       reducerName: "withdraw_judgments",
@@ -223,8 +247,12 @@ export type Reducer = never
 | { name: "DeleteVote", args: DeleteVote }
 | { name: "EnsureServerInfo", args: EnsureServerInfo }
 | { name: "GrantAccessByToken", args: GrantAccessByToken }
+| { name: "SetApprovalBallot", args: SetApprovalBallot }
 | { name: "SetApprovals", args: SetApprovals }
+| { name: "SubmitApprovalBallot", args: SubmitApprovalBallot }
+| { name: "SubmitJudgmentBallot", args: SubmitJudgmentBallot }
 | { name: "Unapprove", args: Unapprove }
+| { name: "WithdrawApprovalBallot", args: WithdrawApprovalBallot }
 | { name: "WithdrawJudgments", args: WithdrawJudgments }
 ;
 
@@ -323,6 +351,22 @@ export class RemoteReducers {
     this.connection.offReducer("grant_access_by_token", callback);
   }
 
+  setApprovalBallot(voteId: number, optionIds: number[]) {
+    const __args = { voteId, optionIds };
+    let __writer = new BinaryWriter(1024);
+    SetApprovalBallot.getTypeScriptAlgebraicType().serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("set_approval_ballot", __argsBuffer, this.setCallReducerFlags.setApprovalBallotFlags);
+  }
+
+  onSetApprovalBallot(callback: (ctx: ReducerEventContext, voteId: number, optionIds: number[]) => void) {
+    this.connection.onReducer("set_approval_ballot", callback);
+  }
+
+  removeOnSetApprovalBallot(callback: (ctx: ReducerEventContext, voteId: number, optionIds: number[]) => void) {
+    this.connection.offReducer("set_approval_ballot", callback);
+  }
+
   setApprovals(voteId: number, optionIds: number[]) {
     const __args = { voteId, optionIds };
     let __writer = new BinaryWriter(1024);
@@ -339,6 +383,38 @@ export class RemoteReducers {
     this.connection.offReducer("set_approvals", callback);
   }
 
+  submitApprovalBallot(voteId: number, optionId: number) {
+    const __args = { voteId, optionId };
+    let __writer = new BinaryWriter(1024);
+    SubmitApprovalBallot.getTypeScriptAlgebraicType().serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("submit_approval_ballot", __argsBuffer, this.setCallReducerFlags.submitApprovalBallotFlags);
+  }
+
+  onSubmitApprovalBallot(callback: (ctx: ReducerEventContext, voteId: number, optionId: number) => void) {
+    this.connection.onReducer("submit_approval_ballot", callback);
+  }
+
+  removeOnSubmitApprovalBallot(callback: (ctx: ReducerEventContext, voteId: number, optionId: number) => void) {
+    this.connection.offReducer("submit_approval_ballot", callback);
+  }
+
+  submitJudgmentBallot(optionId: number, mention: Mention) {
+    const __args = { optionId, mention };
+    let __writer = new BinaryWriter(1024);
+    SubmitJudgmentBallot.getTypeScriptAlgebraicType().serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("submit_judgment_ballot", __argsBuffer, this.setCallReducerFlags.submitJudgmentBallotFlags);
+  }
+
+  onSubmitJudgmentBallot(callback: (ctx: ReducerEventContext, optionId: number, mention: Mention) => void) {
+    this.connection.onReducer("submit_judgment_ballot", callback);
+  }
+
+  removeOnSubmitJudgmentBallot(callback: (ctx: ReducerEventContext, optionId: number, mention: Mention) => void) {
+    this.connection.offReducer("submit_judgment_ballot", callback);
+  }
+
   unapprove(voteId: number, optionId: number) {
     const __args = { voteId, optionId };
     let __writer = new BinaryWriter(1024);
@@ -353,6 +429,22 @@ export class RemoteReducers {
 
   removeOnUnapprove(callback: (ctx: ReducerEventContext, voteId: number, optionId: number) => void) {
     this.connection.offReducer("unapprove", callback);
+  }
+
+  withdrawApprovalBallot(voteId: number, optionId: number) {
+    const __args = { voteId, optionId };
+    let __writer = new BinaryWriter(1024);
+    WithdrawApprovalBallot.getTypeScriptAlgebraicType().serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("withdraw_approval_ballot", __argsBuffer, this.setCallReducerFlags.withdrawApprovalBallotFlags);
+  }
+
+  onWithdrawApprovalBallot(callback: (ctx: ReducerEventContext, voteId: number, optionId: number) => void) {
+    this.connection.onReducer("withdraw_approval_ballot", callback);
+  }
+
+  removeOnWithdrawApprovalBallot(callback: (ctx: ReducerEventContext, voteId: number, optionId: number) => void) {
+    this.connection.offReducer("withdraw_approval_ballot", callback);
   }
 
   withdrawJudgments(voteId: number) {
@@ -404,14 +496,34 @@ export class SetReducerFlags {
     this.grantAccessByTokenFlags = flags;
   }
 
+  setApprovalBallotFlags: CallReducerFlags = 'FullUpdate';
+  setApprovalBallot(flags: CallReducerFlags) {
+    this.setApprovalBallotFlags = flags;
+  }
+
   setApprovalsFlags: CallReducerFlags = 'FullUpdate';
   setApprovals(flags: CallReducerFlags) {
     this.setApprovalsFlags = flags;
   }
 
+  submitApprovalBallotFlags: CallReducerFlags = 'FullUpdate';
+  submitApprovalBallot(flags: CallReducerFlags) {
+    this.submitApprovalBallotFlags = flags;
+  }
+
+  submitJudgmentBallotFlags: CallReducerFlags = 'FullUpdate';
+  submitJudgmentBallot(flags: CallReducerFlags) {
+    this.submitJudgmentBallotFlags = flags;
+  }
+
   unapproveFlags: CallReducerFlags = 'FullUpdate';
   unapprove(flags: CallReducerFlags) {
     this.unapproveFlags = flags;
+  }
+
+  withdrawApprovalBallotFlags: CallReducerFlags = 'FullUpdate';
+  withdrawApprovalBallot(flags: CallReducerFlags) {
+    this.withdrawApprovalBallotFlags = flags;
   }
 
   withdrawJudgmentsFlags: CallReducerFlags = 'FullUpdate';

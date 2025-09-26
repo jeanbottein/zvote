@@ -5,8 +5,9 @@ use crate::vote::{find_vote_by_id, find_vote_option_by_id, set_vote_option_appro
 // Bring the `approval` table trait into scope for method resolution on `ctx.db.approval()`.
 use self::approval as approval_table;
 
-// Approvals table: one row per (voter, option)
-// Public with RLS: clients only see their own rows via client visibility filters
+// Approvals table: represents user's approval ballots for specific options
+// This stores individual ballot choices, not aggregated results
+// Public with RLS: clients only see their own ballot rows via client visibility filters
 #[spacetimedb::table(
     name = approval,
     public,
@@ -22,7 +23,7 @@ pub struct Approval {
     ts: Timestamp,
 }
 
-// RLS: a client may only see their own approval rows
+// RLS: a client may only see their own approval ballot rows
 #[client_visibility_filter]
 const APPROVAL_RLS: Filter = Filter::Sql(
     "SELECT approval.* FROM approval WHERE approval.voter = :sender"
@@ -208,4 +209,26 @@ mod tests {
         assert!(add.is_empty());
         assert!(remove.is_empty());
     }
+}
+
+// ================================
+// Clear Ballot Terminology Aliases
+// ================================
+
+/// Submit an approval ballot for a single option (clearer alias for approve)
+#[spacetimedb::reducer]
+pub fn submit_approval_ballot(ctx: &ReducerContext, vote_id: u32, option_id: u32) -> Result<(), String> {
+    approve(ctx, vote_id, option_id)
+}
+
+/// Withdraw approval ballot for a single option (clearer alias for unapprove)
+#[spacetimedb::reducer]
+pub fn withdraw_approval_ballot(ctx: &ReducerContext, vote_id: u32, option_id: u32) -> Result<(), String> {
+    unapprove(ctx, vote_id, option_id)
+}
+
+/// Set complete approval ballot for a vote (clearer alias for set_approvals)
+#[spacetimedb::reducer]
+pub fn set_approval_ballot(ctx: &ReducerContext, vote_id: u32, option_ids: Vec<u32>) -> Result<(), String> {
+    set_approvals(ctx, vote_id, option_ids)
 }
