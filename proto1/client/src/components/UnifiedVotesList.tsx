@@ -20,39 +20,35 @@ const UnifiedVotesList: React.FC<UnifiedVotesListProps> = ({
   onVoteClick,
   onVoteButtonClick,
 }) => {
-  const getVisibilityColor = (vote: VoteWithOptions) => {
+  const getVisibilityTag = (vote: VoteWithOptions): 'Public' | 'Unlisted' | 'Private' | 'Unknown' => {
     const vtag = ((vote as any).visibility?.tag ?? ((vote as any).public ? 'Public' : 'Private')) as string;
-    switch (vtag) {
-      case 'Public': return '#3b82f6'; // Blue
-      case 'Unlisted': return '#8b5cf6'; // Violet
-      case 'Private': return '#ef4444'; // Red
-      default: return '#6b7280'; // Gray fallback
-    }
+    if (vtag === 'Public' || vtag === 'Unlisted' || vtag === 'Private') return vtag;
+    return 'Unknown';
   };
 
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-8">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-        <span className="ml-2 text-gray-600">Loading votes...</span>
+      <div id="uvl-loading" className="loading">
+        <div id="uvl-spinner" className="spinner"></div>
+        <span id="uvl-loading-text">Loading votes...</span>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="text-center py-8">
-        <div className="text-red-600 mb-2">⚠️ Error</div>
-        <p className="text-gray-600">{error}</p>
+      <div id="uvl-error" className="error">
+        <div id="uvl-error-title" className="error-title">⚠️ Error</div>
+        <p id="uvl-error-text" className="error-text">{error}</p>
       </div>
     );
   }
 
   if (votes.length === 0) {
     return (
-      <div className="text-center py-8">
-        <p className="text-gray-600">No votes found.</p>
+      <div id="uvl-empty" className="empty">
+        <p id="uvl-empty-text">No votes found.</p>
       </div>
     );
   }
@@ -62,109 +58,93 @@ const UnifiedVotesList: React.FC<UnifiedVotesListProps> = ({
   const publicVotes = votes.filter(vote => vote.section === 'public');
 
   return (
-    <div className="space-y-6">
+    <div id="uvl" className="votes-sections">
       {/* My Votes Section */}
       {myVotes.length > 0 && (
-        <div>
-          <h3 className="text-lg font-medium text-gray-700 mb-3">My Votes</h3>
-          <div className="space-y-2">
+        <section id="uvl-section-my" className="votes-section">
+          <h3 id="uvl-title-my" className="votes-section-title">My Votes</h3>
+          <div id="uvl-items-my" className="uvl-items">
             {myVotes.map((vote) => (
               <div
                 key={vote.id}
-                className="flex items-center p-3 border border-gray-200 rounded-lg hover:border-gray-300 hover:shadow-sm transition-all"
-                style={{ minHeight: '60px' }}
+                id={`uvl-row-${vote.id}`}
+                className="uvl-row"
+                onClick={() => onVoteClick?.(vote)}
               >
-                {/* Vote Button on Left */}
                 <button
+                  id={`uvl-vote-btn-${vote.id}`}
+                  className="uvl-vote-btn"
                   onClick={(e) => {
                     e.stopPropagation();
                     if (onVoteButtonClick) onVoteButtonClick(vote);
                     else onVoteClick?.(vote);
                   }}
-                  className="flex-shrink-0 px-4 py-2 bg-green-500 hover:bg-green-600 text-white text-sm font-medium rounded-md transition-colors mr-4"
                 >
                   Vote
                 </button>
 
-                {/* Vote Title and Info */}
                 <div 
-                  className="flex-1 cursor-pointer"
+                  id={`uvl-title-wrap-${vote.id}`}
+                  className="uvl-title-wrap"
                   onClick={() => onVoteClick?.(vote)}
                 >
-                  <h4 className="font-medium text-gray-900 text-base">{vote.title}</h4>
-                  <div className="flex items-center mt-1 space-x-2">
-                    <span className="text-xs text-gray-500">
-                      {vote.options?.length || 0} options
-                    </span>
-                    <span className="text-xs text-gray-400">•</span>
-                    <span className="text-xs text-gray-500">
-                      {typeof vote.voting_system === 'string' ? vote.voting_system : vote.voting_system?.tag}
-                    </span>
-                  </div>
+                  <h4 id={`uvl-title-${vote.id}`} className="uvl-title">{vote.title}</h4>
                 </div>
 
-                {/* Visibility Indicator on Right */}
                 <div
-                  className="flex-shrink-0 w-4 h-4 rounded-full ml-4"
-                  style={{ backgroundColor: getVisibilityColor(vote) }}
-                  title={((vote as any).visibility?.tag ?? ((vote as any).public ? 'Public' : 'Private')) as string}
+                  id={`uvl-vis-${vote.id}`}
+                  className="uvl-visibility-dot"
+                  data-visibility={getVisibilityTag(vote)}
+                  title={getVisibilityTag(vote)}
                 />
               </div>
             ))}
           </div>
-        </div>
+        </section>
       )}
 
       {/* Public Votes Section */}
       {publicVotes.length > 0 && (
-        <div>
-          <h3 className="text-lg font-medium text-gray-700 mb-3">Public Votes</h3>
-          <div className="space-y-2">
+        <section id="uvl-section-public" className="votes-section">
+          <h3 id="uvl-title-public" className="votes-section-title">Public Votes</h3>
+          <div id="uvl-items-public" className="uvl-items">
             {publicVotes.map((vote) => (
               <div
                 key={vote.id}
-                className="flex items-center p-3 border border-gray-200 rounded-lg hover:border-gray-300 hover:shadow-sm transition-all"
-                style={{ minHeight: '60px' }}
+                id={`uvl-row-public-${vote.id}`}
+                className="uvl-row"
+                onClick={() => onVoteClick?.(vote)}
               >
-                {/* Vote Button on Left */}
                 <button
+                  id={`uvl-vote-btn-public-${vote.id}`}
+                  className="uvl-vote-btn"
                   onClick={(e) => {
                     e.stopPropagation();
                     if (onVoteButtonClick) onVoteButtonClick(vote);
                     else onVoteClick?.(vote);
                   }}
-                  className="flex-shrink-0 px-4 py-2 bg-green-500 hover:bg-green-600 text-white text-sm font-medium rounded-md transition-colors mr-4"
                 >
                   Vote
                 </button>
 
-                {/* Vote Title and Info */}
                 <div 
-                  className="flex-1 cursor-pointer"
+                  id={`uvl-title-wrap-public-${vote.id}`}
+                  className="uvl-title-wrap"
                   onClick={() => onVoteClick?.(vote)}
                 >
-                  <h4 className="font-medium text-gray-900 text-base">{vote.title}</h4>
-                  <div className="flex items-center mt-1 space-x-2">
-                    <span className="text-xs text-gray-500">
-                      {vote.options?.length || 0} options
-                    </span>
-                    <span className="text-xs text-gray-400">•</span>
-                    <span className="text-xs text-gray-500">
-                      {typeof vote.voting_system === 'string' ? vote.voting_system : vote.voting_system?.tag}
-                    </span>
-                  </div>
+                  <h4 id={`uvl-title-public-${vote.id}`} className="uvl-title">{vote.title}</h4>
                 </div>
 
-                {/* Visibility Indicator on Right */}
                 <div
-                  className="flex-shrink-0 w-4 h-4 rounded-full ml-4"
-                  style={{ backgroundColor: getVisibilityColor(vote) }}
-                  title={((vote as any).visibility?.tag ?? ((vote as any).public ? 'Public' : 'Private')) as string}
+                  id={`uvl-vis-public-${vote.id}`}
+                  className="uvl-visibility-dot"
+                  data-visibility={getVisibilityTag(vote)}
+                  title={getVisibilityTag(vote)}
                 />
               </div>
             ))}
           </div>
-        </div>
+        </section>
       )}
     </div>
   );

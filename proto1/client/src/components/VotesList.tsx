@@ -7,7 +7,6 @@ interface VotesListProps {
   onVoteClick?: (vote: VoteWithOptions) => void; // clicking the card => usually "view"
   onVoteButtonClick?: (vote: VoteWithOptions) => void; // clicking the Vote button => usually "vote"
   emptyMessage?: string;
-  onCreateClick?: () => void;
 }
 
 const VotesList: React.FC<VotesListProps> = ({
@@ -16,103 +15,60 @@ const VotesList: React.FC<VotesListProps> = ({
   error,
   onVoteClick,
   onVoteButtonClick,
-  emptyMessage = "No votes found.",
-  onCreateClick
+  emptyMessage = "No votes found."
 }) => {
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-
-      <div className="p-6">
-        {isLoading ? (
-          <div className="flex items-center justify-center py-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-            <span className="ml-2 text-gray-600">Loading votes...</span>
-          </div>
-        ) : error ? (
-          <div className="text-center py-8">
-            <div className="text-red-600 mb-2">⚠️ Error</div>
-            <p className="text-gray-600">{error}</p>
-          </div>
-        ) : votes.length === 0 ? (
-          <div className="text-center py-8">
-            <p className="text-gray-600">{emptyMessage}</p>
-          </div>
-        ) : (
-          <div className="space-y-2">
-            {votes.map((vote) => (
+    <div id="votes-list-body" className="list-body">
+      {isLoading ? (
+        <div id="votes-list-loading" className="loading">
+          <div id="votes-list-spinner" className="spinner"></div>
+          <span id="votes-list-loading-text">Loading votes...</span>
+        </div>
+      ) : error ? (
+        <div id="votes-list-error" className="error">
+          <div id="votes-list-error-title" className="error-title">⚠️ Error</div>
+          <p id="votes-list-error-text" className="error-text">{error}</p>
+        </div>
+      ) : votes.length === 0 ? (
+        <div id="votes-list-empty" className="empty">
+          <p id="votes-list-empty-text">{emptyMessage}</p>
+        </div>
+      ) : (
+        <div id="votes-list-items" className="list-items">
+          {votes.map((vote) => (
+            <div
+              key={vote.id}
+              id={`vote-row-${vote.id}`}
+              className="vote-row"
+              onClick={() => onVoteClick?.(vote)}
+            >
+              {/* Vote Title on Left */}
               <div
-                key={vote.id}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  padding: '12px 16px',
-                  border: '1px solid #d1d5db',
-                  borderRadius: '8px',
-                  marginBottom: '8px',
-                  transition: 'all 0.2s ease',
-                  cursor: 'pointer'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.borderColor = '#9ca3af';
-                  e.currentTarget.style.boxShadow = '0 1px 3px 0 rgba(0, 0, 0, 0.1)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.borderColor = '#d1d5db';
-                  e.currentTarget.style.boxShadow = 'none';
+                id={`vote-title-wrap-${vote.id}`}
+                className="vote-title-wrap"
+                onClick={() => onVoteClick?.(vote)}
+              >
+                <h4 id={`vote-title-${vote.id}`} className="vote-title">{vote.title}</h4>
+              </div>
+
+              {/* Vote Button on Right */}
+              <button
+                id={`vote-btn-${vote.id}`}
+                className="vote-btn"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (onVoteButtonClick) onVoteButtonClick(vote);
+                  else onVoteClick?.(vote);
                 }}
               >
-                {/* Vote Title on Left */}
-                <div 
-                  style={{ flex: 1, cursor: 'pointer' }}
-                  onClick={() => onVoteClick?.(vote)}
-                >
-                  <h4 style={{ 
-                    margin: 0, 
-                    fontWeight: '500', 
-                    color: '#111827', 
-                    fontSize: '16px' 
-                  }}>
-                    {vote.title}
-                  </h4>
-                </div>
+                Vote
+              </button>
 
-                {/* Vote Button on Right */}
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (onVoteButtonClick) onVoteButtonClick(vote);
-                    else onVoteClick?.(vote);
-                  }}
-                  style={{
-                    flexShrink: 0,
-                    padding: '8px 16px',
-                    backgroundColor: '#10b981',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '6px',
-                    fontSize: '14px',
-                    fontWeight: '500',
-                    cursor: 'pointer',
-                    marginLeft: '16px',
-                    transition: 'background-color 0.2s ease'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = '#059669';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = '#10b981';
-                  }}
-                >
-                  Vote
-                </button>
-
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 };

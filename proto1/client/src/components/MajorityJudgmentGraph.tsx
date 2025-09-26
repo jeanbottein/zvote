@@ -1,5 +1,4 @@
-import React, { useEffect, useState } from 'react';
-import { getColorMode, onColorModeChange } from '../lib/colorMode';
+import React from 'react';
 
 interface JudgmentCounts {
   ToReject: number;
@@ -26,33 +25,7 @@ const MajorityJudgmentGraph: React.FC<MajorityJudgmentGraphProps> = ({
   majorityTag,
   secondTag,
 }) => {
-  // React to color mode (color vs colorblind)
-  const [mode, setMode] = useState(getColorMode());
-  useEffect(() => {
-    const off = onColorModeChange(setMode);
-    return () => off?.();
-  }, []);
-
-  // Palettes
-  // Color: red -> orange -> yellow -> light green -> dark green
-  const judgmentColorsColor = {
-    ToReject: '#dc2626',   // red-600
-    Passable: '#f97316',   // orange-500
-    Good: '#facc15',       // yellow-400
-    VeryGood: '#4ade80',   // green-400 (light green)
-    Excellent: '#16a34a'   // green-600 (dark green)
-  } as const;
-
-  // Colorblind: dark gray -> white
-  const judgmentColorsGray = {
-    ToReject: '#1f2937',   // gray-800
-    Passable: '#4b5563',   // gray-600
-    Good: '#9ca3af',       // gray-400
-    VeryGood: '#d1d5db',   // gray-300
-    Excellent: '#ffffff'   // white
-  } as const;
-
-  const judgmentColors = mode === 'colorblind' ? judgmentColorsGray : judgmentColorsColor;
+  // Colors handled by CSS via body[data-colorblind]
 
   const judgmentLabels = {
     ToReject: 'To Reject',
@@ -93,80 +66,31 @@ const MajorityJudgmentGraph: React.FC<MajorityJudgmentGraphProps> = ({
   const secondJudgment = secondTag as keyof JudgmentCounts | null ?? computeSecond(judgmentCounts, totalJudgments, majorityJudgment);
 
   return (
-    <div style={{ 
-      padding: compact ? '8px' : '12px', 
-      border: '1px solid var(--border)', 
-      borderRadius: '8px',
-      marginBottom: compact ? '4px' : '8px'
-    }}>
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'space-between', 
-        alignItems: 'center',
-        marginBottom: '8px' 
-      }}>
-        <div style={{ fontWeight: '500' }}>{optionLabel}</div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <span style={{ fontSize: '12px', color: 'var(--muted)' }}>Majority</span>
-          <div style={{ 
-            fontSize: '12px',
-            padding: '2px 6px',
-            borderRadius: '4px',
-            backgroundColor: majorityJudgment ? judgmentColors[majorityJudgment as keyof typeof judgmentColors] : 'var(--border)',
-            color: (() => {
-              if (!majorityJudgment) return 'var(--muted)';
-              if (mode === 'colorblind') {
-                const light = ['Good','VeryGood','Excellent'];
-                return light.includes(majorityJudgment as string) ? '#0b0b0b' : '#ffffff';
-              }
-              // For bright backgrounds (yellow, light green), use dark text
-              const bright = ['Good','VeryGood'];
-              return bright.includes(majorityJudgment as string) ? '#0b0b0b' : '#ffffff';
-            })()
-          }}>
+    <div id={`mj-card-${optionLabel}`} className="mj-card" data-compact={compact ? 'true' : 'false'}>
+      <div className="mj-header">
+        <div className="mj-title">{optionLabel}</div>
+        <div className="mj-badges">
+          <span className="mj-hint">Majority</span>
+          <div className="mj-badge" data-judgment={majorityJudgment || undefined}>
             {majorityJudgment ? judgmentLabels[majorityJudgment as keyof typeof judgmentLabels] : '—'}
           </div>
-          <span style={{ fontSize: '12px', color: 'var(--muted)', marginLeft: '8px' }}>Second</span>
-          <div style={{ 
-            fontSize: '12px',
-            padding: '2px 6px',
-            borderRadius: '4px',
-            backgroundColor: secondJudgment ? judgmentColors[secondJudgment as keyof typeof judgmentColors] : 'var(--border)',
-            border: '1px dashed var(--border)',
-            color: (() => {
-              if (!secondJudgment) return 'var(--muted)';
-              if (mode === 'colorblind') {
-                const light = ['Good','VeryGood','Excellent'];
-                return light.includes(secondJudgment as string) ? '#0b0b0b' : '#ffffff';
-              }
-              const bright = ['Good','VeryGood'];
-              return bright.includes(secondJudgment as string) ? '#0b0b0b' : '#ffffff';
-            })()
-          }} title="Tie-break mention">
+          <span className="mj-hint" style={{ marginLeft: '8px' }}>Second</span>
+          <div className="mj-badge" data-variant="second" data-judgment={secondJudgment || undefined} title="Tie-break mention">
             {secondJudgment ? judgmentLabels[secondJudgment as keyof typeof judgmentLabels] : '—'}
           </div>
         </div>
       </div>
 
-      {/* Visual bar chart */}
-      <div style={{ 
-        display: 'flex', 
-        height: compact ? '16px' : '24px', 
-        borderRadius: '4px', 
-        overflow: 'hidden',
-        border: '1px solid var(--border)'
-      }}>
+      <div className="mj-chart">
         {Object.entries(judgmentCounts).map(([judgment, count]) => {
           const percentage = totalJudgments > 0 ? (count / totalJudgments) * 100 : 20;
           return (
             <div
               key={judgment}
-              style={{
-                width: `${percentage}%`,
-                backgroundColor: judgmentColors[judgment as keyof typeof judgmentColors],
-                opacity: totalJudgments > 0 ? (count > 0 ? 1 : 0.1) : 0.08,
-                transition: 'all 0.3s ease'
-              }}
+              className="mj-bar"
+              data-judgment={judgment}
+              data-has={count > 0 ? 'true' : 'false'}
+              style={{ ['--w' as any]: `${percentage}%` }}
               title={`${judgmentLabels[judgment as keyof typeof judgmentLabels]}: ${count} votes`}
             />
           );

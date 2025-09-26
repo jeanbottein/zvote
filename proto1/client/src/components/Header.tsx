@@ -13,6 +13,17 @@ const Header: React.FC<HeaderProps> = ({ onViewChange }) => {
   const [connected, setConnected] = useState(false);
   const [colorMode, setColorMode] = useState(getColorMode());
   const [menuOpen, setMenuOpen] = useState(false);
+  const [theme, setTheme] = useState<'light' | 'system' | 'dark'>(() => {
+    try {
+      const saved = localStorage.getItem('theme');
+      if (saved === 'light' || saved === 'system' || saved === 'dark') {
+        return saved;
+      }
+      return 'system';
+    } catch {
+      return 'system';
+    }
+  });
 
   useEffect(() => {
     const handleConnectionChange = (isConnected: boolean) => {
@@ -41,6 +52,35 @@ const Header: React.FC<HeaderProps> = ({ onViewChange }) => {
     }
   }, [colorMode]);
 
+  // Apply theme (light/system/dark) to the DOM
+  useEffect(() => {
+    try { localStorage.setItem('theme', theme); } catch {}
+    
+    let actualTheme: 'light' | 'dark';
+    if (theme === 'system') {
+      // Use system preference
+      actualTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    } else {
+      actualTheme = theme;
+    }
+    
+    document.body.setAttribute('data-theme', actualTheme);
+  }, [theme]);
+
+  // Listen for system theme changes when in system mode
+  useEffect(() => {
+    if (theme !== 'system') return;
+    
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    const handleChange = () => {
+      const actualTheme = mediaQuery.matches ? 'dark' : 'light';
+      document.body.setAttribute('data-theme', actualTheme);
+    };
+    
+    mediaQuery.addEventListener('change', handleChange);
+    return () => mediaQuery.removeEventListener('change', handleChange);
+  }, [theme]);
+
   const handleResetIdentity = () => {
     if (confirm('Switch to a fresh identity? This will reconnect and give you a new identity.')) {
       spacetimeDB.resetIdentity();
@@ -60,151 +100,109 @@ const Header: React.FC<HeaderProps> = ({ onViewChange }) => {
   };
 
   return (
-    <header style={{ 
-      display: 'flex', 
-      alignItems: 'center', 
-      justifyContent: 'space-between',
-      padding: '1rem 2rem',
-      borderBottom: '1px solid #e5e7eb',
-      position: 'relative'
-    }}>
-      {/* Left spacer for balance */}
-      <div style={{ width: '120px' }} />
-      
+    <header id="app-header" className="app-header">
+      {/* Left menu area, fixed width to keep center title perfectly centered */}
+      <div id="header-left" className="header-left">
+        {/* Theme toggle moved to menu */}
+      </div>
+
       {/* Centered Title */}
-      <h1 style={{ 
-        margin: 0, 
-        fontSize: '1.5rem', 
-        fontWeight: 'bold',
-        position: 'absolute',
-        left: '50%',
-        transform: 'translateX(-50%)'
-      }}>
+      <h1 id="header-title" className="header-title">
         <button
+          id="title-button"
+          className="title-button"
           onClick={() => {
             if (onViewChange) onViewChange('home');
             else navigate('/');
-          }}
-          style={{ 
-            background: 'none', 
-            border: 'none', 
-            color: 'inherit', 
-            font: 'inherit', 
-            cursor: 'pointer',
-            fontSize: 'inherit',
-            fontWeight: 'inherit'
           }}
         >
           zvote
         </button>
       </h1>
-      
+
       {/* Right Menu */}
-      <div style={{ position: 'relative' }}>
+      <div id="header-actions" className="header-actions">
         <button
+          id="menu-toggle"
+          className="menu-toggle"
           onClick={() => setMenuOpen(!menuOpen)}
-          style={{
-            background: 'none',
-            border: '1px solid #d1d5db',
-            borderRadius: '6px',
-            padding: '8px 12px',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '4px'
-          }}
           title="Menu"
+          aria-expanded={menuOpen}
         >
           <span>⋯</span>
         </button>
-        
+
         {menuOpen && (
           <>
             {/* Backdrop */}
-            <div 
-              style={{
-                position: 'fixed',
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
-                zIndex: 10
-              }}
-              onClick={() => setMenuOpen(false)}
-            />
-            
+            <div id="menu-backdrop" className="menu-backdrop" onClick={() => setMenuOpen(false)} />
+
             {/* Menu Dropdown */}
-            <div style={{
-              position: 'absolute',
-              top: '100%',
-              right: 0,
-              marginTop: '4px',
-              backgroundColor: 'white',
-              border: '1px solid #d1d5db',
-              borderRadius: '6px',
-              boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
-              minWidth: '200px',
-              zIndex: 20
-            }}>
-              <div style={{ padding: '8px 0' }}>
+            <div id="menu-dropdown" className="menu-dropdown">
+              <div>
                 {/* User Identity Display */}
-                <div style={{ 
-                  padding: '8px 16px', 
-                  borderBottom: '1px solid #e5e7eb',
-                  fontSize: '12px',
-                  color: '#6b7280'
-                }}>
-                  <div>User: <code style={{ fontSize: '11px' }}>
+                <div id="menu-info" className="menu-info">
+                  <div>User: <code id="menu-user-id" className="menu-user-id">
                     {user ? formatIdentity(user.identity) : '—'}
                   </code></div>
-                  <div style={{ marginTop: '2px' }}>
-                    Status: <span style={{ color: connected ? '#10b981' : '#ef4444' }}>
+                  <div id="menu-status" className="menu-status">
+                    Status: <span id="menu-status-text" className={connected ? 'status-connected' : 'status-disconnected'}>
                       {connected ? 'Connected' : 'Disconnected'}
                     </span>
                   </div>
                 </div>
-                
+
                 {/* Menu Items */}
                 <button
+                  id="menu-random-user"
+                  className="menu-item"
                   onClick={handleResetIdentity}
                   disabled={!connected}
-                  style={{
-                    width: '100%',
-                    padding: '12px 16px',
-                    border: 'none',
-                    background: 'none',
-                    textAlign: 'left',
-                    cursor: connected ? 'pointer' : 'not-allowed',
-                    opacity: connected ? 1 : 0.5,
-                    fontSize: '14px'
-                  }}
-                  onMouseEnter={(e) => {
-                    if (connected) e.currentTarget.style.backgroundColor = '#f3f4f6';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = 'transparent';
-                  }}
                 >
                   🎲 New Random User
                 </button>
-                
+
+                {/* Theme Selector */}
+                <div id="menu-theme-section" className="menu-section">
+                  <div id="menu-theme-label" className="menu-section-label">Theme</div>
+                  <div id="theme-selector" className="theme-selector">
+                    <button
+                      id="theme-light"
+                      className="theme-btn"
+                      data-selected={theme === 'light' ? 'true' : 'false'}
+                      onClick={() => setTheme('light')}
+                      title="Light theme"
+                      aria-label="Light theme"
+                    >
+                      ☀️
+                    </button>
+                    <button
+                      id="theme-system"
+                      className="theme-btn theme-btn-middle"
+                      data-selected={theme === 'system' ? 'true' : 'false'}
+                      onClick={() => setTheme('system')}
+                      title="System theme (follows your device setting)"
+                      aria-label="System theme"
+                    >
+                      🖥️
+                    </button>
+                    <button
+                      id="theme-dark"
+                      className="theme-btn"
+                      data-selected={theme === 'dark' ? 'true' : 'false'}
+                      onClick={() => setTheme('dark')}
+                      title="Dark theme"
+                      aria-label="Dark theme"
+                    >
+                      🌙
+                    </button>
+                  </div>
+                </div>
+
                 <button
+                  id="menu-color-mode"
+                  className="menu-item"
                   onClick={handleToggleColorMode}
-                  style={{
-                    width: '100%',
-                    padding: '12px 16px',
-                    border: 'none',
-                    background: 'none',
-                    textAlign: 'left',
-                    cursor: 'pointer',
-                    fontSize: '14px'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = '#f3f4f6';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = 'transparent';
-                  }}
                 >
                   {colorMode === 'color' ? '🎨 Colorblind Mode' : '🌈 Color Mode'}
                 </button>

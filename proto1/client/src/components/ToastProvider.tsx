@@ -40,41 +40,9 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }>
     <ToastContext.Provider value={value}>
       {children}
       {toast && (
-        <div 
-          style={{
-            position: 'fixed',
-            top: '20px',
-            right: '20px',
-            background: toast.type === 'success' ? '#4ade80' : toast.type === 'error' ? '#ef4444' : '#2563eb',
-            color: 'white',
-            padding: '12px 16px',
-            borderRadius: '8px',
-            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
-            zIndex: 1000,
-            animation: 'slideInRight 0.3s ease-out',
-            fontSize: '14px',
-            fontWeight: 500,
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            maxWidth: '400px'
-          }}
-        >
+        <div id="toast" className="toast" data-type={toast.type}>
           <span>{toast.message}</span>
-          <button
-            onClick={hideToast}
-            style={{
-              background: 'transparent',
-              border: 'none',
-              color: 'white',
-              fontSize: '16px',
-              cursor: 'pointer',
-              padding: '2px',
-              lineHeight: 1,
-              opacity: 0.8
-            }}
-            title="Close"
-          >
+          <button id="toast-close" className="toast-close" onClick={hideToast} title="Close">
             ×
           </button>
         </div>

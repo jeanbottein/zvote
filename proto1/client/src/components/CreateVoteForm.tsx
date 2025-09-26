@@ -189,7 +189,7 @@ const CreateVoteForm: React.FC<CreateVoteFormProps> = ({ onVoteCreated, onError,
   });
 
   return (
-    <div style={{ maxHeight: '70vh', overflowY: 'auto' }}>
+    <div id="create-vote-scroll" className="form-scroll">
       {/* Title removed since it's in modal header */}
       
       <form onSubmit={handleSubmit}>

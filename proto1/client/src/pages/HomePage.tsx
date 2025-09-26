@@ -26,12 +26,10 @@ const HomePage: React.FC = () => {
   return (
     <>
       {/* My Votes */}
-      <div className="panel">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-          <h2>My votes</h2>
-          <button onClick={() => navigate('/create')}>
-            + Create vote
-          </button>
+      <div id="home-panel-my" className="panel">
+        <div id="home-panel-head-my" className="panel-head">
+          <h2 id="home-panel-title-my" className="panel-head-title">My votes</h2>
+          <button id="home-create-btn" onClick={() => navigate('/create')}>+ Create vote</button>
         </div>
         <VotesList
           votes={myVotes}
@@ -40,13 +38,14 @@ const HomePage: React.FC = () => {
           onVoteClick={goToView}
           onVoteButtonClick={goToVote}
           emptyMessage="You haven't created any votes yet."
-          onCreateClick={() => navigate('/create')}
         />
       </div>
 
       {/* Public Votes */}
-      <div className="panel">
-        <h2>Public votes</h2>
+      <div id="home-panel-public" className="panel">
+        <div id="home-panel-head-public" className="panel-head">
+          <h2 id="home-panel-title-public" className="panel-head-title">Public votes</h2>
+        </div>
         <VotesList
           votes={publicVotes}
           isLoading={isLoading}

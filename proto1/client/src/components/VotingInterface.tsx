@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { VoteWithOptions } from '../hooks/useVotes';
 import { spacetimeDB } from '../lib/spacetimeClient';
 import { Mention } from '../generated/mention_type';
-import { getColorMode, onColorModeChange } from '../lib/colorMode';
+// color mode handled via CSS body[data-colorblind]
 
 interface VotingInterfaceProps {
   vote: VoteWithOptions;
@@ -14,12 +14,7 @@ const VotingInterface: React.FC<VotingInterfaceProps> = ({ vote, onVoteCast, onE
   const [isVoting, setIsVoting] = useState(false);
   const [userApprovals, setUserApprovals] = useState<Set<string>>(new Set());
   const [userJudgments, setUserJudgments] = useState<Record<string, string>>({});
-  const [colorMode, setColorMode] = useState(getColorMode());
-
-  useEffect(() => {
-    const off = onColorModeChange(setColorMode);
-    return () => off?.();
-  }, []);
+  // color mode listeners removed; colors handled in CSS
 
   // Initialize current user's approvals from localStorage (since private tables aren't accessible)
   useEffect(() => {
@@ -242,12 +237,12 @@ const VotingInterface: React.FC<VotingInterfaceProps> = ({ vote, onVoteCast, onE
   }
 
   return (
-    <div style={{ marginTop: '16px' }}>
+    <div id={`vi-${vote.id}`} className="vi">
 
       {isApprovalVoting && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        <div id={`vi-approval-${vote.id}`} className="vi">
           {hasUserVoted && (
-            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+            <div id={`vi-approval-actions-${vote.id}`} className="vi-right">
               <button
                 onClick={async () => {
                   if (isVoting) return;
@@ -277,23 +272,15 @@ const VotingInterface: React.FC<VotingInterfaceProps> = ({ vote, onVoteCast, onE
 
           {approvedOptions && approvedOptions.length > 0 && (
             <div>
-              <div style={{ fontSize: '12px', color: 'var(--muted)', marginBottom: '6px' }}>Your approvals</div>
-              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+              <div id={`vi-approval-approved-hint-${vote.id}`} className="section-hint">Your approvals</div>
+              <div id={`vi-approval-approved-tags-${vote.id}`} className="tags">
                 {approvedOptions.map((option) => (
                   <button
                     key={option.id}
                     onClick={() => handleApprovalVote(option.id, false)}
                     disabled={isVoting}
-                    style={{
-                      padding: '6px 10px',
-                      borderRadius: '9999px',
-                      border: '1px solid #22c55e',
-                      background: 'rgba(34,197,94,0.15)',
-                      color: '#16a34a',
-                      cursor: isVoting ? 'not-allowed' : 'pointer',
-                      fontSize: '13px',
-                      fontWeight: 500
-                    }}
+                    className="tag"
+                    data-state="approved"
                   >
                     ✓ {option.label}
                   </button>
@@ -303,23 +290,14 @@ const VotingInterface: React.FC<VotingInterfaceProps> = ({ vote, onVoteCast, onE
           )}
 
           <div>
-            <div style={{ fontSize: '12px', color: 'var(--muted)', marginBottom: '6px' }}>Options</div>
-            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+            <div id={`vi-approval-options-hint-${vote.id}`} className="section-hint">Options</div>
+            <div id={`vi-approval-options-tags-${vote.id}`} className="tags">
               {unapprovedOptions.map((option) => (
                 <button
                   key={option.id}
                   onClick={() => handleApprovalVote(option.id, true)}
                   disabled={isVoting}
-                  style={{
-                    padding: '6px 10px',
-                    borderRadius: '9999px',
-                    border: '1px solid var(--border)',
-                    background: 'transparent',
-                    color: 'var(--fg)',
-                    cursor: isVoting ? 'not-allowed' : 'pointer',
-                    fontSize: '13px',
-                    fontWeight: 500
-                  }}
+                  className="tag"
                 >
                   {option.label}
                 </button>
@@ -330,9 +308,9 @@ const VotingInterface: React.FC<VotingInterfaceProps> = ({ vote, onVoteCast, onE
       )}
 
       {isMajorityJudgment && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        <div id={`vi-mj-${vote.id}`} className="vi">
           {hasUserVoted && (
-            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+            <div id={`vi-mj-actions-${vote.id}`} className="vi-right">
               <button
                 onClick={handleWithdrawMJ}
                 disabled={isVoting}
@@ -351,134 +329,50 @@ const VotingInterface: React.FC<VotingInterfaceProps> = ({ vote, onVoteCast, onE
 
             const mentionKeys: Array<keyof typeof mentionOrder> = ['ToReject','Passable','Good','VeryGood','Excellent'];
             const mentionLabel = (m: string) => m.replace(/([A-Z])/g, ' $1').trim();
-            const trackGradient = colorMode === 'colorblind'
-              ? 'linear-gradient(90deg, #1f2937 0%, #4b5563 25%, #9ca3af 50%, #d1d5db 75%, #ffffff 100%)'
-              : 'linear-gradient(90deg, #dc2626 0%, #f97316 25%, #facc15 50%, #4ade80 75%, #16a34a 100%)';
-            
-            // Get color for each mention
-            const getMentionColor = (mentionKey: string) => {
-              if (colorMode === 'colorblind') {
-                const grayColors = ['#1f2937', '#4b5563', '#9ca3af', '#d1d5db', '#ffffff'];
-                const index = mentionKeys.indexOf(mentionKey as keyof typeof mentionOrder);
-                return grayColors[index] || '#9ca3af';
-              } else {
-                const colors = ['#dc2626', '#f97316', '#facc15', '#4ade80', '#16a34a'];
-                const index = mentionKeys.indexOf(mentionKey as keyof typeof mentionOrder);
-                return colors[index] || '#facc15';
-              }
-            };
+            // slider colors and mention colors handled by CSS
 
             return (
-              <div key={option.id} style={{ position: 'relative', padding: '10px', border: '1px solid var(--border)', borderRadius: '8px' }}>
-                <div style={{ fontWeight: 500, marginBottom: '8px' }}>{option.label}</div>
+              <div key={option.id} id={`vi-mj-item-${option.id}`} className="vi-item">
+                <div id={`vi-mj-label-${option.id}`} className="vi-item-title">{option.label}</div>
 
                 {/* Slider voting only (no results) */}
-                <div style={{ position: 'relative' }}>
-                  <div style={{ position: 'relative' }}>
-                    {/* Tick marks behind the slider */}
-                    {mentionKeys.map((m, idx) => {
-                      const tickPositions = [10, 30, 50, 70, 90];
-                      return (
-                        <div 
-                          key={m} 
-                          style={{ 
-                            position: 'absolute', 
-                            left: `${tickPositions[idx]}%`, 
-                            top: '50%',
-                            transform: 'translate(-50%, -50%)',
-                            width: '2px', 
-                            height: '42px', 
-                            background: 'var(--border)',
-                            zIndex: 1
-                          }} 
-                        />
-                      );
-                    })}
+                <div id={`vi-mj-slider-wrap-${option.id}`} className="mj-slider-wrap">
+                  {/* Tick marks behind the slider */}
+                  {[10,30,50,70,90].map((left, idx) => (
+                    <div key={idx} className="mj-tick" style={{ ['--left' as any]: `${left}%` }} />
+                  ))}
 
-                    <input
-                      type="range"
-                      min={0}
-                      max={4}
-                      step={1}
-                      value={sliderValue >= 0 ? sliderValue : 2}
-                      onChange={(e) => {
-                        const val = Number(e.target.value);
-                        const mention = mentionKeys[val] as string;
-                        handleJudgmentVote(option.id, mention);
-                      }}
-                      disabled={isVoting}
-                      className="mj-slider"
-                      style={{
-                        width: '100%',
-                        appearance: 'none',
-                        height: '8px',
-                        borderRadius: '9999px',
-                        background: trackGradient,
-                        outline: 'none',
-                        margin: '0',
-                        position: 'relative',
-                        zIndex: 5,
-                      }}
-                    />
-                    {/* Custom thumb - show only when user has voted */}
-                    {sliderValue >= 0 && (
-                      <div
-                        style={{
-                          position: 'absolute',
-                          top: '50%',
-                          left: `${[10, 30, 50, 70, 90][sliderValue]}%`,
-                          transform: 'translate(-50%, -50%)',
-                          width: '12px',
-                          height: '12px',
-                          borderRadius: '50%',
-                          background: '#fff',
-                          border: '2px solid #333',
-                          boxShadow: '0 0 0 2px rgba(0,0,0,0.4)',
-                          pointerEvents: 'none',
-                          zIndex: 10,
-                        }}
-                      />
-                    )}
-                  </div>
-                  
-                  {/* Hide native thumb; we render our own aligned dot */}
-                  <style>{`
-                    .mj-slider::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 0; height: 0; background: transparent; border: none; }
-                    .mj-slider::-moz-range-thumb { width: 0; height: 0; background: transparent; border: none; }
-                    .mj-slider::-webkit-slider-runnable-track {
-                      height: 8px;
-                      border-radius: 9999px;
-                      background: transparent;
-                    }
-                    .mj-slider::-moz-range-track {
-                      height: 8px;
-                      border-radius: 9999px;
-                      background: transparent;
-                    }
-                  `}</style>
+                  <input
+                    type="range"
+                    min={0}
+                    max={4}
+                    step={1}
+                    value={sliderValue >= 0 ? sliderValue : 2}
+                    onChange={(e) => {
+                      const val = Number(e.target.value);
+                      const mention = mentionKeys[val] as string;
+                      handleJudgmentVote(option.id, mention);
+                    }}
+                    disabled={isVoting}
+                    className="mj-slider"
+                  />
+                  {/* Custom thumb - show only when user has voted */}
+                  {sliderValue >= 0 && (
+                    <div className="mj-thumb" style={{ ['--left' as any]: `${[10,30,50,70,90][sliderValue]}%` }} />
+                  )}
 
                   {/* Mention labels under the slider, clickable to set value */}
-                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px', marginTop: '8px' }}>
+                  <div id={`vi-mj-mentions-${option.id}`} className="mj-mentions">
                     {mentionKeys.map((m) => {
                       const selected = userJudgment === (m as string);
-                      const mentionColor = getMentionColor(m);
                       return (
                         <button
                           key={m}
                           onClick={() => handleJudgmentVote(option.id, m as string)}
                           disabled={isVoting}
-                          style={{
-                            flex: 1,
-                            padding: '6px 8px',
-                            fontSize: '11px',
-                            borderRadius: '9999px',
-                            border: selected ? `2px solid ${mentionColor}` : '1px solid var(--border)',
-                            background: selected ? mentionColor : 'transparent',
-                            color: selected ? (colorMode === 'colorblind' && (m === 'VeryGood' || m === 'Excellent') ? '#000' : '#fff') : 'var(--fg)',
-                            cursor: isVoting ? 'not-allowed' : 'pointer',
-                            textAlign: 'center',
-                            fontWeight: selected ? 700 : 500,
-                          }}
+                          className="mj-mention"
+                          data-selected={selected ? 'true' : 'false'}
+                          data-mention={m as string}
                           title={mentionLabel(m)}
                         >
                           {mentionLabel(m)}
@@ -494,7 +388,7 @@ const VotingInterface: React.FC<VotingInterfaceProps> = ({ vote, onVoteCast, onE
       )}
 
       {!isApprovalVoting && !isMajorityJudgment && (
-        <div style={{ color: 'var(--muted)' }}>
+        <div id={`vi-unknown-${vote.id}`} className="section-hint">
           Unknown voting system: {vote.voting_system?.tag || 'undefined'}
         </div>
       )}
