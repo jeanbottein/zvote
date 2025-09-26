@@ -35,7 +35,6 @@ const HomePage: React.FC = () => {
         </div>
         <VotesList
           votes={myVotes}
-          title="My votes"
           isLoading={isLoading}
           error={error}
           onVoteClick={goToView}
@@ -50,7 +49,6 @@ const HomePage: React.FC = () => {
         <h2>Public votes</h2>
         <VotesList
           votes={publicVotes}
-          title="Public votes"
           isLoading={isLoading}
           error={error}
           onVoteClick={goToView}

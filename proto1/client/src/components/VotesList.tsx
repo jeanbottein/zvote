@@ -2,7 +2,6 @@ import { VoteWithOptions } from '../hooks/useVotes';
 
 interface VotesListProps {
   votes: VoteWithOptions[];
-  title: string;
   isLoading: boolean;
   error?: string | null;
   onVoteClick?: (vote: VoteWithOptions) => void; // clicking the card => usually "view"
@@ -13,7 +12,6 @@ interface VotesListProps {
 
 const VotesList: React.FC<VotesListProps> = ({
   votes,
-  title,
   isLoading,
   error,
   onVoteClick,
@@ -21,23 +19,9 @@ const VotesList: React.FC<VotesListProps> = ({
   emptyMessage = "No votes found.",
   onCreateClick
 }) => {
-  const formatDate = (timestamp: number) => {
-    return new Date(timestamp * 1000).toLocaleDateString('fr-FR', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
 
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-      <div className="p-6 border-b border-gray-200">
-        <div className="flex justify-between items-center">
-          <h2 className="text-xl font-semibold text-gray-900">{title}</h2>
-        </div>
-      </div>
 
       <div className="p-6">
         {isLoading ? (
@@ -55,49 +39,75 @@ const VotesList: React.FC<VotesListProps> = ({
             <p className="text-gray-600">{emptyMessage}</p>
           </div>
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-2">
             {votes.map((vote) => (
               <div
                 key={vote.id}
-                onClick={() => onVoteClick?.(vote)}
-                className="p-4 border border-gray-200 rounded-lg hover:border-blue-300 hover:shadow-sm transition-all cursor-pointer"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '12px 16px',
+                  border: '1px solid #d1d5db',
+                  borderRadius: '8px',
+                  marginBottom: '8px',
+                  transition: 'all 0.2s ease',
+                  cursor: 'pointer'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.borderColor = '#9ca3af';
+                  e.currentTarget.style.boxShadow = '0 1px 3px 0 rgba(0, 0, 0, 0.1)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.borderColor = '#d1d5db';
+                  e.currentTarget.style.boxShadow = 'none';
+                }}
               >
-                <div className="flex justify-between items-start mb-2">
-                  <h3 className="font-medium text-gray-900 text-lg">{vote.title}</h3>
-                  <div className="flex items-center space-x-2">
-                    {(() => {
-                      const vtag = ((vote as any).visibility?.tag ?? ((vote as any).public ? 'Public' : 'Private')) as string;
-                      const cls = vtag === 'Public'
-                        ? 'bg-green-100 text-green-800'
-                        : vtag === 'Unlisted'
-                        ? 'bg-amber-100 text-amber-800'
-                        : 'bg-red-100 text-red-800';
-                      return (
-                        <span className={`px-2 py-1 ${cls} text-xs rounded-full`}>
-                          {vtag}
-                        </span>
-                      );
-                    })()}
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (onVoteButtonClick) onVoteButtonClick(vote);
-                        else onVoteClick?.(vote);
-                      }}
-                      style={{
-                        padding: '4px 8px',
-                        fontSize: '12px',
-                        borderRadius: '4px',
-                        backgroundColor: '#4CAF50',
-                        color: '#fff',
-                        border: 'none',
-                        cursor: 'pointer',
-                      }}
-                    >
-                      Vote
-                    </button>
-                  </div>
+                {/* Vote Title on Left */}
+                <div 
+                  style={{ flex: 1, cursor: 'pointer' }}
+                  onClick={() => onVoteClick?.(vote)}
+                >
+                  <h4 style={{ 
+                    margin: 0, 
+                    fontWeight: '500', 
+                    color: '#111827', 
+                    fontSize: '16px' 
+                  }}>
+                    {vote.title}
+                  </h4>
                 </div>
+
+                {/* Vote Button on Right */}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (onVoteButtonClick) onVoteButtonClick(vote);
+                    else onVoteClick?.(vote);
+                  }}
+                  style={{
+                    flexShrink: 0,
+                    padding: '8px 16px',
+                    backgroundColor: '#10b981',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '6px',
+                    fontSize: '14px',
+                    fontWeight: '500',
+                    cursor: 'pointer',
+                    marginLeft: '16px',
+                    transition: 'background-color 0.2s ease'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = '#059669';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = '#10b981';
+                  }}
+                >
+                  Vote
+                </button>
+
               </div>
             ))}
           </div>
