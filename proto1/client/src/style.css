@@ -257,7 +257,7 @@ footer { padding: 10px 16px; border-top: 1px solid var(--border); color: var(--m
 
 /* Header theming with single-class elements */
 .app-header { display: flex; align-items: center; justify-content: space-between; padding: 1rem 2rem; position: relative; border-bottom: 1px solid var(--border); }
-.header-left { width: 120px; display: flex; align-items: center; }
+.header-left { width: 120px; display: flex; align-items: center; justify-content: flex-start; }
 .theme-toggle {
   background: var(--panel); color: var(--fg); border: 1px solid var(--border);
   width: 36px; height: 36px; border-radius: 999px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer;
@@ -266,7 +266,15 @@ footer { padding: 10px 16px; border-top: 1px solid var(--border); color: var(--m
 }
 .header-title { margin: 0; font-size: 1.5rem; font-weight: bold; position: absolute; left: 50%; transform: translateX(-50%); }
 .title-button { background: none; border: none; color: inherit; font: inherit; cursor: pointer; font-size: inherit; font-weight: inherit; }
-.header-actions { position: relative; }
+.header-actions { position: relative; display: flex; align-items: center; gap: 8px; }
+.back-button { 
+  background: #22c55e; color: white; border: none; border-radius: 8px; 
+  padding: 10px; cursor: pointer; display: inline-flex; align-items: center; 
+  font-size: 32px; font-weight: 500; transition: all 0.15s ease;
+  min-width: 80px; justify-content: center; line-height: 1;
+}
+.back-button:hover { background: #16a34a; transform: translateY(-1px); }
+.back-button:active { transform: translateY(0) scale(0.98); }
 .menu-toggle { background: none; color: var(--fg); border: 1px solid var(--border); border-radius: 6px; padding: 8px 12px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; }
 .menu-backdrop { position: fixed; inset: 0; z-index: 10; background: transparent; }
 .menu-dropdown { position: absolute; top: 100%; right: 0; margin-top: 4px; background: var(--panel); border: 1px solid var(--border); border-radius: 6px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); min-width: 200px; z-index: 20; }

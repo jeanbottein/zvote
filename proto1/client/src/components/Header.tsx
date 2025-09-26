@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { spacetimeDB } from '../lib/spacetimeClient';
 import { getColorMode, setColorMode as persistColorMode, onColorModeChange } from '../lib/colorMode';
 
@@ -9,6 +9,7 @@ interface HeaderProps {
 
 const Header: React.FC<HeaderProps> = ({ onViewChange }) => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [user, setUser] = useState(spacetimeDB.currentUser);
   const [connected, setConnected] = useState(false);
   const [colorMode, setColorMode] = useState(getColorMode());
@@ -99,11 +100,40 @@ const Header: React.FC<HeaderProps> = ({ onViewChange }) => {
     return identity.length > 16 ? identity.slice(0, 16) + '…' : identity;
   };
 
+  // Determine if we should show the back button
+  const shouldShowBackButton = () => {
+    const path = location.pathname;
+    return path !== '/' && (
+      path.startsWith('/create') ||
+      path.startsWith('/approval/') ||
+      path.startsWith('/judgment/') ||
+      path.startsWith('/vote/')
+    );
+  };
+
+  const handleGoBack = () => {
+    if (onViewChange) {
+      onViewChange('home');
+    } else {
+      navigate('/');
+    }
+  };
+
   return (
     <header id="app-header" className="app-header">
       {/* Left menu area, fixed width to keep center title perfectly centered */}
       <div id="header-left" className="header-left">
-        {/* Theme toggle moved to menu */}
+        {shouldShowBackButton() && (
+          <button
+            id="back-button"
+            className="back-button"
+            onClick={handleGoBack}
+            title="Go back"
+            aria-label="Go back to home"
+          >
+            ←
+          </button>
+        )}
       </div>
 
       {/* Centered Title */}

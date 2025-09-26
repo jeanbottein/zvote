@@ -45,12 +45,6 @@ const CreateVotePage: React.FC<CreateVotePageProps> = ({
       <div className="max-w-4xl mx-auto px-4">
         {/* Header */}
         <div className="mb-8">
-          <button
-            onClick={handleCancel}
-            className="flex items-center text-blue-600 hover:text-blue-800 mb-4"
-          >
-            ← Retour à l'accueil
-          </button>
           <h1 className="text-3xl font-bold text-gray-900">Créer un nouveau vote</h1>
           <p className="text-gray-600 mt-2">
             Configurez votre vote selon vos besoins et partagez-le avec vos participants.
