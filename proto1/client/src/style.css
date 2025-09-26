@@ -130,7 +130,7 @@ footer { padding: 10px 16px; border-top: 1px solid var(--border); color: var(--m
 
 /* Voting detail styles */
 .option-list { list-style: none; padding: 0; margin: 10px 0 0 0; display: flex; flex-direction: column; gap: 6px; }
-.option-row { display: flex; align-items: center; justify-content: space-between; padding: 8px 10px; border: 1px solid var(--border); background: #0f0f0f; border-radius: 8px; }
+.option-row { display: flex; align-items: center; justify-content: space-between; border: 1px solid var(--border); background: #0f0f0f; border-radius: 8px; }
 .option-left { display: flex; gap: 10px; align-items: center; }
 
 /* Scroll when more than 10 items (toggled via JS) */
@@ -285,6 +285,245 @@ footer { padding: 10px 16px; border-top: 1px solid var(--border); color: var(--m
 .status-disconnected { color: var(--danger-bg, #ef4444); }
 .menu-user-id { font-size: 11px; }
 .menu-status { margin-top: 2px; }
+
+/* ============================= */
+/* Create Vote Form              */
+/* ============================= */
+.create-vote-form {
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.main-panel {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 32px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.main-panel-title {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--fg);
+  margin: 0 0 24px 0;
+  text-align: center;
+}
+
+/* Title Section - Inline */
+.title-section {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 32px;
+}
+
+.title-label {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--fg);
+  min-width: 60px;
+}
+
+.title-input {
+  flex: 1;
+  padding: 10px 14px;
+  border: 2px solid var(--border);
+  border-radius: 6px;
+  font-size: 16px;
+  background: var(--bg);
+  color: var(--fg);
+  transition: border-color 0.15s ease;
+}
+
+.title-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.title-input.invalid {
+  border-color: var(--danger-bg);
+}
+
+/* Inline Sections */
+.inline-section {
+  margin-bottom: 24px;
+}
+
+.inline-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 8px;
+}
+
+.inline-label {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--fg);
+  min-width: 100px;
+}
+
+.inline-buttons {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.inline-choice-button {
+  padding: 8px 16px;
+  border: 2px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--fg);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  min-width: 80px;
+}
+
+.inline-choice-button:hover {
+  border-color: var(--accent);
+  background: var(--accent-bg);
+}
+
+.inline-choice-button.active {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--accent-fg);
+}
+
+.inline-choice-button.invalid {
+  border-color: var(--danger-bg);
+}
+
+.inline-explanation {
+  font-size: 13px;
+  font-style: italic;
+  color: var(--muted);
+  text-align: right;
+  margin-top: 4px;
+}
+
+/* Options Section */
+.options-section {
+  margin-bottom: 32px;
+}
+
+.section-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--fg);
+  margin: 0 0 12px 0;
+}
+
+.options-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.option-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.option-input {
+  flex: 1;
+  padding: 8px 12px;
+  border: 2px solid var(--border);
+  border-radius: 6px;
+  font-size: 14px;
+  background: var(--bg);
+  color: var(--fg);
+  transition: border-color 0.15s ease;
+}
+
+.option-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.option-input.invalid {
+  border-color: var(--danger-bg);
+}
+
+.delete-button {
+  width: 32px;
+  height: 32px;
+  border: 2px solid var(--danger-bg);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--danger-bg);
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.delete-button:hover {
+  background: var(--danger-bg);
+  color: var(--danger-fg);
+}
+
+.delete-button-placeholder {
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+}
+
+/* Error Message */
+.error-message {
+  background: var(--danger-bg-light, #fef2f2);
+  border: 1px solid var(--danger-border, #fecaca);
+  border-radius: 6px;
+  padding: 12px;
+  color: var(--danger-bg);
+  font-size: 14px;
+  margin-bottom: 20px;
+}
+
+/* Big Create Button */
+.create-button-container {
+  display: flex;
+  justify-content: center;
+  margin-top: 32px;
+}
+
+.create-button {
+  width: 80%;
+  max-width: 400px;
+  padding: 16px 32px;
+  background: var(--positive-bg);
+  color: var(--positive-fg);
+  border: none;
+  border-radius: 8px;
+  font-size: 18px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.create-button:hover:not(:disabled) {
+  background: var(--positive-hover-bg);
+  transform: translateY(-1px);
+}
+
+.create-button:active:not(:disabled) {
+  transform: translateY(0) scale(0.98);
+}
+
+.create-button:disabled {
+  background: var(--muted);
+  cursor: not-allowed;
+  transform: none;
+}
 
 /* ============================= */
 /* UnifiedVotesList (sections)   */

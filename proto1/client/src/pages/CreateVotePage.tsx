@@ -35,23 +35,15 @@ const CreateVotePage: React.FC<CreateVotePageProps> = ({
     }, 2000);
   };
 
-  const handleCancel = () => {
-    if (onNavigateHome) onNavigateHome();
-    else navigate('/');
-  };
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-4xl mx-auto px-4">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Créer un nouveau vote</h1>
-          <p className="text-gray-600 mt-2">
-            Configurez votre vote selon vos besoins et partagez-le avec vos participants.
-          </p>
         </div>
 
-        {/* Message de succès */}
+        {/* Success message */}
         {showSuccess && lastResult && !lastResult.error && (
           <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
             <div className="flex items-center">
@@ -61,16 +53,16 @@ const CreateVotePage: React.FC<CreateVotePageProps> = ({
                 </svg>
               </div>
               <div className="ml-3">
-                <h3 className="text-sm font-medium text-green-800">Vote créé avec succès !</h3>
+                <h3 className="text-sm font-medium text-green-800">Vote created successfully!</h3>
                 <p className="text-sm text-green-700 mt-1">
-                  Redirection vers votre vote en cours...
+                  Redirecting to your vote...
                 </p>
               </div>
             </div>
           </div>
         )}
 
-        {/* Message d'erreur global */}
+        {/* Error message */}
         {lastResult?.error && (
           <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
             <div className="flex items-center">
@@ -80,94 +72,18 @@ const CreateVotePage: React.FC<CreateVotePageProps> = ({
                 </svg>
               </div>
               <div className="ml-3">
-                <h3 className="text-sm font-medium text-red-800">Erreur lors de la création</h3>
+                <h3 className="text-sm font-medium text-red-800">Error creating vote</h3>
                 <p className="text-sm text-red-700 mt-1">{lastResult.error}</p>
               </div>
             </div>
           </div>
         )}
 
-        {/* Formulaire de création */}
+        {/* Create vote form */}
         <CreateVoteForm
           onVoteCreated={handleVoteCreated}
           onError={(msg) => showToast({ type: 'error', message: msg })}
-          onCancel={handleCancel}
         />
-
-        {/* Guide d'utilisation */}
-        <div className="mt-12 bg-white rounded-lg shadow-sm p-6">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">
-            Guide des systèmes de vote
-          </h2>
-          
-          <div className="grid md:grid-cols-2 gap-6">
-            <div className="p-4 border border-blue-200 rounded-lg">
-              <h3 className="font-medium text-blue-900 mb-2">
-                🗳️ Vote par approbation
-              </h3>
-              <p className="text-sm text-gray-600 mb-3">
-                Chaque participant peut approuver ou rejeter chaque option. 
-                L'option avec le plus d'approbations gagne.
-              </p>
-              <div className="text-sm text-gray-500">
-                <strong>Idéal pour :</strong>
-                <ul className="mt-1 list-disc list-inside">
-                  <li>Choix rapides et simples</li>
-                  <li>Sélection multiple possible</li>
-                  <li>Groupes nombreux</li>
-                </ul>
-              </div>
-            </div>
-
-            <div className="p-4 border border-purple-200 rounded-lg">
-              <h3 className="font-medium text-purple-900 mb-2">
-                ⚖️ Jugement majoritaire
-              </h3>
-              <p className="text-sm text-gray-600 mb-3">
-                Chaque option reçoit une mention qualitative (Excellent, Bien, Passable, etc.). 
-                L'option avec la meilleure mention majoritaire l'emporte.
-              </p>
-              <div className="text-sm text-gray-500">
-                <strong>Idéal pour :</strong>
-                <ul className="mt-1 list-disc list-inside">
-                  <li>Décisions importantes</li>
-                  <li>Évaluation qualitative</li>
-                  <li>Choix nuancés</li>
-                </ul>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Exemples d'utilisation */}
-        <div className="mt-8 bg-gray-100 rounded-lg p-6">
-          <h3 className="text-lg font-medium text-gray-900 mb-3">
-            💡 Exemples d'utilisation
-          </h3>
-          
-          <div className="grid md:grid-cols-3 gap-4 text-sm">
-            <div>
-              <div className="font-medium text-gray-800 mb-1">Public</div>
-              <div className="text-gray-600">
-                Visible dans la liste publique, accessible à tous
-              </div>
-            </div>
-            
-            <div>
-              <div className="font-medium text-gray-800 mb-1">Non-listé</div>
-              <div className="text-gray-600">
-                Accessible uniquement via le lien partagé
-              </div>
-            </div>
-            
-            <div>
-              <div className="font-medium text-gray-800 mb-1">Privé</div>
-              <div className="text-gray-600">
-                Accès restreint aux personnes autorisées
-              </div>
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   );

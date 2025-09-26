@@ -14,18 +14,17 @@ interface VoteFormData {
 interface CreateVoteFormProps {
   onVoteCreated?: (voteId: string) => void;
   onError?: (error: string) => void;
-  onCancel?: () => void;
 }
 
-const CreateVoteForm: React.FC<CreateVoteFormProps> = ({ onVoteCreated, onError, onCancel }) => {
+const CreateVoteForm: React.FC<CreateVoteFormProps> = ({ onVoteCreated, onError }) => {
   const { createVote, isCreating } = useCreateVote();
   const MAX_OPTIONS = 20;
   
   const [formData, setFormData] = useState<VoteFormData>({
     title: '',
     description: '',
-    visibility: VISIBILITY_PUBLIC,
-    votingSystem: null,
+    visibility: VISIBILITY_UNLISTED,
+    votingSystem: VotingSystem.MajorityJudgment as VotingSystem,
     options: ['', '']
   });
 
@@ -157,22 +156,6 @@ const CreateVoteForm: React.FC<CreateVoteFormProps> = ({ onVoteCreated, onError,
   const isTitleInvalid = submitted && !!errors.title;
   const isVotingInvalid = submitted && !!errors.votingSystem;
 
-  const visibilityHelper = () => {
-    switch (formData.visibility) {
-      case VISIBILITY_PUBLIC: return 'Visible to everyone and listed publicly';
-      case VISIBILITY_UNLISTED: return 'Accessible only via a shareable link';
-      case VISIBILITY_PRIVATE: return 'Restricted access to authorized users';
-      default: return '';
-    }
-  };
-
-  const votingHelper = () => {
-    switch (formData.votingSystem?.tag) {
-      case 'Approval': return 'Simple and quick: approve the options you like.';
-      case 'MajorityJudgment': return 'Rate each option with a mention for a nuanced decision.';
-      default: return 'Choose a voting system.';
-    }
-  };
 
   const lastIndex = formData.options.length - 1;
   const lowerSeen = new Map<string, number>();
@@ -189,147 +172,142 @@ const CreateVoteForm: React.FC<CreateVoteFormProps> = ({ onVoteCreated, onError,
   });
 
   return (
-    <div id="create-vote-scroll" className="form-scroll">
-      {/* Title removed since it's in modal header */}
-      
-      <form onSubmit={handleSubmit}>
-        {/* Title */}
-        <div className="section" {...(isTitleInvalid ? { id: 'invalid-title' } : {})}>
-          <label htmlFor="title" className="form-label">
-            Vote title
-          </label>
-          <input
-            type="text"
-            id="title"
-            value={formData.title}
-            onChange={(e) => updateFormData({ title: e.target.value })}
-            className="form-input"
-            placeholder="e.g. Where should we go for team lunch?"
-          />
-          {/* No inline error text; border indicates missing after submit */}
-        </div>
-
-        {/* Description */}
-        <div className="section">
-          <label htmlFor="description" className="form-label">
-            Description (optional)
-          </label>
-          <textarea
-            id="description"
-            value={formData.description}
-            onChange={(e) => updateFormData({ description: e.target.value })}
-            rows={3}
-            className="form-textarea"
-            placeholder="Additional information about this vote..."
-          />
-        </div>
-
-        {/* Visibility */}
-        <div className="section">
-          <div className="bubble-section">
-            <label className="form-label">Visibility</label>
-            <select value={formData.visibility} onChange={(e) => handleVisibilityChange(Number(e.target.value))}>
-              <option value={VISIBILITY_PUBLIC}>Public</option>
-              <option value={VISIBILITY_UNLISTED}>Unlisted</option>
-              <option value={VISIBILITY_PRIVATE}>Private</option>
-            </select>
+    <div className="create-vote-form">
+      <div className="form-panel main-panel">
+        <h2 className="main-panel-title">New Vote</h2>
+        
+        <form onSubmit={handleSubmit}>
+          {/* Title - inline with label */}
+          <div className="title-section">
+            <label htmlFor="title" className="title-label">Title:</label>
+            <input
+              type="text"
+              id="title"
+              value={formData.title}
+              onChange={(e) => updateFormData({ title: e.target.value })}
+              className={`title-input ${isTitleInvalid ? 'invalid' : ''}`}
+              placeholder="Enter vote title"
+            />
           </div>
-          <div className="helper">{visibilityHelper()}</div>
-        </div>
 
-        {/* Voting system */}
-        <div className="section">
-          <div className="bubble-section">
-            <label className="form-label">Voting system</label>
-            <div className="bubble-group" {...(isVotingInvalid ? { id: 'invalid-vsystem' } : {})}>
-            {[
-              { key: 'Approval', label: 'Approval', value: VotingSystem.Approval as VotingSystem },
-              { key: 'MajorityJudgment', label: 'Majority judgment', value: VotingSystem.MajorityJudgment as VotingSystem },
-            ].map((v) => {
-              const active = formData.votingSystem?.tag === v.key;
-              return (
-                <button
-                  type="button"
-                  key={v.key}
-                  onClick={() => updateFormData({ votingSystem: v.value })}
-                  className="bubble"
-                  {...(active ? { id: `active-${v.key.toLowerCase()}` } : {})}
-                  aria-pressed={active}
-                >
-                  {v.label}
-                </button>
-              );
-            })}
-            </div>
-          </div>
-          <div className="helper">{votingHelper()}</div>
-        </div>
-
-        {/* Options */}
-        <div className="section">
-          <label className="form-label">Options</label>
-          <div className="options-list">
-            {formData.options.map((option, index) => {
-              const isTrailingEmpty = index === lastIndex && option.trim() === '';
-              const isEmptyInvalid = submitted && !isTrailingEmpty && option.trim() === '';
-              const isDupInvalid = submitted && duplicateIdxs.has(index);
-              const invalid = isEmptyInvalid || isDupInvalid;
-              const showDelete = !isTrailingEmpty;
-              return (
-                <div key={index} className="option-row" {...(invalid ? { id: `invalid-option-${index}` } : {})}>
-                  <input
-                    ref={(el) => optionRefs.current[index] = el}
-                    type="text"
-                    value={option}
-                    onChange={(e) => updateOption(index, e.target.value)}
-                    onKeyPress={(e) => handleOptionKeyPress(index, e)}
-                    className="form-input"
-                    placeholder={`Option ${index + 1}`}
-                  />
-                  {showDelete && (
+          {/* Visibility - inline with explanation */}
+          <div className="inline-section">
+            <div className="inline-header">
+              <label className="inline-label">Visibility:</label>
+              <div className="inline-buttons">
+                {[
+                  { key: VISIBILITY_UNLISTED, label: 'Unlisted' },
+                  { key: VISIBILITY_PUBLIC, label: 'Public' },
+                  { key: VISIBILITY_PRIVATE, label: 'Private' },
+                ].map((v) => {
+                  const active = formData.visibility === v.key;
+                  return (
                     <button
                       type="button"
-                      onClick={() => removeOption(index)}
-                      className="btn-danger"
-                      id="circle"
-                      title="Delete this option"
+                      key={v.key}
+                      onClick={() => handleVisibilityChange(v.key)}
+                      className={`inline-choice-button ${active ? 'active' : ''}`}
                     >
-                      ×
+                      {v.label}
                     </button>
-                  )}
-                </div>
-              );
-            })}
+                  );
+                })}
+              </div>
+            </div>
+            <div className="inline-explanation">
+              {formData.visibility === VISIBILITY_PUBLIC && "Visible to everyone and listed publicly"}
+              {formData.visibility === VISIBILITY_UNLISTED && "Accessible only via shareable link"}
+              {formData.visibility === VISIBILITY_PRIVATE && "Restricted access to authorized users"}
+            </div>
           </div>
-        </div>
 
-        {/* Erreur de soumission */}
-        {errors.submit && (
-          <div className="error-box">
-            <p>{errors.submit}</p>
+          {/* Voting System - inline with explanation */}
+          <div className="inline-section">
+            <div className="inline-header">
+              <label className="inline-label">Voting System:</label>
+              <div className="inline-buttons">
+                {[
+                  { key: 'MajorityJudgment', label: 'Majority Judgment', value: VotingSystem.MajorityJudgment as VotingSystem },
+                  { key: 'Approval', label: 'Approval', value: VotingSystem.Approval as VotingSystem },
+                ].map((v) => {
+                  const active = formData.votingSystem?.tag === v.key;
+                  return (
+                    <button
+                      type="button"
+                      key={v.key}
+                      onClick={() => updateFormData({ votingSystem: v.value })}
+                      className={`inline-choice-button ${active ? 'active' : ''} ${isVotingInvalid ? 'invalid' : ''}`}
+                    >
+                      {v.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+            <div className="inline-explanation">
+              {formData.votingSystem?.tag === 'Approval' && "Simple and quick: approve the options you like"}
+              {formData.votingSystem?.tag === 'MajorityJudgment' && "Rate each option with a mention for nuanced decisions"}
+            </div>
           </div>
-        )}
 
-        {/* Modal Footer with Buttons */}
-        <div className="modal-footer">
-          {onCancel && (
-            <button
-              type="button"
-              onClick={onCancel}
-              className="btn-secondary"
-            >
-              Cancel
-            </button>
+          {/* Options */}
+          <div className="options-section">
+            <h3 className="section-title">Options</h3>
+            <div className="options-list">
+              {formData.options.map((option, index) => {
+                const isTrailingEmpty = index === lastIndex && option.trim() === '';
+                const isEmptyInvalid = submitted && !isTrailingEmpty && option.trim() === '';
+                const isDupInvalid = submitted && duplicateIdxs.has(index);
+                const invalid = isEmptyInvalid || isDupInvalid;
+                const showDelete = !isTrailingEmpty;
+                return (
+                  <div key={index} className="option-row">
+                    <input
+                      ref={(el) => optionRefs.current[index] = el}
+                      type="text"
+                      value={option}
+                      onChange={(e) => updateOption(index, e.target.value)}
+                      onKeyPress={(e) => handleOptionKeyPress(index, e)}
+                      className={`option-input ${invalid ? 'invalid' : ''}`}
+                      placeholder={`Option ${index + 1}`}
+                    />
+                    {showDelete ? (
+                      <button
+                        type="button"
+                        onClick={() => removeOption(index)}
+                        className="delete-button"
+                        title="Delete this option"
+                      >
+                        ×
+                      </button>
+                    ) : (
+                      <div className="delete-button-placeholder"></div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Submit Error */}
+          {errors.submit && (
+            <div className="error-message">
+              {errors.submit}
+            </div>
           )}
-          <button
-            type="submit"
-            disabled={!canSubmit || isCreating}
-            className="btn"
-          >
-            {isCreating ? 'Creating...' : 'Create vote'}
-          </button>
-        </div>
-      </form>
+
+          {/* Big Create Button */}
+          <div className="create-button-container">
+            <button
+              type="submit"
+              disabled={!canSubmit || isCreating}
+              className="create-button"
+            >
+              {isCreating ? 'Creating...' : 'Create Vote'}
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 };
