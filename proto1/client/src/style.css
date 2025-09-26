@@ -729,9 +729,9 @@ body[data-colorblind="true"] .mj-mention[data-mention="Excellent"][data-selected
 
 .ballot { 
   margin-top: 24px;
-  background: rgba(197, 152, 66, 0.34);
+  background: rgba(200, 150, 70, 0.75);
   border: 1px solid var(--border);
-  padding: 0px 20px;
+  padding: 0px 20px 20px;
   border-radius: 8px;
   backdrop-filter: blur(var(--glass-blur));
   box-shadow: var(--glass-shadow);

@@ -71,13 +71,11 @@ const JudgmentVotePage: React.FC = () => {
         ))}
       </div>
 
-      <div className="ballot">
-        <BallotInterface 
-          vote={vote}
-          onBallotSubmitted={() => showToast({ type: 'success', message: 'Ballot submitted successfully! ✅' })}
-          onError={(msg: string) => showToast({ type: 'error', message: msg })}
-        />
-      </div>
+      <BallotInterface 
+        vote={vote}
+        onBallotSubmitted={() => {}} // No success toast
+        onError={(msg: string) => showToast({ type: 'error', message: msg })}
+      />
     </div>
   );
 };
