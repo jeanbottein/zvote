@@ -133,16 +133,7 @@ const CreateVoteForm: React.FC<CreateVoteFormProps> = ({ onVoteCreated, onError 
         return;
       }
 
-      setFormData({
-        title: '',
-        description: '',
-        visibility: VISIBILITY_PUBLIC,
-        votingSystem: null,
-        options: ['', '']
-      });
-      setErrors({});
-      setSubmitted(false);
-
+      // Don't reset form on success - let parent handle navigation
       if (onVoteCreated && result.voteId) onVoteCreated(result.voteId);
     } catch (error) {
       console.error('Error while creating the vote:', error);
@@ -303,7 +294,14 @@ const CreateVoteForm: React.FC<CreateVoteFormProps> = ({ onVoteCreated, onError 
               disabled={!canSubmit || isCreating}
               className="create-button"
             >
-              {isCreating ? 'Creating...' : 'Create Vote'}
+              {isCreating ? (
+                <span className="button-spinner">
+                  <span className="spinner"></span>
+                  Creating...
+                </span>
+              ) : (
+                'Create Vote'
+              )}
             </button>
           </div>
         </form>

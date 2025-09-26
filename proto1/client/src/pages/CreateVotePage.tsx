@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '../components/ToastProvider';
 import CreateVoteForm from '../components/CreateVoteForm';
@@ -16,23 +16,16 @@ const CreateVotePage: React.FC<CreateVotePageProps> = ({
   const navigate = useNavigate();
   const { showToast } = useToast();
   const { lastResult } = useCreateVote();
-  const [showSuccess, setShowSuccess] = useState(false);
 
   const handleVoteCreated = async (voteId: string) => {
-    // Afficher un message de succès
-    setShowSuccess(true);
-    showToast({ type: 'success', message: 'Vote created successfully! 🎉' });
-    
-    // Appeler le callback parent si fourni
+    // Call parent callback if provided
     if (onVoteCreated) {
       onVoteCreated(voteId);
     }
     
-    // Retourner à l'accueil après un délai
-    setTimeout(() => {
-      if (onNavigateHome) onNavigateHome();
-      else navigate('/');
-    }, 2000);
+    // Navigate immediately on success (no toast, no delay)
+    if (onNavigateHome) onNavigateHome();
+    else navigate('/');
   };
 
 
@@ -43,24 +36,6 @@ const CreateVotePage: React.FC<CreateVotePageProps> = ({
         <div className="mb-8">
         </div>
 
-        {/* Success message */}
-        {showSuccess && lastResult && !lastResult.error && (
-          <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <svg className="w-5 h-5 text-green-400" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                </svg>
-              </div>
-              <div className="ml-3">
-                <h3 className="text-sm font-medium text-green-800">Vote created successfully!</h3>
-                <p className="text-sm text-green-700 mt-1">
-                  Redirecting to your vote...
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* Error message */}
         {lastResult?.error && (
