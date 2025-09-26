@@ -6,6 +6,8 @@ interface ApprovalBallotInterfaceProps {
   options: Array<{ id: string; label: string }>;
   userApprovals: Set<string>;
   onBallotSubmitted?: () => void;
+  onApprovalChanged?: (optionId: string, approved: boolean) => void;
+  onApprovalsWithdrawn?: () => void;
   onError?: (error: string) => void;
 }
 
@@ -14,6 +16,8 @@ const ApprovalBallotInterface: React.FC<ApprovalBallotInterfaceProps> = ({
   options,
   userApprovals,
   onBallotSubmitted,
+  onApprovalChanged,
+  onApprovalsWithdrawn,
   onError
 }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -29,6 +33,8 @@ const ApprovalBallotInterface: React.FC<ApprovalBallotInterfaceProps> = ({
         await spacetimeDB.call('withdraw_approval_ballot', voteId, optionId);
       }
       
+      // Notify parent that approval changed
+      if (onApprovalChanged) onApprovalChanged(optionId, approve);
       if (onBallotSubmitted) onBallotSubmitted();
     } catch (error) {
       console.error('Error submitting ballot:', error);
@@ -46,6 +52,9 @@ const ApprovalBallotInterface: React.FC<ApprovalBallotInterfaceProps> = ({
       for (const optionId of userApprovals) {
         await spacetimeDB.call('withdraw_approval_ballot', voteId, optionId);
       }
+      
+      // Notify parent that all approvals were withdrawn
+      if (onApprovalsWithdrawn) onApprovalsWithdrawn();
       if (onBallotSubmitted) onBallotSubmitted();
     } catch (error) {
       console.error('Error withdrawing ballot:', error);

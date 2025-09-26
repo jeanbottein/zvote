@@ -79,14 +79,78 @@ const BallotInterface: React.FC<BallotInterfaceProps> = ({ vote, onBallotSubmitt
     }
   }, [userJudgments, vote.id, spacetimeDB.currentUser?.identity]);
 
-  const handleBallotSubmitted = () => {
-    // Refresh local state optimistically
-    if (vote.voting_system?.tag === 'Approval') {
-      // For approval voting, we'll get the update via the callback
-    } else if (vote.voting_system?.tag === 'MajorityJudgment') {
-      // For MJ, we'll get the update via the callback
-    }
+  const handleApprovalChanged = (optionId: string, approved: boolean) => {
+    // Update localStorage and local state immediately
+    setUserApprovals(prev => {
+      const updated = new Set(prev);
+      if (approved) {
+        updated.add(optionId);
+      } else {
+        updated.delete(optionId);
+      }
+      
+      // Save to localStorage
+      if (spacetimeDB.currentUser) {
+        const storageKey = `approvals_${spacetimeDB.currentUser.identity}_${vote.id}`;
+        try {
+          localStorage.setItem(storageKey, JSON.stringify([...updated]));
+        } catch (e) {
+          console.warn('Failed to save approval to localStorage:', e);
+        }
+      }
+      
+      return updated;
+    });
+  };
+
+  const handleApprovalsWithdrawn = () => {
+    // Clear all approvals from localStorage and local state
+    setUserApprovals(new Set());
     
+    if (spacetimeDB.currentUser) {
+      const storageKey = `approvals_${spacetimeDB.currentUser.identity}_${vote.id}`;
+      try {
+        localStorage.removeItem(storageKey);
+      } catch (e) {
+        console.warn('Failed to clear approvals from localStorage:', e);
+      }
+    }
+  };
+
+  const handleJudgmentChanged = (optionId: string, mention: string) => {
+    // Update localStorage and local state immediately
+    setUserJudgments(prev => {
+      const updated = { ...prev, [optionId]: mention };
+      
+      // Save to localStorage
+      if (spacetimeDB.currentUser) {
+        const storageKey = `judgments_${spacetimeDB.currentUser.identity}_${vote.id}`;
+        try {
+          localStorage.setItem(storageKey, JSON.stringify(updated));
+        } catch (e) {
+          console.warn('Failed to save judgment to localStorage:', e);
+        }
+      }
+      
+      return updated;
+    });
+  };
+
+  const handleJudgmentsWithdrawn = () => {
+    // Clear all judgments from localStorage and local state
+    setUserJudgments({});
+    
+    if (spacetimeDB.currentUser) {
+      const storageKey = `judgments_${spacetimeDB.currentUser.identity}_${vote.id}`;
+      try {
+        localStorage.removeItem(storageKey);
+      } catch (e) {
+        console.warn('Failed to clear judgments from localStorage:', e);
+      }
+    }
+  };
+
+  const handleBallotSubmitted = () => {
     if (onBallotSubmitted) onBallotSubmitted();
   };
 
@@ -105,6 +169,8 @@ const BallotInterface: React.FC<BallotInterfaceProps> = ({ vote, onBallotSubmitt
           options={vote.options}
           userApprovals={userApprovals}
           onBallotSubmitted={handleBallotSubmitted}
+          onApprovalChanged={handleApprovalChanged}
+          onApprovalsWithdrawn={handleApprovalsWithdrawn}
           onError={onError}
         />
       )}
@@ -115,6 +181,8 @@ const BallotInterface: React.FC<BallotInterfaceProps> = ({ vote, onBallotSubmitt
           options={vote.options}
           userJudgments={userJudgments}
           onBallotSubmitted={handleBallotSubmitted}
+          onJudgmentChanged={handleJudgmentChanged}
+          onJudgmentsWithdrawn={handleJudgmentsWithdrawn}
           onError={onError}
         />
       )}

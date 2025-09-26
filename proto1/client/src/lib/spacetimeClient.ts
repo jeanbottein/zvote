@@ -279,24 +279,47 @@ export const spacetimeDB = {
         return { success: true };
       }
       
+      if (reducerName === 'submit_approval_ballot') {
+        const [voteId, optionId] = args;
+        console.log('Calling submit_approval_ballot reducer:', { voteId, optionId });
+        connection.reducers.submitApprovalBallot(Number.parseInt(voteId, 10), Number.parseInt(optionId, 10));
+        return { success: true };
+      }
+      
+      if (reducerName === 'withdraw_approval_ballot') {
+        const [voteId, optionId] = args;
+        console.log('Calling withdraw_approval_ballot reducer:', { voteId, optionId });
+        connection.reducers.withdrawApprovalBallot(Number.parseInt(voteId, 10), Number.parseInt(optionId, 10));
+        return { success: true };
+      }
+      
+      // Legacy aliases for backward compatibility
       if (reducerName === 'approve') {
         const [voteId, optionId] = args;
-        console.log('Calling approve reducer:', { voteId, optionId });
-        connection.reducers.approve(Number.parseInt(voteId, 10), Number.parseInt(optionId, 10));
+        console.log('Calling approve reducer (legacy alias):', { voteId, optionId });
+        connection.reducers.submitApprovalBallot(Number.parseInt(voteId, 10), Number.parseInt(optionId, 10));
         return { success: true };
       }
       
       if (reducerName === 'unapprove') {
         const [voteId, optionId] = args;
-        console.log('Calling unapprove reducer:', { voteId, optionId });
-        connection.reducers.unapprove(Number.parseInt(voteId, 10), Number.parseInt(optionId, 10));
+        console.log('Calling unapprove reducer (legacy alias):', { voteId, optionId });
+        connection.reducers.withdrawApprovalBallot(Number.parseInt(voteId, 10), Number.parseInt(optionId, 10));
         return { success: true };
       }
       
+      if (reducerName === 'submit_judgment_ballot') {
+        const [optionId, mention] = args;
+        console.log('Calling submit_judgment_ballot reducer:', { optionId, mention });
+        connection.reducers.submitJudgmentBallot(parseInt(optionId), mention);
+        return { success: true };
+      }
+      
+      // Legacy alias for backward compatibility
       if (reducerName === 'castJudgment') {
         const [optionId, mention] = args;
-        console.log('Calling castJudgment reducer:', { optionId, mention });
-        connection.reducers.castJudgment(parseInt(optionId), mention);
+        console.log('Calling castJudgment reducer (legacy alias):', { optionId, mention });
+        connection.reducers.submitJudgmentBallot(parseInt(optionId), mention);
         return { success: true };
       }
       

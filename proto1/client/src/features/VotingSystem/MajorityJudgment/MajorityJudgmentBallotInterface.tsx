@@ -7,6 +7,8 @@ interface MajorityJudgmentBallotInterfaceProps {
   options: Array<{ id: string; label: string }>;
   userJudgments: Record<string, string>;
   onBallotSubmitted?: () => void;
+  onJudgmentChanged?: (optionId: string, mention: string) => void;
+  onJudgmentsWithdrawn?: () => void;
   onError?: (error: string) => void;
 }
 
@@ -15,6 +17,8 @@ const MajorityJudgmentBallotInterface: React.FC<MajorityJudgmentBallotInterfaceP
   options,
   userJudgments,
   onBallotSubmitted,
+  onJudgmentChanged,
+  onJudgmentsWithdrawn,
   onError
 }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -32,9 +36,30 @@ const MajorityJudgmentBallotInterface: React.FC<MajorityJudgmentBallotInterfaceP
     
     setIsSubmitting(true);
     try {
+      // Check if this is the user's first judgment for this vote
+      const isFirstJudgment = Object.keys(userJudgments).length === 0;
+      
       // Convert string to Mention tagged union and send to server
       const mentionValue = (Mention as any)[mention] as any;
       await spacetimeDB.call('submit_judgment_ballot', optionId, mentionValue);
+      
+      if (isFirstJudgment) {
+        // Server automatically set all options to ToReject, then updated this specific one
+        // We need to notify parent about all the default ToReject judgments
+        for (const option of options) {
+          if (option.id === optionId) {
+            // This is the option the user explicitly judged
+            if (onJudgmentChanged) onJudgmentChanged(option.id, mention);
+          } else {
+            // These options were automatically set to ToReject by the server
+            if (onJudgmentChanged) onJudgmentChanged(option.id, 'ToReject');
+          }
+        }
+      } else {
+        // Not the first judgment, just update the specific option
+        if (onJudgmentChanged) onJudgmentChanged(optionId, mention);
+      }
+      
       if (onBallotSubmitted) onBallotSubmitted();
     } catch (error) {
       console.error('Error submitting judgment:', error);
@@ -49,6 +74,9 @@ const MajorityJudgmentBallotInterface: React.FC<MajorityJudgmentBallotInterfaceP
     setIsSubmitting(true);
     try {
       await spacetimeDB.call('withdrawJudgments', voteId);
+      
+      // Notify parent that all judgments were withdrawn
+      if (onJudgmentsWithdrawn) onJudgmentsWithdrawn();
       if (onBallotSubmitted) onBallotSubmitted();
     } catch (error) {
       console.error('Error withdrawing ballot:', error);
