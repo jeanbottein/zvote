@@ -425,6 +425,13 @@ body[data-colorblind="true"] .mj-mention[data-mention="Excellent"][data-selected
 .vi-item { padding: 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--panel); }
 .vi-item-title { font-weight: 500; margin-bottom: 8px; }
 
+/* Ballot header with label and withdraw button */
+.vi-ballot-header { 
+  display: flex; align-items: center; justify-content: space-between; 
+  margin-bottom: 12px; min-height: 36px; 
+}
+.ballot-label { font-size: 16px; font-weight: 600; color: var(--fg); }
+
 /* Scroll container for forms inside modals */
 .form-scroll { max-height: 70vh; overflow-y: auto; }
 

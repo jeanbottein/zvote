@@ -241,8 +241,9 @@ const VotingInterface: React.FC<VotingInterfaceProps> = ({ vote, onVoteCast, onE
 
       {isApprovalVoting && (
         <div id={`vi-approval-${vote.id}`} className="vi">
-          {hasUserVoted && (
-            <div id={`vi-approval-actions-${vote.id}`} className="vi-right">
+          <div id={`vi-approval-header-${vote.id}`} className="vi-ballot-header">
+            <div id={`vi-approval-ballot-label-${vote.id}`} className="ballot-label">Your ballot</div>
+            {hasUserVoted && (
               <button
                 onClick={async () => {
                   if (isVoting) return;
@@ -267,8 +268,8 @@ const VotingInterface: React.FC<VotingInterfaceProps> = ({ vote, onVoteCast, onE
               >
                 Withdraw my vote
               </button>
-            </div>
-          )}
+            )}
+          </div>
 
           {approvedOptions && approvedOptions.length > 0 && (
             <div>
@@ -309,8 +310,9 @@ const VotingInterface: React.FC<VotingInterfaceProps> = ({ vote, onVoteCast, onE
 
       {isMajorityJudgment && (
         <div id={`vi-mj-${vote.id}`} className="vi">
-          {hasUserVoted && (
-            <div id={`vi-mj-actions-${vote.id}`} className="vi-right">
+          <div id={`vi-mj-header-${vote.id}`} className="vi-ballot-header">
+            <div id={`vi-mj-ballot-label-${vote.id}`} className="ballot-label">Your ballot</div>
+            {hasUserVoted && (
               <button
                 onClick={handleWithdrawMJ}
                 disabled={isVoting}
@@ -319,8 +321,8 @@ const VotingInterface: React.FC<VotingInterfaceProps> = ({ vote, onVoteCast, onE
               >
                 Withdraw my vote
               </button>
-            </div>
-          )}
+            )}
+          </div>
           {(vote.options || []).map((option) => {
             const userJudgment = userJudgments[String(option.id)];
 
