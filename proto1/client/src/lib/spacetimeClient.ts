@@ -100,7 +100,7 @@ export const spacetimeDB = {
     return focusedVoteId;
   },
 
-  async connect(): Promise<void> {
+  async connect(token?: string): Promise<void> {
     return new Promise((resolve, reject) => {
       // Configuration de connexion
       const scheme = location.protocol === 'https:' ? 'wss' : 'ws';
@@ -112,7 +112,7 @@ export const spacetimeDB = {
         : DEFAULT_SERVER_URI;
       
       const MODULE_NAME = 'zvote-proto1';
-      const prevToken = localStorage.getItem(AUTH_TOKEN_KEY) || getCookie(AUTH_TOKEN_KEY) || '';
+                  const prevToken = token || localStorage.getItem(AUTH_TOKEN_KEY) || getCookie(AUTH_TOKEN_KEY) || '';
 
       console.log('Connecting to SpacetimeDB:', { SERVER_URI, MODULE_NAME });
 
@@ -198,14 +198,14 @@ export const spacetimeDB = {
         reject(err);
       };
 
-      DbConnection.builder()
+      const builder = DbConnection.builder()
         .withUri(SERVER_URI)
         .withModuleName(MODULE_NAME)
-        .withToken(prevToken)
         .onConnect(onConnect)
         .onDisconnect(onDisconnect)
-        .onConnectError(onConnectError)
-        .build();
+        .onConnectError(onConnectError);
+
+      builder.withToken(prevToken).build();
     });
   },
 
@@ -216,13 +216,15 @@ export const spacetimeDB = {
     connectionCallbacks.forEach(cb => cb(false));
   },
 
-  resetIdentity(): void {
-    localStorage.removeItem(AUTH_TOKEN_KEY);
-    deleteCookie(AUTH_TOKEN_KEY);
+  resetIdentity(token?: string): void {
+    if (!token) {
+      localStorage.removeItem(AUTH_TOKEN_KEY);
+      deleteCookie(AUTH_TOKEN_KEY);
+    }
     this.disconnect();
-    // Reconnect with fresh identity
+    // Reconnect with fresh or provided identity
     setTimeout(() => {
-      this.connect().catch(console.error);
+      this.connect(token).catch(console.error);
     }, 100);
   },
 

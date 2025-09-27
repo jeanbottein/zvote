@@ -5,6 +5,7 @@ import { spacetimeDB } from '../lib/spacetimeClient';
 import BallotInterface from '../features/BallotInterface/BallotInterface';
 import MajorityJudgmentResultsGraph from '../features/VotingSystem/MajorityJudgment/MajorityJudgmentResultsGraph';
 import { useToast } from '../components/ToastProvider';
+import DevBallotFeeder from '../components/DevBallotFeeder';
 import { sortOptionsWithRanks, findWinners } from '../utils/majorityJudgment';
 
 const JudgmentVotePage: React.FC = () => {
@@ -90,6 +91,9 @@ const JudgmentVotePage: React.FC = () => {
         onBallotSubmitted={() => {}} // No success toast
         onError={(msg: string) => showToast({ type: 'error', message: msg })}
       />
+
+      {/* DEV ONLY: Ballot Feeder Tool. Remove this line to hide it. */}
+      <DevBallotFeeder vote={vote} />
     </div>
   );
 };
