@@ -19,6 +19,8 @@ interface MajorityJudgmentResultsGraphProps {
   secondTag?: string | null;
   isWinner?: boolean;
   showSecond?: boolean;
+  rank?: number;
+  isExAequo?: boolean;
 }
 
 const MajorityJudgmentResultsGraph: React.FC<MajorityJudgmentResultsGraphProps> = ({ 
@@ -30,6 +32,8 @@ const MajorityJudgmentResultsGraph: React.FC<MajorityJudgmentResultsGraphProps> 
   secondTag,
   isWinner = false,
   showSecond = false,
+  rank,
+  isExAequo = false,
 }) => {
   const judgmentLabels = {
     ToReject: 'To Reject',
@@ -78,10 +82,33 @@ const MajorityJudgmentResultsGraph: React.FC<MajorityJudgmentResultsGraphProps> 
   // List mentions best-to-worst for visual left-to-right ordering
   const mentionsDesc: Array<keyof JudgmentCounts> = ['Excellent','VeryGood','Good','GoodEnough','OnlyAverage','Insufficient','ToReject'];
 
+  const getRankBadge = (rank?: number) => {
+    if (!rank) return null;
+    if (rank === 1) return { badge: '🥇', isMedal: true };
+    if (rank === 2) return { badge: '🥈', isMedal: true };
+    if (rank === 3) return { badge: '🥉', isMedal: true };
+    return { badge: rank.toString(), isMedal: false };
+  };
+
   return (
     <div id={`mj-results-${optionLabel}`} className="mj-results-card" data-compact={compact ? 'true' : 'false'} data-winner={isWinner ? 'true' : 'false'}>
       <div className="mj-results-header">
-        <div className="mj-results-title">{optionLabel}</div>
+        <div className="mj-results-title-section">
+          {rank && (() => {
+            const rankInfo = getRankBadge(rank);
+            return rankInfo ? (
+              <div className="mj-rank-container">
+                <div className="mj-rank-badge" data-medal={rankInfo.isMedal ? 'true' : 'false'}>
+                  {rankInfo.badge}
+                </div>
+                {isExAequo && (
+                  <span className="mj-ex-aequo">ex aequo</span>
+                )}
+              </div>
+            ) : null;
+          })()}
+          <div className="mj-results-title">{optionLabel}</div>
+        </div>
         <div className="mj-results-badges">
           <span className="mj-results-hint">Majority</span>
           <div className="mj-results-badge" data-judgment={majorityJudgment || undefined}>
@@ -117,8 +144,8 @@ const MajorityJudgmentResultsGraph: React.FC<MajorityJudgmentResultsGraphProps> 
               className="mj-results-bar"
               data-judgment={judgment}
               data-has={count > 0 ? 'true' : 'false'}
-              style={{ ['--w' as any]: `${percentage}%` }}
-              title={`${judgmentLabels[judgment]}: ${count} ballots`}
+              style={{ width: `${percentage}%` }}
+              title={`${judgmentLabels[judgment]}: ${count} ballots (${percentage.toFixed(1)}%)`}
             />
           );
         })}

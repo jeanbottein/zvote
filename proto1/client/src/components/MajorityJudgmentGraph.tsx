@@ -20,6 +20,8 @@ interface MajorityJudgmentGraphProps {
   secondTag?: string | null;
   isWinner?: boolean;
   showSecond?: boolean;
+  rank?: number;
+  isExAequo?: boolean;
 }
 
 const MajorityJudgmentGraph: React.FC<MajorityJudgmentGraphProps> = ({ 
@@ -31,6 +33,8 @@ const MajorityJudgmentGraph: React.FC<MajorityJudgmentGraphProps> = ({
   secondTag,
   isWinner = false,
   showSecond = false,
+  rank,
+  isExAequo = false,
 }) => {
   return (
     <MajorityJudgmentResultsGraph
@@ -42,6 +46,8 @@ const MajorityJudgmentGraph: React.FC<MajorityJudgmentGraphProps> = ({
       secondTag={secondTag}
       isWinner={isWinner}
       showSecond={showSecond}
+      rank={rank}
+      isExAequo={isExAequo}
     />
   );
 };

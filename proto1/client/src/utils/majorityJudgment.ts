@@ -82,6 +82,36 @@ export function sortOptionsByMJ<T extends { id: string; judgment_counts?: Partia
   });
 }
 
+export function sortOptionsWithRanks<T extends { id: string; judgment_counts?: Partial<JudgmentCounts> }>(options: T[]): { 
+  sortedOptions: T[]; 
+  ranks: Map<string, number>;
+  exAequoOptions: Set<string>;
+} {
+  const sortedOptions = sortOptionsByMJ(options);
+  const ranks = calculateRanks(sortedOptions);
+  const exAequoOptions = findExAequoOptions(ranks);
+  return { sortedOptions, ranks, exAequoOptions };
+}
+
+export function findExAequoOptions(ranks: Map<string, number>): Set<string> {
+  const exAequoOptions = new Set<string>();
+  const rankCounts = new Map<number, number>();
+  
+  // Count how many options have each rank
+  for (const rank of ranks.values()) {
+    rankCounts.set(rank, (rankCounts.get(rank) || 0) + 1);
+  }
+  
+  // Mark options as ex aequo if more than one option has the same rank
+  for (const [optionId, rank] of ranks.entries()) {
+    if ((rankCounts.get(rank) || 0) > 1) {
+      exAequoOptions.add(optionId);
+    }
+  }
+  
+  return exAequoOptions;
+}
+
 export function findWinners<T extends { id: string; judgment_counts?: Partial<JudgmentCounts> }>(sortedOptions: T[]): Set<string> {
   const winners = new Set<string>();
   if (sortedOptions.length === 0) return winners;
@@ -93,4 +123,41 @@ export function findWinners<T extends { id: string; judgment_counts?: Partial<Ju
     if (cmp === 0) winners.add(sortedOptions[i].id); else break;
   }
   return winners;
+}
+
+export function calculateRanks<T extends { id: string; judgment_counts?: Partial<JudgmentCounts> }>(sortedOptions: T[]): Map<string, number> {
+  const ranks = new Map<string, number>();
+  if (sortedOptions.length === 0) return ranks;
+  
+  let currentRank = 1;
+  let i = 0;
+  
+  while (i < sortedOptions.length) {
+    const currentOption = sortedOptions[i];
+    const currentCounts = toCountsArray(currentOption.judgment_counts);
+    
+    // Find all options tied with the current one
+    const tiedOptions = [currentOption];
+    let j = i + 1;
+    while (j < sortedOptions.length) {
+      const nextCounts = toCountsArray(sortedOptions[j].judgment_counts);
+      if (compareMJ(currentCounts, nextCounts) === 0) {
+        tiedOptions.push(sortedOptions[j]);
+        j++;
+      } else {
+        break;
+      }
+    }
+    
+    // Assign the same rank to all tied options
+    for (const option of tiedOptions) {
+      ranks.set(option.id, currentRank);
+    }
+    
+    // Next rank skips the tied positions (standard ranking rules)
+    currentRank += tiedOptions.length;
+    i = j;
+  }
+  
+  return ranks;
 }

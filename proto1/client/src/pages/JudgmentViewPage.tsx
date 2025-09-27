@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { useVoteByToken } from '../hooks/useVoteByToken';
 import { spacetimeDB } from '../lib/spacetimeClient';
 import MajorityJudgmentGraph from '../components/MajorityJudgmentGraph';
-import { sortOptionsByMJ, findWinners } from '../utils/majorityJudgment';
+import { sortOptionsWithRanks, findWinners } from '../utils/majorityJudgment';
 
 const JudgmentViewPage: React.FC = () => {
   const [params] = useSearchParams();
@@ -29,7 +29,7 @@ const JudgmentViewPage: React.FC = () => {
     return <div className="panel"><h2>Vote not found</h2></div>;
   }
 
-  const sortedOptions = sortOptionsByMJ(vote.options || []);
+  const { sortedOptions, ranks, exAequoOptions } = sortOptionsWithRanks(vote.options || []);
   const winners = findWinners(sortedOptions);
 
   return (
@@ -54,6 +54,8 @@ const JudgmentViewPage: React.FC = () => {
             compact={false}
             isWinner={winners.has(option.id)}
             showSecond={winners.size > 1 && winners.has(option.id)}
+            rank={ranks.get(option.id)}
+            isExAequo={exAequoOptions.has(option.id)}
           />
         ))}
       </div>

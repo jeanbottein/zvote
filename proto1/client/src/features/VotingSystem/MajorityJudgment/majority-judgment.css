@@ -3,16 +3,83 @@
 /* ================================== */
 .mj-results-card { padding: 12px; border: 1px solid var(--border); border-radius: 8px; margin-bottom: 8px; position: relative; }
 .mj-results-card[data-compact="true"] { padding: 8px; margin-bottom: 4px; }
-.mj-results-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.mj-results-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.mj-results-title-section {
+  display: flex;
+  align-items: center;
+}
+
+.mj-rank-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-right: 12px;
+}
+
+.mj-rank-badge {
+  background: rgba(0, 0, 0, 0.8);
+  color: white;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  font-weight: bold;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.mj-ex-aequo {
+  font-style: italic;
+  font-size: 12px;
+  color: var(--muted);
+  background: rgba(255, 255, 255, 0.9);
+  padding: 2px 6px;
+  border-radius: 4px;
+  white-space: nowrap;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+/* Medal badges (emojis) get transparent background */
+.mj-rank-badge[data-medal="true"] {
+  background: transparent;
+  box-shadow: none;
+  font-size: 20px;
+}
 .mj-results-title { font-weight: 500; }
 .mj-results-badges { display: flex; align-items: center; gap: 6px; }
 .mj-results-hint { font-size: 12px; color: var(--muted); }
 .mj-results-badge { font-size: 12px; padding: 2px 6px; border-radius: 4px; }
 .mj-results-badge[data-variant="second"] { border: 1px dashed var(--border); }
-.mj-results-chart { position: relative; display: flex; height: 28px; border-radius: 4px; overflow: hidden; border: 1px solid var(--border); background: rgba(255,255,255,0.04); }
+/* Chart container */
+.mj-results-chart { 
+  position: relative; 
+  height: 32px; 
+  background: var(--panel); 
+  border: 1px solid var(--border); 
+  border-radius: 4px; 
+  overflow: hidden;
+  display: flex;
+}
 .mj-results-card[data-compact="true"] .mj-results-chart { height: 16px; }
-.mj-results-bar { opacity: 0.08; transition: width 0.3s ease; width: var(--w, 0%); }
-.mj-results-bar[data-has="true"] { opacity: 1; }
+
+/* Results bars */
+.mj-results-bar { 
+  height: 100%; 
+  transition: width 0.3s ease; 
+  opacity: 0.9;
+  border-right: 1px solid rgba(255,255,255,0.1);
+  flex-shrink: 0;
+}
+.mj-results-bar:last-child { border-right: none; }
+.mj-results-bar[data-has="false"] { opacity: 0.1; }
 
 /* Results ticks overlay with major 50% */
 .mj-results-ticks { position: absolute; inset: 0; pointer-events: none; }

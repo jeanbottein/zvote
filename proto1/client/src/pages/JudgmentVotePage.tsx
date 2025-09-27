@@ -5,7 +5,7 @@ import { spacetimeDB } from '../lib/spacetimeClient';
 import BallotInterface from '../features/BallotInterface/BallotInterface';
 import MajorityJudgmentResultsGraph from '../features/VotingSystem/MajorityJudgment/MajorityJudgmentResultsGraph';
 import { useToast } from '../components/ToastProvider';
-import { sortOptionsByMJ, findWinners } from '../utils/majorityJudgment';
+import { sortOptionsWithRanks, findWinners } from '../utils/majorityJudgment';
 
 const JudgmentVotePage: React.FC = () => {
   const [params] = useSearchParams();
@@ -51,8 +51,8 @@ const JudgmentVotePage: React.FC = () => {
     return <div className="panel"><h2>Vote not found</h2></div>;
   }
 
-  // Build sorted options by MJ ranking (winners first)
-  const sortedOptions = sortOptionsByMJ(vote.options || []);
+  // Build sorted options by MJ ranking with ranks (winners first)
+  const { sortedOptions, ranks, exAequoOptions } = sortOptionsWithRanks(vote.options || []);
 
   // Find winners (all tied for first)
   const winners = findWinners(sortedOptions);
@@ -79,6 +79,8 @@ const JudgmentVotePage: React.FC = () => {
             majorityTag={option.majority_tag}
             isWinner={winners.has(option.id)}
             showSecond={winners.size > 1 && winners.has(option.id)}
+            rank={ranks.get(option.id)}
+            isExAequo={exAequoOptions.has(option.id)}
           />
         ))}
       </div>
