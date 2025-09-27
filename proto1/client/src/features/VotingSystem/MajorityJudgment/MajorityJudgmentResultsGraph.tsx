@@ -74,8 +74,12 @@ const MajorityJudgmentResultsGraph: React.FC<MajorityJudgmentResultsGraphProps> 
     return computeMajority(copy, total - 1);
   };
 
-  const majorityJudgment = majorityTag as keyof JudgmentCounts | null ?? computeMajority(judgmentCounts, totalBallots);
-  const secondJudgment = showSecond
+  // If no votes for this option, the majority is null. Otherwise, use the server's tag or compute.
+  const majorityJudgment = totalBallots > 0
+    ? (majorityTag as keyof JudgmentCounts | null ?? computeMajority(judgmentCounts, totalBallots))
+    : null;
+
+  const secondJudgment = totalBallots > 0 && showSecond
     ? (secondTag as keyof JudgmentCounts | null ?? computeSecond(judgmentCounts, totalBallots, majorityJudgment))
     : null;
 
@@ -112,13 +116,13 @@ const MajorityJudgmentResultsGraph: React.FC<MajorityJudgmentResultsGraphProps> 
         <div className="mj-results-badges">
           <span className="mj-results-hint">Majority</span>
           <div className="mj-results-badge" data-judgment={majorityJudgment || undefined}>
-            {majorityJudgment ? judgmentLabels[majorityJudgment as keyof typeof judgmentLabels] : '—'}
+            {majorityJudgment ? judgmentLabels[majorityJudgment as keyof typeof judgmentLabels] : '-'}
           </div>
           {showSecond && (
             <>
               <span className="mj-results-hint" style={{ marginLeft: '8px' }}>Second</span>
               <div className="mj-results-badge" data-variant="second" data-judgment={secondJudgment || undefined} title="Tie-break mention">
-                {secondJudgment ? judgmentLabels[secondJudgment as keyof typeof judgmentLabels] : '—'}
+                {secondJudgment ? judgmentLabels[secondJudgment as keyof typeof judgmentLabels] : '-'}
               </div>
             </>
           )}
@@ -139,6 +143,11 @@ const MajorityJudgmentResultsGraph: React.FC<MajorityJudgmentResultsGraphProps> 
           const count = judgmentCounts[judgment] || 0;
           const percentage = totalBallots > 0 ? (count / totalBallots) * 100 : 0;
           
+          // Don't render bars with 0 votes at all
+          if (count === 0) {
+            return null;
+          }
+          
           // Calculate "at least X" percentage (cumulative from this judgment and better)
           const atLeastCount = mentionsDesc.slice(0, index + 1).reduce((sum, j) => sum + (judgmentCounts[j] || 0), 0);
           const atLeastPercentage = totalBallots > 0 ? (atLeastCount / totalBallots) * 100 : 0;
@@ -150,7 +159,7 @@ const MajorityJudgmentResultsGraph: React.FC<MajorityJudgmentResultsGraphProps> 
               key={judgment}
               className="mj-results-bar"
               data-judgment={judgment}
-              data-has={count > 0 ? 'true' : 'false'}
+              data-has="true"
               data-index={index}
               style={{ width: `${percentage}%` }}
               title={tooltipText}
@@ -172,7 +181,7 @@ const MajorityJudgmentResultsGraph: React.FC<MajorityJudgmentResultsGraphProps> 
               }}
             />
           );
-        })}
+        }).filter(Boolean)}
       </div>
     </div>
   );

@@ -58,9 +58,21 @@ const JudgmentVotePage: React.FC = () => {
   // Find winners (all tied for first)
   const winners = findWinners(sortedOptions);
 
+  // Check if there are any votes/ballots submitted
+  const totalBallots = Math.max(...(vote.options || []).map(option => option.total_judgments || 0));
+  const hasVotes = totalBallots > 0;
+
   return (
     <div className="panel">
-      <h2>{vote.title}</h2>
+            <div className="vote-page-header">
+        <h2>{vote.title}</h2>
+        <div className="ballot-count-badge">
+          <span className="ballot-count-number">{totalBallots}</span>
+          <span className="ballot-count-label">{totalBallots === 1 ? 'ballot' : 'ballots'}</span>
+        </div>
+      </div>
+      
+      {/* Always show results section, even when empty */}
       <div style={{ marginTop: '16px' }}>
         {sortedOptions.map((option) => (
           <MajorityJudgmentResultsGraph
@@ -78,10 +90,10 @@ const JudgmentVotePage: React.FC = () => {
             totalBallots={option.total_judgments || 0}
             compact={false}
             majorityTag={option.majority_tag}
-            isWinner={winners.has(option.id)}
-            showSecond={winners.size > 1 && winners.has(option.id)}
-            rank={ranks.get(option.id)}
-            isExAequo={exAequoOptions.has(option.id)}
+            isWinner={hasVotes ? winners.has(option.id) : false}
+            showSecond={hasVotes && winners.size > 1 && winners.has(option.id)}
+            rank={hasVotes ? ranks.get(option.id) : undefined}
+            isExAequo={hasVotes ? exAequoOptions.has(option.id) : false}
           />
         ))}
       </div>

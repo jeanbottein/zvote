@@ -1,13 +1,46 @@
 /* ================================== */
+/* Vote Page Header & Ballot Counter  */
+/* ================================== */
+.vote-page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center; /* Better vertical alignment */
+  margin-bottom: 24px;
+}
+
+.ballot-count-badge {
+  background: var(--panel-alt);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px 10px;
+  display: flex;
+  align-items: baseline; /* Aligns number and text nicely */
+  gap: 6px;
+}
+
+.ballot-count-number {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--fg);
+  line-height: 1;
+}
+
+.ballot-count-label {
+  font-size: 13px;
+  color: var(--muted);
+  font-weight: 500;
+}
+
+
+/* ================================== */
 /* Majority Judgment Results Display  */
 /* ================================== */
-.mj-results-card { padding: 12px; border: 1px solid var(--border); border-radius: 8px; margin-bottom: 8px; position: relative; }
+.mj-results-card { padding: 3px 15px; border: 1px solid var(--border); border-radius: 8px; margin-bottom: 8px; position: relative; }
 .mj-results-card[data-compact="true"] { padding: 8px; margin-bottom: 4px; }
 .mj-results-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 12px;
 }
 
 .mj-results-title-section {
@@ -175,9 +208,9 @@
 .mj-results-ticks { 
   position: absolute; 
   top: 0;
-  right: -2px;
+  right: -1px;
   bottom: 0;
-  left: 2px;
+  left: 0px;
   pointer-events: none; 
 }
 

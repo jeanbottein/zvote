@@ -54,7 +54,15 @@ const ApprovalVotePage: React.FC = () => {
 
   return (
     <div className="panel">
-      <h2>{vote.title}</h2>
+            <div className="vote-page-header">
+        <h2>{vote.title}</h2>
+        <div className="ballot-count-badge">
+          <span className="ballot-count-number">{totalVoters}</span>
+          <span className="ballot-count-label">{totalVoters === 1 ? 'ballot' : 'ballots'}</span>
+        </div>
+      </div>
+      
+      {/* Always show results section, even when empty */}
       <div style={{ marginTop: '16px' }}>
         {(vote.options || []).map((option) => (
           <ApprovalResultsDisplay
