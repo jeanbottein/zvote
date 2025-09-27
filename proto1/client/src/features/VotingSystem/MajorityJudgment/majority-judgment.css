@@ -65,8 +65,9 @@
   background: var(--panel); 
   border: 1px solid var(--border); 
   border-radius: 4px; 
-  overflow: hidden;
+  overflow: visible;
   display: flex;
+  margin-bottom: 20px;
 }
 .mj-results-card[data-compact="true"] .mj-results-chart { height: 16px; }
 
@@ -81,13 +82,56 @@
 .mj-results-bar:last-child { border-right: none; }
 .mj-results-bar[data-has="false"] { opacity: 0.1; }
 
-/* Results ticks overlay with major 50% */
-.mj-results-ticks { position: absolute; inset: 0; pointer-events: none; }
-.mj-tick { position: absolute; top: -18px; transform: translateX(-50%); height: 100%; }
-.mj-tick::after { content: ''; position: absolute; top: 18px; bottom: 0; left: 50%; width: 1px; background: var(--border); opacity: 0.6; }
-.mj-tick[data-major="true"]::after { width: 2px; background: var(--accent); opacity: 0.9; }
-.mj-tick-label { position: absolute; top: 0; font-size: 10px; color: var(--muted); transform: translateX(-50%); }
-.mj-tick[data-major="true"] .mj-tick-label { font-weight: 700; color: var(--accent); transform: translateX(-50%) translateY(-1px); }
+/* Results ticks below the graph */
+.mj-results-ticks { 
+  position: absolute; 
+  inset: 0; 
+  pointer-events: none; 
+}
+
+.mj-tick { 
+  position: absolute; 
+  bottom: 0; 
+  transform: translateX(-50%); 
+  height: 100%; 
+}
+
+/* Regular tick lines (short) */
+.mj-tick::after { 
+  content: ''; 
+  position: absolute; 
+  bottom: 0; 
+  left: 50%; 
+  width: 1px; 
+  height: 6px; 
+  background: var(--border); 
+  opacity: 0.6; 
+}
+
+/* Major 50% tick (full height) */
+.mj-tick[data-major="true"]::after { 
+  width: 2px; 
+  height: 100%; 
+  background: var(--accent); 
+  opacity: 0.9; 
+}
+
+/* Tick labels below the chart */
+.mj-tick-label { 
+  position: absolute; 
+  bottom: -16px; 
+  left: 50%;
+  font-size: 10px; 
+  color: var(--muted); 
+  transform: translateX(-50%); 
+  white-space: nowrap;
+}
+
+.mj-tick[data-major="true"] .mj-tick-label { 
+  font-weight: 700; 
+  color: var(--accent); 
+  bottom: -18px;
+}
 
 /* MJ 7-level colors (best to worst): dark green, green, light green, white, light red, red, dark red */
 .mj-results-bar[data-judgment="Excellent"], .mj-results-badge[data-judgment="Excellent"] { background: #065f46; color: #fff; }
