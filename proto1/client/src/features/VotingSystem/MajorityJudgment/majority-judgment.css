@@ -85,7 +85,10 @@
 /* Results ticks below the graph */
 .mj-results-ticks { 
   position: absolute; 
-  inset: 0; 
+  top: 0;
+  right: -2px;
+  bottom: 0;
+  left: 2px;
   pointer-events: none; 
 }
 
@@ -105,8 +108,7 @@
   left: 0; 
   width: 1px; 
   height: 10px; 
-  background: var(--border); 
-  opacity: 0.6; 
+  background: var(--border);
 }
 
 /* Major 50% tick (31px height) */
@@ -124,10 +126,11 @@
   color: var(--muted); 
   transform: translateX(-50%); 
   white-space: nowrap;
+  font-weight: 70;
 }
 
 .mj-tick[data-major="true"] .mj-tick-label { 
-  font-weight: 70
+  font-weight: 700
 }
 
 /* MJ 7-level colors (best to worst): dark green, green, light green, white, light red, red, dark red */

@@ -658,7 +658,7 @@ body[data-colorblind="true"] .mj-slider {
 /* Tick marks behind the slider - positioned relative to slider */
 .mj-tick { 
   position: absolute; transform: translateX(-50%); 
-  width: 2px; height: 10px; background: var(--border); z-index: 2; 
+  width: 2px; height: 10px; z-index: 2; 
   left: var(--left); border-radius: 99px;
 }
 
