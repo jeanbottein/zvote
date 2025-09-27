@@ -135,9 +135,16 @@ const MajorityJudgmentResultsGraph: React.FC<MajorityJudgmentResultsGraphProps> 
           ))}
         </div>
 
-        {mentionsDesc.map((judgment) => {
+        {mentionsDesc.map((judgment, index) => {
           const count = judgmentCounts[judgment] || 0;
           const percentage = totalBallots > 0 ? (count / totalBallots) * 100 : 0;
+          
+          // Calculate "at least X" percentage (cumulative from this judgment and better)
+          const atLeastCount = mentionsDesc.slice(0, index + 1).reduce((sum, j) => sum + (judgmentCounts[j] || 0), 0);
+          const atLeastPercentage = totalBallots > 0 ? (atLeastCount / totalBallots) * 100 : 0;
+          
+          const tooltipText = `${atLeastPercentage.toFixed(1)}% of at least ${judgmentLabels[judgment]}`;
+          
           return (
             <div
               key={judgment}
@@ -145,7 +152,7 @@ const MajorityJudgmentResultsGraph: React.FC<MajorityJudgmentResultsGraphProps> 
               data-judgment={judgment}
               data-has={count > 0 ? 'true' : 'false'}
               style={{ width: `${percentage}%` }}
-              title={`${judgmentLabels[judgment]}: ${count} ballots (${percentage.toFixed(1)}%)`}
+              title={tooltipText}
             />
           );
         })}
