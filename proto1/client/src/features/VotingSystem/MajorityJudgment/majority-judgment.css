@@ -91,6 +91,33 @@
 .mj-results-hint { font-size: 12px; color: var(--muted); }
 .mj-results-badge { font-size: 12px; padding: 2px 6px; border-radius: 4px; }
 .mj-results-badge[data-variant="second"] { border: 1px dashed var(--border); }
+.mj-majority-strength-badge { 
+  font-size: 12px; 
+  padding: 2px 6px; 
+  border-radius: 4px;
+  font-weight: 500;
+  width: 64px;
+  text-align: center;
+  display: inline-block;
+}
+
+/* MJ strength badge colors (same as judgment badges) */
+.mj-majority-strength-badge[data-judgment="Excellent"] { background: #065f46; color: #fff; }
+.mj-majority-strength-badge[data-judgment="VeryGood"] { background: #15803d; color: #fff; }
+.mj-majority-strength-badge[data-judgment="Good"] { background: #86efac; color: #0b0b0b; }
+.mj-majority-strength-badge[data-judgment="GoodEnough"] { background: #ffffff; color: #0b0b0b; }
+.mj-majority-strength-badge[data-judgment="OnlyAverage"] { background: #fecaca; color: #0b0b0b; }
+.mj-majority-strength-badge[data-judgment="Insufficient"] { background: #ef4444; color: #fff; }
+.mj-majority-strength-badge[data-judgment="ToReject"] { background: #7f1d1d; color: #fff; }
+
+/* Colorblind variants for strength badge */
+body[data-colorblind="true"] .mj-majority-strength-badge[data-judgment="ToReject"] { background: #1f2937; color: #fff; }
+body[data-colorblind="true"] .mj-majority-strength-badge[data-judgment="Insufficient"] { background: #4b5563; color: #fff; }
+body[data-colorblind="true"] .mj-majority-strength-badge[data-judgment="OnlyAverage"] { background: #9ca3af; color: #0b0b0b; }
+body[data-colorblind="true"] .mj-majority-strength-badge[data-judgment="GoodEnough"] { background: #d1d5db; color: #0b0b0b; }
+body[data-colorblind="true"] .mj-majority-strength-badge[data-judgment="Good"] { background: #e5e7eb; color: #0b0b0b; }
+body[data-colorblind="true"] .mj-majority-strength-badge[data-judgment="VeryGood"] { background: #f3f4f6; color: #0b0b0b; }
+body[data-colorblind="true"] .mj-majority-strength-badge[data-judgment="Excellent"] { background: #ffffff; color: #0b0b0b; }
 /* Chart container */
 .mj-results-chart { 
   position: relative; 
