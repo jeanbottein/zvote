@@ -112,9 +112,7 @@
 /* Major 50% tick (31px height) */
 .mj-tick[data-major="true"]::after { 
   width: 2px; 
-  height: 31px; 
-  background: var(--fg); 
-  opacity: 0.7; 
+  height: 30px; 
 }
 
 /* Tick labels below the chart */
@@ -129,9 +127,7 @@
 }
 
 .mj-tick[data-major="true"] .mj-tick-label { 
-  font-weight: 700; 
-  color: var(--fg); 
-  bottom: -18px;
+  font-weight: 70
 }
 
 /* MJ 7-level colors (best to worst): dark green, green, light green, white, light red, red, dark red */
