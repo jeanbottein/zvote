@@ -151,8 +151,25 @@ const MajorityJudgmentResultsGraph: React.FC<MajorityJudgmentResultsGraphProps> 
               className="mj-results-bar"
               data-judgment={judgment}
               data-has={count > 0 ? 'true' : 'false'}
+              data-index={index}
               style={{ width: `${percentage}%` }}
               title={tooltipText}
+              onMouseEnter={(e) => {
+                const chart = e.currentTarget.parentElement;
+                if (chart) {
+                  // Add hover class to chart container
+                  chart.classList.add('mj-chart-hovering');
+                  chart.setAttribute('data-hover-index', index.toString());
+                }
+              }}
+              onMouseLeave={(e) => {
+                const chart = e.currentTarget.parentElement;
+                if (chart) {
+                  // Remove hover class from chart container
+                  chart.classList.remove('mj-chart-hovering');
+                  chart.removeAttribute('data-hover-index');
+                }
+              }}
             />
           );
         })}

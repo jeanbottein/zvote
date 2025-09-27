@@ -74,13 +74,102 @@
 /* Results bars */
 .mj-results-bar { 
   height: 100%; 
-  transition: width 0.3s ease; 
+  transition: width 0.3s ease, box-shadow 0.2s ease, transform 0.2s ease; 
   opacity: 0.9;
   border-right: 1px solid rgba(255,255,255,0.1);
   flex-shrink: 0;
+  cursor: pointer;
 }
 .mj-results-bar:last-child { border-right: none; }
 .mj-results-bar[data-has="false"] { opacity: 0.1; }
+
+/* Default hover effect for individual bars */
+.mj-results-bar:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  z-index: 10;
+  position: relative;
+}
+
+/* When chart is in hovering state, dim all bars by default */
+.mj-chart-hovering .mj-results-bar {
+  opacity: 0.3;
+  transition: all 0.2s ease;
+}
+
+/* Highlight the hovered bar and all bars to its left (lower or equal index) */
+.mj-chart-hovering[data-hover-index="0"] .mj-results-bar[data-index="0"],
+.mj-chart-hovering[data-hover-index="1"] .mj-results-bar[data-index="0"],
+.mj-chart-hovering[data-hover-index="1"] .mj-results-bar[data-index="1"],
+.mj-chart-hovering[data-hover-index="2"] .mj-results-bar[data-index="0"],
+.mj-chart-hovering[data-hover-index="2"] .mj-results-bar[data-index="1"],
+.mj-chart-hovering[data-hover-index="2"] .mj-results-bar[data-index="2"],
+.mj-chart-hovering[data-hover-index="3"] .mj-results-bar[data-index="0"],
+.mj-chart-hovering[data-hover-index="3"] .mj-results-bar[data-index="1"],
+.mj-chart-hovering[data-hover-index="3"] .mj-results-bar[data-index="2"],
+.mj-chart-hovering[data-hover-index="3"] .mj-results-bar[data-index="3"],
+.mj-chart-hovering[data-hover-index="4"] .mj-results-bar[data-index="0"],
+.mj-chart-hovering[data-hover-index="4"] .mj-results-bar[data-index="1"],
+.mj-chart-hovering[data-hover-index="4"] .mj-results-bar[data-index="2"],
+.mj-chart-hovering[data-hover-index="4"] .mj-results-bar[data-index="3"],
+.mj-chart-hovering[data-hover-index="4"] .mj-results-bar[data-index="4"],
+.mj-chart-hovering[data-hover-index="5"] .mj-results-bar[data-index="0"],
+.mj-chart-hovering[data-hover-index="5"] .mj-results-bar[data-index="1"],
+.mj-chart-hovering[data-hover-index="5"] .mj-results-bar[data-index="2"],
+.mj-chart-hovering[data-hover-index="5"] .mj-results-bar[data-index="3"],
+.mj-chart-hovering[data-hover-index="5"] .mj-results-bar[data-index="4"],
+.mj-chart-hovering[data-hover-index="5"] .mj-results-bar[data-index="5"],
+.mj-chart-hovering[data-hover-index="6"] .mj-results-bar[data-index="0"],
+.mj-chart-hovering[data-hover-index="6"] .mj-results-bar[data-index="1"],
+.mj-chart-hovering[data-hover-index="6"] .mj-results-bar[data-index="2"],
+.mj-chart-hovering[data-hover-index="6"] .mj-results-bar[data-index="3"],
+.mj-chart-hovering[data-hover-index="6"] .mj-results-bar[data-index="4"],
+.mj-chart-hovering[data-hover-index="6"] .mj-results-bar[data-index="5"],
+.mj-chart-hovering[data-hover-index="6"] .mj-results-bar[data-index="6"] {
+  opacity: 1;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  z-index: 9;
+  position: relative;
+}
+
+/* The currently hovered bar gets the strongest effect */
+.mj-chart-hovering .mj-results-bar:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  z-index: 10;
+}
+
+/* Instant tooltip appearance */
+.mj-results-bar[title]:hover::after {
+  content: attr(title);
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.9);
+  color: white;
+  padding: 6px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  white-space: nowrap;
+  z-index: 20;
+  margin-bottom: 5px;
+  pointer-events: none;
+}
+
+/* Tooltip arrow */
+.mj-results-bar[title]:hover::before {
+  content: '';
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 4px solid transparent;
+  border-top-color: rgba(0, 0, 0, 0.9);
+  z-index: 20;
+  margin-bottom: 1px;
+  pointer-events: none;
+}
 
 /* Results ticks below the graph */
 .mj-results-ticks { 
