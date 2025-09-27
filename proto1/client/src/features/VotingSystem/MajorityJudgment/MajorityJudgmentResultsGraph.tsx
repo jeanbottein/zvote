@@ -94,11 +94,14 @@ const MajorityJudgmentResultsGraph: React.FC<MajorityJudgmentResultsGraphProps> 
     return { badge: rank.toString(), isMedal: false };
   };
 
+  // Check if empty (no ballots)
+  const isEmpty = totalBallots === 0;
+
   return (
-    <div id={`mj-results-${optionLabel}`} className="mj-results-card" data-compact={compact ? 'true' : 'false'} data-winner={isWinner ? 'true' : 'false'}>
+    <div id={`mj-results-${optionLabel}`} className="mj-results-card" data-compact={compact ? 'true' : 'false'} data-winner={!isEmpty && isWinner ? 'true' : 'false'}>
       <div className="mj-results-header">
         <div className="mj-results-title-section">
-          {rank && (() => {
+          {!isEmpty && rank && (() => {
             const rankInfo = getRankBadge(rank);
             return rankInfo ? (
               <div className="mj-rank-container">
@@ -113,38 +116,40 @@ const MajorityJudgmentResultsGraph: React.FC<MajorityJudgmentResultsGraphProps> 
           })()}
           <div className="mj-results-title">{optionLabel}</div>
         </div>
-        <div className="mj-results-badges">
-          <span className="mj-results-hint">Majority Mention:</span>
-          <div className="mj-results-badge" data-judgment={majorityJudgment || undefined}>
-            {majorityJudgment ? judgmentLabels[majorityJudgment as keyof typeof judgmentLabels] : '-'}
-          </div>
-          {majorityJudgment && (() => {
-            // Calculate "at least this mention" percentage
-            const majorityIndex = mentionsDesc.indexOf(majorityJudgment);
-            if (majorityIndex === -1) return null;
-            
-            const atLeastCount = mentionsDesc.slice(0, majorityIndex + 1).reduce((sum, mention) => sum + (judgmentCounts[mention] || 0), 0);
-            const atLeastPercentage = totalBallots > 0 ? (atLeastCount / totalBallots) * 100 : 0;
-            const overFifty = atLeastPercentage - 50;
-            
-            if (overFifty > 0) {
-              return (
-                <div className="mj-majority-strength-badge" data-judgment={majorityJudgment} title={`${atLeastPercentage.toFixed(1)}% rated at least ${judgmentLabels[majorityJudgment as keyof typeof judgmentLabels]}`}>
-                  +{overFifty.toFixed(2)}%
+        {!isEmpty && (
+          <div className="mj-results-badges">
+            <span className="mj-results-hint">Majority Mention:</span>
+            <div className="mj-results-badge" data-judgment={majorityJudgment || undefined}>
+              {majorityJudgment ? judgmentLabels[majorityJudgment as keyof typeof judgmentLabels] : '-'}
+            </div>
+            {majorityJudgment && (() => {
+              // Calculate "at least this mention" percentage
+              const majorityIndex = mentionsDesc.indexOf(majorityJudgment);
+              if (majorityIndex === -1) return null;
+              
+              const atLeastCount = mentionsDesc.slice(0, majorityIndex + 1).reduce((sum, mention) => sum + (judgmentCounts[mention] || 0), 0);
+              const atLeastPercentage = totalBallots > 0 ? (atLeastCount / totalBallots) * 100 : 0;
+              const overFifty = atLeastPercentage - 50;
+              
+              if (overFifty > 0) {
+                return (
+                  <div className="mj-majority-strength-badge" data-judgment={majorityJudgment} title={`${atLeastPercentage.toFixed(1)}% rated at least ${judgmentLabels[majorityJudgment as keyof typeof judgmentLabels]}`}>
+                    +{overFifty.toFixed(2)}%
+                  </div>
+                );
+              }
+              return null;
+            })()}
+            {showSecond && (
+              <>
+                <span className="mj-results-hint" style={{ marginLeft: '8px' }}>Second</span>
+                <div className="mj-results-badge" data-variant="second" data-judgment={secondJudgment || undefined} title="Tie-break mention">
+                  {secondJudgment ? judgmentLabels[secondJudgment as keyof typeof judgmentLabels] : '-'}
                 </div>
-              );
-            }
-            return null;
-          })()}
-          {showSecond && (
-            <>
-              <span className="mj-results-hint" style={{ marginLeft: '8px' }}>Second</span>
-              <div className="mj-results-badge" data-variant="second" data-judgment={secondJudgment || undefined} title="Tie-break mention">
-                {secondJudgment ? judgmentLabels[secondJudgment as keyof typeof judgmentLabels] : '-'}
-              </div>
-            </>
-          )}
-        </div>
+              </>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="mj-results-chart">
