@@ -35,7 +35,7 @@
 /* ================================== */
 /* Majority Judgment Results Display  */
 /* ================================== */
-.mj-results-card { padding: 3px 15px; border: 1px solid var(--border); border-radius: 8px; margin-bottom: 8px; position: relative; }
+.mj-results-card { padding: 3px 15px; border: 1px solid var(--border); border-radius: 8px; margin-bottom: 15px; position: relative; }
 .mj-results-card[data-compact="true"] { padding: 8px; margin-bottom: 4px; }
 .mj-results-header {
   display: flex;
@@ -295,13 +295,13 @@ body[data-colorblind="true"] .mj-results-bar[data-judgment="Excellent"], body[da
 .mj-cell-btn[data-mention="Insufficient"][data-selected="true"] { background: #ef4444; color: #fff; border-color: #ef4444; }
 .mj-cell-btn[data-mention="ToReject"][data-selected="true"] { background: #7f1d1d; color: #fff; border-color: #7f1d1d; }
 
-/* Winner golden shimmer */
-.mj-results-card[data-winner="true"] { animation: goldenShimmer 3s ease-in-out infinite; }
+/* Winner orange-gold shimmer - ultra tight */
+.mj-results-card[data-winner="true"] { animation: goldenShimmer 2.5s ease-in-out infinite; }
 @keyframes goldenShimmer {
-  0% { box-shadow: 0 0 15px rgba(255, 215, 0, 0.3); }
-  33% { box-shadow: 5px 0 15px rgba(255, 215, 0, 0.5); }
-  66% { box-shadow: -5px 0 15px rgba(255, 215, 0, 0.5); }
-  100% { box-shadow: 0 0 15px rgba(255, 215, 0, 0.3); }
+  0% { box-shadow: 0 0 10px rgba(255, 165, 0, 0.7), 0 0 20px rgba(255, 140, 0, 0.4); }
+  33% { box-shadow: 1px 0 10px rgba(255, 165, 0, 0.9), 1px 0 20px rgba(255, 140, 0, 0.5); }
+  66% { box-shadow: -1px 0 10px rgba(255, 165, 0, 0.9), -1px 0 20px rgba(255, 140, 0, 0.5); }
+  100% { box-shadow: 0 0 10px rgba(255, 165, 0, 0.7), 0 0 20px rgba(255, 140, 0, 0.4); }
 }
 
 /* Colorblind variants */
