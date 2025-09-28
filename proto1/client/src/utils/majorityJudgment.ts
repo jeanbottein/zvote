@@ -224,7 +224,8 @@ export type MJComparison = {
 export function computePureMJAnalysis(
   judgmentCounts: JudgmentCounts, 
   totalBallots: number,
-  _optionId?: string
+  _optionId?: string,
+  computeAllIterations: boolean = false
 ): PureMJAnalysis {
   if (totalBallots === 0) {
     return {
@@ -284,6 +285,11 @@ export function computePureMJAnalysis(
         strengthPercent,
         votesRemaining: currentTotal,
       });
+
+      // Only compute additional iterations if explicitly requested (for tie-breaking)
+      if (!computeAllIterations && iterations.length === 1) {
+        break; // Stop after first iteration unless we need tie-breaking
+      }
 
       // Remove this mention AND all mentions above it (corrected MJ logic!)
       const mentionIndex = mentions.indexOf(bestMention);
@@ -349,8 +355,8 @@ export function comparePureMJ(
   countsB: JudgmentCounts, 
   totalB: number
 ): MJComparison {
-  const analysisA = computePureMJAnalysis(countsA, totalA);
-  const analysisB = computePureMJAnalysis(countsB, totalB);
+  const analysisA = computePureMJAnalysis(countsA, totalA, undefined, true);
+  const analysisB = computePureMJAnalysis(countsB, totalB, undefined, true);
   
   const maxIterations = Math.max(analysisA.iterations.length, analysisB.iterations.length);
   const iterations: MJComparison['iterations'] = [];
@@ -426,14 +432,127 @@ function compareMentions(a: keyof JudgmentCounts, b: keyof JudgmentCounts): numb
   return order.indexOf(b) - order.indexOf(a); // Higher quality = lower index
 }
 
+// Helper function to find the best majority mention among options
+function findBestMajorityMention<T extends { mjAnalysis: PureMJAnalysis }>(options: T[]): keyof JudgmentCounts {
+  const mentions = options.map(option => option.mjAnalysis.majorityMention);
+  const order: (keyof JudgmentCounts)[] = [
+    'Excellent', 'VeryGood', 'Good', 'GoodEnough', 'OnlyAverage', 'Insufficient', 'ToReject'
+  ];
+  
+  // Find the mention with the lowest index (best quality)
+  let bestMention = mentions[0];
+  let bestIndex = order.indexOf(bestMention);
+  
+  for (const mention of mentions) {
+    const index = order.indexOf(mention);
+    if (index < bestIndex) {
+      bestMention = mention;
+      bestIndex = index;
+    }
+  }
+  
+  return bestMention;
+}
+
+// Adrien Fabre's "groupes d'insatisfaits" tie-breaking method
+function breakTiesUsingUnsatisfiedGroups<T extends { mjAnalysis: PureMJAnalysis; _counts: JudgmentCounts; _total: number }>(
+  candidates: T[]
+): T[] {
+  if (candidates.length <= 1) {
+    return candidates;
+  }
+
+  // Safety check: if all candidates have 0 total votes, return all as ex aequo
+  if (candidates.every(c => c._total === 0)) {
+    return candidates;
+  }
+
+  // All candidates have the same majority mention
+  const majorityMention = candidates[0].mjAnalysis.majorityMention;
+  const mentionOrder: (keyof JudgmentCounts)[] = [
+    'Excellent', 'VeryGood', 'Good', 'GoodEnough', 'OnlyAverage', 'Insufficient', 'ToReject'
+  ];
+  const majorityIndex = mentionOrder.indexOf(majorityMention);
+
+  // Safety check: if majority mention not found, return all as ex aequo
+  if (majorityIndex === -1) {
+    return candidates;
+  }
+
+  // Step 1: Calculate supporters and opponents for each candidate
+  const candidateStats = candidates.map(candidate => {
+    // Supporters: votes STRICTLY ABOVE majority mention
+    const supporterCount = mentionOrder
+      .slice(0, majorityIndex)
+      .reduce((sum, mention) => sum + (candidate._counts[mention] || 0), 0);
+    const supporterPercent = candidate._total > 0 ? (supporterCount / candidate._total) * 100 : 0;
+
+    // Opponents: votes STRICTLY BELOW majority mention  
+    const opponentCount = mentionOrder
+      .slice(majorityIndex + 1)
+      .reduce((sum, mention) => sum + (candidate._counts[mention] || 0), 0);
+    const opponentPercent = candidate._total > 0 ? (opponentCount / candidate._total) * 100 : 0;
+
+    return {
+      candidate,
+      supporterPercent,
+      opponentPercent,
+      supporterCount,
+      opponentCount
+    };
+  });
+
+  // Step 2: Find the maximum value among all supporters and opponents
+  const allValues = candidateStats.flatMap(stats => [stats.supporterPercent, stats.opponentPercent]);
+  const maxValue = Math.max(...allValues);
+
+  // Safety check: if maxValue is NaN or negative, return all as ex aequo
+  if (!isFinite(maxValue) || maxValue < 0) {
+    return candidates;
+  }
+
+  // Step 3: Apply Fabre's rules with tolerance for floating point comparison
+  const tolerance = 0.001;
+  const candidatesWithMaxSupporters = candidateStats.filter(stats => 
+    Math.abs(stats.supporterPercent - maxValue) < tolerance
+  );
+  const candidatesWithMaxOpponents = candidateStats.filter(stats => 
+    Math.abs(stats.opponentPercent - maxValue) < tolerance
+  );
+
+  if (candidatesWithMaxSupporters.length === 1 && candidatesWithMaxOpponents.length === 0) {
+    // Unique maximum is a supporter percentage -> that candidate wins
+    return [candidatesWithMaxSupporters[0].candidate];
+  }
+
+  if (candidatesWithMaxOpponents.length > 0 && candidatesWithMaxSupporters.length === 0) {
+    // Maximum is opponent percentage(s) -> those candidates lose
+    const losers = new Set(candidatesWithMaxOpponents.map(stats => stats.candidate));
+    const remaining = candidates.filter(candidate => !losers.has(candidate));
+    // Safety check: ensure we don't eliminate all candidates
+    return remaining.length > 0 ? remaining : candidates;
+  }
+
+  if (candidatesWithMaxSupporters.length > 0 && candidatesWithMaxOpponents.length > 0) {
+    // Both supporters and opponents have max value -> opponents lose (Fabre's rule)
+    const losers = new Set(candidatesWithMaxOpponents.map(stats => stats.candidate));
+    const remaining = candidates.filter(candidate => !losers.has(candidate));
+    // Safety check: ensure we don't eliminate all candidates
+    return remaining.length > 0 ? remaining : candidates;
+  }
+
+  // If we reach here, return all as ex aequo (true tie)
+  return candidates;
+}
+
 /**
- * Rank multiple options using pure MJ comparison
+ * Rank multiple options using Adrien Fabre's "groupes d'insatisfaits" method
  * Returns options sorted by MJ ranking with complete analysis
  */
 export function rankOptionsPureMJ<T extends { id: string; judgment_counts?: Partial<JudgmentCounts> }>(
   options: T[]
 ): Array<T & { mjAnalysis: PureMJAnalysis }> {
-  // Calculate analysis for each option
+  // Step 1: Calculate basic MJ analysis for each option
   const analyzed = options.map(option => {
     const counts: JudgmentCounts = {
       ToReject: option.judgment_counts?.ToReject || 0,
@@ -446,7 +565,7 @@ export function rankOptionsPureMJ<T extends { id: string; judgment_counts?: Part
     };
     const totalBallots = Object.values(counts).reduce((sum, count) => sum + count, 0);
     
-    const mjAnalysis = computePureMJAnalysis(counts, totalBallots, option.id);
+    const mjAnalysis = computePureMJAnalysis(counts, totalBallots, option.id, true);
     
     return {
       ...option,
@@ -456,48 +575,82 @@ export function rankOptionsPureMJ<T extends { id: string; judgment_counts?: Part
     };
   });
 
-  // Sort using pure MJ comparison
-  analyzed.sort((a, b) => {
-    const comparison = comparePureMJ(b._counts, b._total, a._counts, a._total);
-    return comparison.winner === 'A' ? 1 : comparison.winner === 'B' ? -1 : 0;
-  });
-
-  // Assign ranks and ex aequo status using pure MJ comparison
+  // Step 2: Rank options using Fabre's method
+  const remainingOptions = [...analyzed];
   let currentRank = 1;
-  let i = 0;
+  let iterationCount = 0;
+  const maxIterations = options.length * 2; // Safety limit
 
-  while (i < analyzed.length) {
-    // Find all options tied with current option
-    const tiedIndices = [i];
-    let j = i + 1;
+  while (remainingOptions.length > 0 && iterationCount < maxIterations) {
+    iterationCount++;
     
-    while (j < analyzed.length) {
-      const comparison = comparePureMJ(analyzed[i]._counts, analyzed[i]._total, analyzed[j]._counts, analyzed[j]._total);
-      if (comparison.winner === 'TIE') {
-        tiedIndices.push(j);
-        j++;
-      } else {
-        break;
+    // Step 2a: Find the best majority mention among remaining options
+    const bestMajorityMention = findBestMajorityMention(remainingOptions);
+    
+    // Step 2b: Group options with the best majority mention
+    const candidatesWithBestMention = remainingOptions.filter(
+      option => option.mjAnalysis.majorityMention === bestMajorityMention
+    );
+
+    // Safety check: ensure we have candidates
+    if (candidatesWithBestMention.length === 0) {
+      break;
+    }
+
+    // Step 2c: Apply tie-breaking using "groupes d'insatisfaits"
+    const winners = breakTiesUsingUnsatisfiedGroups(candidatesWithBestMention);
+
+    // Safety check: ensure we have winners and they're making progress
+    if (winners.length === 0 || winners.length > remainingOptions.length) {
+      // Fallback: assign current rank to all remaining options
+      for (const option of remainingOptions) {
+        option.mjAnalysis.rank = currentRank;
+        option.mjAnalysis.isWinner = currentRank === 1;
+        option.mjAnalysis.isExAequo = remainingOptions.length > 1;
+        option.mjAnalysis.tiedWithOptions = remainingOptions
+          .filter(o => o.id !== option.id)
+          .map(o => o.id);
       }
+      break;
     }
 
-    // Update all tied options
+    // Step 2d: Assign ranks
     const isWinner = currentRank === 1;
-    const isExAequo = tiedIndices.length > 1;
-    const tiedOptionIds = tiedIndices.map(idx => analyzed[idx].id);
+    const isExAequo = winners.length > 1;
+    const winnerIds = winners.map((w: any) => w.id);
 
-    for (const idx of tiedIndices) {
-      analyzed[idx].mjAnalysis.rank = currentRank;
-      analyzed[idx].mjAnalysis.isWinner = isWinner;
-      analyzed[idx].mjAnalysis.isExAequo = isExAequo;
-      analyzed[idx].mjAnalysis.tiedWithOptions = tiedOptionIds.filter(id => id !== analyzed[idx].id);
+    for (const winner of winners) {
+      winner.mjAnalysis.rank = currentRank;
+      winner.mjAnalysis.isWinner = isWinner;
+      winner.mjAnalysis.isExAequo = isExAequo;
+      winner.mjAnalysis.tiedWithOptions = winnerIds.filter((id: string) => id !== winner.id);
     }
 
-    currentRank += tiedIndices.length;
-    i = j;
+    // Step 2e: Remove winners from remaining options and update rank
+    winners.forEach((winner: any) => {
+      const index = remainingOptions.indexOf(winner);
+      if (index !== -1) {
+        remainingOptions.splice(index, 1);
+      }
+    });
+    
+    currentRank += winners.length;
   }
 
-  // Clean up internal properties and return
+  // Safety fallback: if we hit max iterations, assign remaining options
+  if (remainingOptions.length > 0) {
+    for (const option of remainingOptions) {
+      option.mjAnalysis.rank = currentRank;
+      option.mjAnalysis.isWinner = false;
+      option.mjAnalysis.isExAequo = remainingOptions.length > 1;
+      option.mjAnalysis.tiedWithOptions = remainingOptions
+        .filter(o => o.id !== option.id)
+        .map(o => o.id);
+    }
+  }
+
+  // Step 3: Sort by rank and return
+  analyzed.sort((a, b) => a.mjAnalysis.rank - b.mjAnalysis.rank);
   return analyzed.map(({ _counts, _total, ...option }) => option) as Array<T & { mjAnalysis: PureMJAnalysis }>;
 }
 

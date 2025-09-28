@@ -72,7 +72,7 @@ describe('Pure Majority Judgment Algorithm', () => {
       expect(result.majorityMention).toBe('VeryGood');
       expect(result.majorityPercentage).toBeCloseTo(60, 1);
       expect(result.majorityStrengthPercent).toBeCloseTo(10, 1); // 60% - 50%
-      expect(result.iterations.length).toBeGreaterThan(1);
+      expect(result.iterations.length).toBe(1); // Only first iteration by default
     });
     
     test('handles exact 50% majority', () => {
@@ -102,7 +102,8 @@ describe('Pure Majority Judgment Algorithm', () => {
         Good: 1, VeryGood: 2, Excellent: 0
       };
       
-      const result = computePureMJAnalysis(counts, 5);
+      // Test with all iterations for tie-breaking analysis
+      const result = computePureMJAnalysis(counts, 5, undefined, true);
       
       // Should find Good as majority (60% "at least Good")
       expect(result.majorityMention).toBe('Good');
@@ -121,7 +122,8 @@ describe('Pure Majority Judgment Algorithm', () => {
         Good: 1, VeryGood: 2, Excellent: 0
       };
       
-      const result = computePureMJAnalysis(counts, 5);
+      // Test with all iterations for tie-breaking analysis
+      const result = computePureMJAnalysis(counts, 5, undefined, true);
       
       // Same majority as Option 1
       expect(result.majorityMention).toBe('Good');
@@ -322,7 +324,8 @@ describe('Pure Majority Judgment Algorithm', () => {
         Good: 2, VeryGood: 3, Excellent: 3 // Total: 10
       };
       
-      const result = computePureMJAnalysis(counts, 10);
+      // Test with all iterations for tie-breaking analysis
+      const result = computePureMJAnalysis(counts, 10, undefined, true);
       
       expect(result.iterations.length).toBeGreaterThan(1);
       expect(result.majorityMention).toBe('VeryGood'); // 60% "at least VeryGood"

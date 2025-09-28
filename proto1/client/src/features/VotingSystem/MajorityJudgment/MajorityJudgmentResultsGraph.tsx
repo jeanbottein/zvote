@@ -30,15 +30,16 @@ const MajorityJudgmentResultsGraph: React.FC<MajorityJudgmentResultsGraphProps> 
   };
 
   // Use the pure MJ library for all analysis
-  const mjAnalysis = computePureMJAnalysis(judgmentCounts, totalBallots);
+  // Always compute all iterations for display to have settling mention available
+  const mjAnalysis = computePureMJAnalysis(judgmentCounts, totalBallots, undefined, true);
   const majorityJudgment = mjAnalysis.majorityMention;
   const hasSecondIteration = mjAnalysis.iterations.length > 1;
   const settlingJudgment = hasSecondIteration ? mjAnalysis.iterations[1].mention : null;
   const isWinner = rank === 1;
   
-  // Show settling section when this option required a second iteration
-  // (i.e., first-mention tie within this option's distribution)
-  const showSettlingSection = hasSecondIteration;
+  // Show settling section only when this option is marked as ex aequo (tied with others)
+  // Settling mention is only relevant when comparing tied options
+  const showSettlingSection = !!isExAequo;
 
   // List mentions best-to-worst for visual left-to-right ordering
   const mentionsDesc: Array<keyof JudgmentCounts> = ['Excellent','VeryGood','Good','GoodEnough','OnlyAverage','Insufficient','ToReject'];
@@ -138,7 +139,7 @@ const MajorityJudgmentResultsGraph: React.FC<MajorityJudgmentResultsGraphProps> 
             <div className="mj-results-badge" data-judgment={majorityJudgment || undefined}>
               {majorityJudgment ? judgmentLabels[majorityJudgment as keyof typeof judgmentLabels] : '-'}
             </div>
-            {mjAnalysis.majorityStrengthPercent > 0 && (
+            {mjAnalysis.majorityStrengthPercent >= 0 && (
               <div className="mj-majority-strength-badge" data-judgment={majorityJudgment} title={`${mjAnalysis.majorityPercentage.toFixed(1)}% rated at least ${judgmentLabels[majorityJudgment as keyof typeof judgmentLabels]}`}>
                 +{mjAnalysis.majorityStrengthPercent.toFixed(2)}%
               </div>
@@ -149,7 +150,7 @@ const MajorityJudgmentResultsGraph: React.FC<MajorityJudgmentResultsGraphProps> 
                 <div className="mj-results-badge" data-variant="second" data-judgment={settlingJudgment || undefined} title="Tie-breaking mention">
                   {hasSecondIteration && settlingJudgment ? judgmentLabels[settlingJudgment as keyof typeof judgmentLabels] : '-'}
                 </div>
-                {hasSecondIteration && mjAnalysis.iterations[1].strengthPercent > 0 && (
+                {hasSecondIteration && mjAnalysis.iterations[1].strengthPercent >= 0 && (
                   <div className="mj-majority-strength-badge" data-judgment={settlingJudgment} title={`${mjAnalysis.iterations[1].percentage.toFixed(1)}% rated at least ${judgmentLabels[settlingJudgment as keyof typeof judgmentLabels]} (after removing majority votes)`}>
                     +{mjAnalysis.iterations[1].strengthPercent.toFixed(2)}%
                   </div>
