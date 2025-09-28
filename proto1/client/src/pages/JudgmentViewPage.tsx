@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { useVoteByToken } from '../hooks/useVoteByToken';
 import { spacetimeDB } from '../lib/spacetimeClient';
 import MajorityJudgmentGraph from '../components/MajorityJudgmentGraph';
-import { sortOptionsWithRanks, findWinners } from '../utils/majorityJudgment';
+import { rankOptions } from '../utils/majorityJudgment';
 
 const JudgmentViewPage: React.FC = () => {
   const [params] = useSearchParams();
@@ -29,14 +29,14 @@ const JudgmentViewPage: React.FC = () => {
     return <div className="panel"><h2>Vote not found</h2></div>;
   }
 
-  const { sortedOptions, ranks, exAequoOptions } = sortOptionsWithRanks(vote.options || []);
-  const winners = findWinners(sortedOptions);
+  const rankedOptions = rankOptions(vote.options || []);
+  const winners = new Set(rankedOptions.filter(opt => opt.mjAnalysis.isWinner).map(opt => opt.id));
 
   return (
     <div className="panel">
       <h2>{vote.title}</h2>
       <div style={{ marginTop: '16px' }}>
-        {sortedOptions.map((option) => (
+        {rankedOptions.map((option: any) => (
           <MajorityJudgmentGraph
             key={option.id}
             optionLabel={option.label}
@@ -54,8 +54,8 @@ const JudgmentViewPage: React.FC = () => {
             compact={false}
             isWinner={winners.has(option.id)}
             showSecond={winners.size > 1 && winners.has(option.id)}
-            rank={ranks.get(option.id)}
-            isExAequo={exAequoOptions.has(option.id)}
+            rank={option.mjAnalysis.rank}
+            isExAequo={option.mjAnalysis.isExAequo}
           />
         ))}
       </div>

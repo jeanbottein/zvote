@@ -1,5 +1,5 @@
-// Majority Judgment utilities shared by vote and view pages
-// Mentions ordered worst..best: ToReject, Insufficient, OnlyAverage, GoodEnough, Good, VeryGood, Excellent
+// Majority Judgment Algorithm Implementation
+// State-of-the-art MJ with Fabre's "groupes d'insatisfaits" tie-breaking method
 
 export type JudgmentCounts = {
   ToReject: number;
@@ -11,178 +11,18 @@ export type JudgmentCounts = {
   Excellent: number;
 };
 
-export function toCountsArray(jc?: Partial<JudgmentCounts> | Record<string, number> | null): number[] {
-  const src = jc || {};
-  return [
-    Number((src as any).ToReject || 0),
-    Number((src as any).Insufficient || 0),
-    Number((src as any).OnlyAverage || 0),
-    Number((src as any).GoodEnough || 0),
-    Number((src as any).Good || 0),
-    Number((src as any).VeryGood || 0),
-    Number((src as any).Excellent || 0),
-  ];
-}
-
-export function medianIndex(counts: number[], total: number): number {
-  if (total <= 0) return 0;
-  const target = Math.floor((total + 1) / 2); // lower median
-  let cum = 0;
-  for (let i = 0; i < counts.length; i++) {
-    cum += counts[i];
-    if (cum >= target) return i;
-  }
-  return counts.length - 1;
-}
-
-export function compareMJ(aCountsOrig: number[], bCountsOrig: number[]): number {
-  const aOrig = aCountsOrig.slice();
-  const bOrig = bCountsOrig.slice();
-  const aTotalOrig = aOrig.reduce((s, n) => s + n, 0);
-  const bTotalOrig = bOrig.reduce((s, n) => s + n, 0);
-
-  // First compare majority mentions
-  let aCounts = aOrig.slice();
-  let bCounts = bOrig.slice();
-  let aTotal = aTotalOrig;
-  let bTotal = bTotalOrig;
-  let aMed = medianIndex(aCounts, aTotal);
-  let bMed = medianIndex(bCounts, bTotal);
-  if (aMed !== bMed) return bMed - aMed; // higher index (better) wins
-
-  // Iteratively remove one median from both until medians differ
-  let guard = aTotal + bTotal + 5;
-  while (aTotal > 0 && bTotal > 0 && guard-- > 0) {
-    if (aCounts[aMed] === 0 || bCounts[bMed] === 0) break;
-    aCounts[aMed] -= 1; aTotal -= 1;
-    bCounts[bMed] -= 1; bTotal -= 1;
-    aMed = medianIndex(aCounts, aTotal);
-    bMed = medianIndex(bCounts, bTotal);
-    if (aMed !== bMed) return bMed - aMed;
-  }
-
-  // If still tied, compare proportion strictly above the (original) median
-  const aAbove = aOrig.slice(aMed + 1).reduce((s, n) => s + n, 0) / (aTotalOrig || 1);
-  const bAbove = bOrig.slice(bMed + 1).reduce((s, n) => s + n, 0) / (bTotalOrig || 1);
-  if (aAbove !== bAbove) return aAbove < bAbove ? 1 : -1; // larger above is better
-
-  // If still tied, compare proportion strictly below the median (fewer lower is better)
-  const aBelow = aOrig.slice(0, aMed).reduce((s, n) => s + n, 0) / (aTotalOrig || 1);
-  const bBelow = bOrig.slice(0, bMed).reduce((s, n) => s + n, 0) / (bTotalOrig || 1);
-  if (aBelow !== bBelow) return aBelow < bBelow ? -1 : 1; // less lower is better
-
-  return 0; // ex aequo
-}
-
-export function sortOptionsByMJ<T extends { id: string; judgment_counts?: Partial<JudgmentCounts> }>(options: T[]): T[] {
-  return [...options].sort((a, b) => {
-    const aCounts = toCountsArray(a.judgment_counts);
-    const bCounts = toCountsArray(b.judgment_counts);
-    return compareMJ(aCounts, bCounts);
-  });
-}
-
-export function sortOptionsWithRanks<T extends { id: string; judgment_counts?: Partial<JudgmentCounts> }>(options: T[]): { 
-  sortedOptions: T[]; 
-  ranks: Map<string, number>;
-  exAequoOptions: Set<string>;
-} {
-  const sortedOptions = sortOptionsByMJ(options);
-  const ranks = calculateRanks(sortedOptions);
-  const exAequoOptions = findExAequoOptions(ranks);
-  return { sortedOptions, ranks, exAequoOptions };
-}
-
-export function findExAequoOptions(ranks: Map<string, number>): Set<string> {
-  const exAequoOptions = new Set<string>();
-  const rankCounts = new Map<number, number>();
-  
-  // Count how many options have each rank
-  for (const rank of ranks.values()) {
-    rankCounts.set(rank, (rankCounts.get(rank) || 0) + 1);
-  }
-  
-  // Mark options as ex aequo if more than one option has the same rank
-  for (const [optionId, rank] of ranks.entries()) {
-    if ((rankCounts.get(rank) || 0) > 1) {
-      exAequoOptions.add(optionId);
-    }
-  }
-  
-  return exAequoOptions;
-}
-
-export function findWinners<T extends { id: string; judgment_counts?: Partial<JudgmentCounts> }>(sortedOptions: T[]): Set<string> {
-  const winners = new Set<string>();
-  if (sortedOptions.length === 0) return winners;
-  winners.add(sortedOptions[0].id);
-  for (let i = 1; i < sortedOptions.length; i++) {
-    const aCounts = toCountsArray(sortedOptions[0].judgment_counts);
-    const bCounts = toCountsArray(sortedOptions[i].judgment_counts);
-    const cmp = compareMJ(aCounts, bCounts);
-    if (cmp === 0) winners.add(sortedOptions[i].id); else break;
-  }
-  return winners;
-}
-
-export function calculateRanks<T extends { id: string; judgment_counts?: Partial<JudgmentCounts> }>(sortedOptions: T[]): Map<string, number> {
-  const ranks = new Map<string, number>();
-  if (sortedOptions.length === 0) return ranks;
-  
-  let currentRank = 1;
-  let i = 0;
-  
-  while (i < sortedOptions.length) {
-    const currentOption = sortedOptions[i];
-    const currentCounts = toCountsArray(currentOption.judgment_counts);
-    
-    // Find all options tied with the current one
-    const tiedOptions = [currentOption];
-    let j = i + 1;
-    while (j < sortedOptions.length) {
-      const nextCounts = toCountsArray(sortedOptions[j].judgment_counts);
-      if (compareMJ(currentCounts, nextCounts) === 0) {
-        tiedOptions.push(sortedOptions[j]);
-        j++;
-      } else {
-        break;
-      }
-    }
-    
-    // Assign the same rank to all tied options
-    for (const option of tiedOptions) {
-      ranks.set(option.id, currentRank);
-    }
-    
-    // Next rank skips the tied positions (standard ranking rules)
-    currentRank += tiedOptions.length;
-    i = j;
-  }
-  
-  return ranks;
-}
-
-// ============================================================================
-// PURE MAJORITY JUDGMENT ALGORITHM - CLIENT-SIDE IMPLEMENTATION
-// The Most Beautiful, Reliable, Tested MJ Implementation Ever Created
-// ============================================================================
-
-/**
- * Pure MJ Analysis Result - No Scoring Approximations!
- * Contains complete information for perfect display and comparison
- */
-export type PureMJAnalysis = {
-  // Primary majority information
+export type MJAnalysis = {
+  // Majority mention and strength
   majorityMention: keyof JudgmentCounts;
-  majorityPercentage: number;        // Percentage "at least majority mention"
-  majorityStrengthPercent: number;   // How much above 50%
+  majorityPercentage: number;
+  majorityStrengthPercent: number;
   
-  // Complete iteration chain for perfect tie-breaking
+  // Tie-breaking iterations
   iterations: Array<{
     mention: keyof JudgmentCounts;
-    percentage: number;              // "At least X%" for this mention
-    strengthPercent: number;         // How much above 50%
-    votesRemaining: number;          // Total votes in this iteration
+    percentage: number;
+    strengthPercent: number;
+    votesRemaining: number;
   }>;
   
   // Final iteration results
@@ -190,15 +30,14 @@ export type PureMJAnalysis = {
   finalPercentage: number;
   finalStrengthPercent: number;
   
-  // Pure ranking results (no approximation)
-  rank: number;                      // Exact rank (1 = winner)
-  isWinner: boolean;                 // True if rank = 1
-  isExAequo: boolean;               // True if tied with other options
-  tiedWithOptions: string[];         // IDs of options tied with this one
+  // Ranking information
+  rank: number;
+  isWinner: boolean;
+  isExAequo: boolean;
   
   // Display helpers
-  displaySummary: string;            // "Good +10%" or "VeryGood (tie)"
-  comparisonSignature: string;       // Unique signature for comparison
+  displaySummary: string;
+  comparisonSignature: string;
 };
 
 /**
@@ -218,15 +57,14 @@ export type MJComparison = {
 };
 
 /**
- * The Pure Majority Judgment Algorithm - Heart of the System!
- * Computes complete MJ analysis from raw vote counts with 100% accuracy
+ * Compute Majority Judgment analysis for a single option
  */
-export function computePureMJAnalysis(
+export function computeMJAnalysis(
   judgmentCounts: JudgmentCounts, 
   totalBallots: number,
   _optionId?: string,
   computeAllIterations: boolean = false
-): PureMJAnalysis {
+): MJAnalysis {
   if (totalBallots === 0) {
     return {
       majorityMention: 'ToReject',
@@ -239,7 +77,6 @@ export function computePureMJAnalysis(
       rank: 1,
       isWinner: false,
       isExAequo: false,
-      tiedWithOptions: [],
       displaySummary: 'No votes',
       comparisonSignature: 'EMPTY',
     };
@@ -253,7 +90,7 @@ export function computePureMJAnalysis(
   // Current vote counts (will be modified during iterations)
   const currentCounts = { ...judgmentCounts };
   let currentTotal = totalBallots;
-  const iterations: PureMJAnalysis['iterations'] = [];
+  const iterations: MJAnalysis['iterations'] = [];
 
   // Main MJ Algorithm Loop
   while (currentTotal > 0) {
@@ -325,7 +162,6 @@ export function computePureMJAnalysis(
     rank: 1,
     isWinner: false,
     isExAequo: false,
-    tiedWithOptions: [],
     
     displaySummary: createDisplaySummary(majorityIteration?.mention || 'ToReject', majorityIteration?.strengthPercent || 0),
     comparisonSignature: createComparisonSignature(iterations),
@@ -339,24 +175,23 @@ function createDisplaySummary(mention: keyof JudgmentCounts, strength: number): 
 }
 
 // Helper function to create comparison signature
-function createComparisonSignature(iterations: PureMJAnalysis['iterations']): string {
+function createComparisonSignature(iterations: MJAnalysis['iterations']): string {
   return iterations
     .map(iter => `${iter.mention}:${iter.percentage.toFixed(1)}`)
     .join('|');
 }
 
 /**
- * Pure MJ Comparison - Compare two options using pure MJ algorithm
- * Returns: 1 if A > B, -1 if A < B, 0 if tied
+ * Compare two options using MJ algorithm
  */
-export function comparePureMJ(
+export function compareMJ(
   countsA: JudgmentCounts, 
   totalA: number,
   countsB: JudgmentCounts, 
   totalB: number
 ): MJComparison {
-  const analysisA = computePureMJAnalysis(countsA, totalA, undefined, true);
-  const analysisB = computePureMJAnalysis(countsB, totalB, undefined, true);
+  const analysisA = computeMJAnalysis(countsA, totalA, undefined, true);
+  const analysisB = computeMJAnalysis(countsB, totalB, undefined, true);
   
   const maxIterations = Math.max(analysisA.iterations.length, analysisB.iterations.length);
   const iterations: MJComparison['iterations'] = [];
@@ -433,7 +268,7 @@ function compareMentions(a: keyof JudgmentCounts, b: keyof JudgmentCounts): numb
 }
 
 // Helper function to find the best majority mention among options
-function findBestMajorityMention<T extends { mjAnalysis: PureMJAnalysis }>(options: T[]): keyof JudgmentCounts {
+function findBestMajorityMention<T extends { mjAnalysis: MJAnalysis }>(options: T[]): keyof JudgmentCounts {
   const mentions = options.map(option => option.mjAnalysis.majorityMention);
   const order: (keyof JudgmentCounts)[] = [
     'Excellent', 'VeryGood', 'Good', 'GoodEnough', 'OnlyAverage', 'Insufficient', 'ToReject'
@@ -455,7 +290,7 @@ function findBestMajorityMention<T extends { mjAnalysis: PureMJAnalysis }>(optio
 }
 
 // Adrien Fabre's "groupes d'insatisfaits" tie-breaking method
-function breakTiesUsingUnsatisfiedGroups<T extends { mjAnalysis: PureMJAnalysis; _counts: JudgmentCounts; _total: number }>(
+function breakTiesUsingUnsatisfiedGroups<T extends { mjAnalysis: MJAnalysis; _counts: JudgmentCounts; _total: number }>(
   candidates: T[]
 ): T[] {
   if (candidates.length <= 1) {
@@ -546,12 +381,11 @@ function breakTiesUsingUnsatisfiedGroups<T extends { mjAnalysis: PureMJAnalysis;
 }
 
 /**
- * Rank multiple options using Adrien Fabre's "groupes d'insatisfaits" method
- * Returns options sorted by MJ ranking with complete analysis
+ * Rank multiple options using Fabre's tie-breaking method
  */
-export function rankOptionsPureMJ<T extends { id: string; judgment_counts?: Partial<JudgmentCounts> }>(
+export function rankOptions<T extends { id: string; judgment_counts?: Partial<JudgmentCounts> }>(
   options: T[]
-): Array<T & { mjAnalysis: PureMJAnalysis }> {
+): Array<T & { mjAnalysis: MJAnalysis }> {
   // Step 1: Calculate basic MJ analysis for each option
   const analyzed = options.map(option => {
     const counts: JudgmentCounts = {
@@ -565,7 +399,7 @@ export function rankOptionsPureMJ<T extends { id: string; judgment_counts?: Part
     };
     const totalBallots = Object.values(counts).reduce((sum, count) => sum + count, 0);
     
-    const mjAnalysis = computePureMJAnalysis(counts, totalBallots, option.id, true);
+    const mjAnalysis = computeMJAnalysis(counts, totalBallots, option.id, true);
     
     return {
       ...option,
@@ -607,9 +441,6 @@ export function rankOptionsPureMJ<T extends { id: string; judgment_counts?: Part
         option.mjAnalysis.rank = currentRank;
         option.mjAnalysis.isWinner = currentRank === 1;
         option.mjAnalysis.isExAequo = remainingOptions.length > 1;
-        option.mjAnalysis.tiedWithOptions = remainingOptions
-          .filter(o => o.id !== option.id)
-          .map(o => o.id);
       }
       break;
     }
@@ -617,13 +448,11 @@ export function rankOptionsPureMJ<T extends { id: string; judgment_counts?: Part
     // Step 2d: Assign ranks
     const isWinner = currentRank === 1;
     const isExAequo = winners.length > 1;
-    const winnerIds = winners.map((w: any) => w.id);
 
     for (const winner of winners) {
       winner.mjAnalysis.rank = currentRank;
       winner.mjAnalysis.isWinner = isWinner;
       winner.mjAnalysis.isExAequo = isExAequo;
-      winner.mjAnalysis.tiedWithOptions = winnerIds.filter((id: string) => id !== winner.id);
     }
 
     // Step 2e: Remove winners from remaining options and update rank
@@ -643,18 +472,11 @@ export function rankOptionsPureMJ<T extends { id: string; judgment_counts?: Part
       option.mjAnalysis.rank = currentRank;
       option.mjAnalysis.isWinner = false;
       option.mjAnalysis.isExAequo = remainingOptions.length > 1;
-      option.mjAnalysis.tiedWithOptions = remainingOptions
-        .filter(o => o.id !== option.id)
-        .map(o => o.id);
     }
   }
 
   // Step 3: Sort by rank and return
   analyzed.sort((a, b) => a.mjAnalysis.rank - b.mjAnalysis.rank);
-  return analyzed.map(({ _counts, _total, ...option }) => option) as Array<T & { mjAnalysis: PureMJAnalysis }>;
+  return analyzed.map(({ _counts, _total, ...option }) => option) as Array<T & { mjAnalysis: MJAnalysis }>;
 }
 
-// ============================================================================
-// PURE MAJORITY JUDGMENT IMPLEMENTATION COMPLETE
-// Server = Pure Database | Client = Pure Algorithm | 100% Accuracy Guaranteed
-// ============================================================================

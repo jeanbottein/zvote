@@ -6,7 +6,7 @@ import BallotInterface from '../features/BallotInterface/BallotInterface';
 import MajorityJudgmentResultsGraph from '../features/VotingSystem/MajorityJudgment/MajorityJudgmentResultsGraph';
 import { useToast } from '../components/ToastProvider';
 import DevBallotFeeder from '../components/DevBallotFeeder';
-import { sortOptionsWithRanks, findWinners } from '../utils/majorityJudgment';
+import { rankOptions } from '../utils/majorityJudgment';
 
 const JudgmentVotePage: React.FC = () => {
   const [params] = useSearchParams();
@@ -53,10 +53,10 @@ const JudgmentVotePage: React.FC = () => {
   }
 
   // Build sorted options by MJ ranking with ranks (winners first)
-  const { sortedOptions, ranks, exAequoOptions } = sortOptionsWithRanks(vote.options || []);
+  const rankedOptions = rankOptions(vote.options || []);
 
   // Find winners (all tied for first)
-  const winners = findWinners(sortedOptions);
+  const winners = new Set(rankedOptions.filter(opt => opt.mjAnalysis.isWinner).map(opt => opt.id));
 
   // Check if there are any votes/ballots submitted
   const totalBallots = Math.max(...(vote.options || []).map(option => option.total_judgments || 0));
@@ -74,7 +74,7 @@ const JudgmentVotePage: React.FC = () => {
       
       {/* Always show results section, even when empty */}
       <div style={{ marginTop: '16px' }}>
-        {sortedOptions.map((option) => (
+        {rankedOptions.map((option: any) => (
           <MajorityJudgmentResultsGraph
             key={option.id}
             optionLabel={option.label}
@@ -89,11 +89,9 @@ const JudgmentVotePage: React.FC = () => {
             }}
             totalBallots={option.total_judgments || 0}
             compact={false}
-            majorityTag={option.majority_tag}
-            isWinner={hasVotes ? winners.has(option.id) : false}
             showSecond={hasVotes && winners.size > 1 && winners.has(option.id)}
-            rank={hasVotes ? ranks.get(option.id) : undefined}
-            isExAequo={hasVotes ? exAequoOptions.has(option.id) : false}
+            rank={hasVotes ? option.mjAnalysis.rank : undefined}
+            isExAequo={hasVotes && option.mjAnalysis.isExAequo}
           />
         ))}
       </div>

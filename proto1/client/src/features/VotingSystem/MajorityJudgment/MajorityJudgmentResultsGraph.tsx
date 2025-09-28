@@ -1,5 +1,5 @@
 import React from 'react';
-import { computePureMJAnalysis, type JudgmentCounts } from '../../../utils/majorityJudgment';
+import { computeMJAnalysis, type JudgmentCounts } from '../../../utils/majorityJudgment';
 
 interface MajorityJudgmentResultsGraphProps {
   optionLabel: string;
@@ -31,7 +31,7 @@ const MajorityJudgmentResultsGraph: React.FC<MajorityJudgmentResultsGraphProps> 
 
   // Use the pure MJ library for all analysis
   // Always compute all iterations for display to have settling mention available
-  const mjAnalysis = computePureMJAnalysis(judgmentCounts, totalBallots, undefined, true);
+  const mjAnalysis = computeMJAnalysis(judgmentCounts, totalBallots, undefined, true);
   const majorityJudgment = mjAnalysis.majorityMention;
   const hasSecondIteration = mjAnalysis.iterations.length > 1;
   const settlingJudgment = hasSecondIteration ? mjAnalysis.iterations[1].mention : null;
