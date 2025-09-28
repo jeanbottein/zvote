@@ -30,7 +30,7 @@ const JudgmentViewPage: React.FC = () => {
   }
 
   const rankedOptions = rankOptions(vote.options || []);
-  const winners = new Set(rankedOptions.filter(opt => opt.mjAnalysis.isWinner).map(opt => opt.id));
+  const winners = new Set(rankedOptions.filter(opt => opt.mjAnalysis.rank === 1).map(opt => opt.id));
 
   return (
     <div className="panel">
@@ -55,7 +55,7 @@ const JudgmentViewPage: React.FC = () => {
             isWinner={winners.has(option.id)}
             showSecond={winners.size > 1 && winners.has(option.id)}
             rank={option.mjAnalysis.rank}
-            isExAequo={option.mjAnalysis.isExAequo}
+            isExAequo={rankedOptions.filter(opt => opt.mjAnalysis.rank === option.mjAnalysis.rank).length > 1}
           />
         ))}
       </div>

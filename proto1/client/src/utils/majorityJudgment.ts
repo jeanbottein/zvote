@@ -32,8 +32,6 @@ export type MJAnalysis = {
   
   // Ranking information
   rank: number;
-  isWinner: boolean;
-  isExAequo: boolean;
   
   // Display helpers
   displaySummary: string;
@@ -60,11 +58,10 @@ export type MJComparison = {
  * Compute Majority Judgment analysis for a single option
  */
 export function computeMJAnalysis(
-  judgmentCounts: JudgmentCounts, 
-  totalBallots: number,
-  _optionId?: string,
-  computeAllIterations: boolean = false
+  judgmentCounts: JudgmentCounts
 ): MJAnalysis {
+  const totalBallots = Object.values(judgmentCounts).reduce((sum, count) => sum + count, 0);
+  
   if (totalBallots === 0) {
     return {
       majorityMention: 'ToReject',
@@ -75,8 +72,6 @@ export function computeMJAnalysis(
       finalPercentage: 0,
       finalStrengthPercent: 0,
       rank: 1,
-      isWinner: false,
-      isExAequo: false,
       displaySummary: 'No votes',
       comparisonSignature: 'EMPTY',
     };
@@ -123,10 +118,7 @@ export function computeMJAnalysis(
         votesRemaining: currentTotal,
       });
 
-      // Only compute additional iterations if explicitly requested (for tie-breaking)
-      if (!computeAllIterations && iterations.length === 1) {
-        break; // Stop after first iteration unless we need tie-breaking
-      }
+      // Continue to next iteration for complete MJ analysis
 
       // Remove this mention AND all mentions above it (corrected MJ logic!)
       const mentionIndex = mentions.indexOf(bestMention);
@@ -160,8 +152,6 @@ export function computeMJAnalysis(
     
     // Ranking will be computed separately
     rank: 1,
-    isWinner: false,
-    isExAequo: false,
     
     displaySummary: createDisplaySummary(majorityIteration?.mention || 'ToReject', majorityIteration?.strengthPercent || 0),
     comparisonSignature: createComparisonSignature(iterations),
@@ -186,12 +176,10 @@ function createComparisonSignature(iterations: MJAnalysis['iterations']): string
  */
 export function compareMJ(
   countsA: JudgmentCounts, 
-  totalA: number,
-  countsB: JudgmentCounts, 
-  totalB: number
+  countsB: JudgmentCounts
 ): MJComparison {
-  const analysisA = computeMJAnalysis(countsA, totalA, undefined, true);
-  const analysisB = computeMJAnalysis(countsB, totalB, undefined, true);
+  const analysisA = computeMJAnalysis(countsA);
+  const analysisB = computeMJAnalysis(countsB);
   
   const maxIterations = Math.max(analysisA.iterations.length, analysisB.iterations.length);
   const iterations: MJComparison['iterations'] = [];
@@ -399,7 +387,7 @@ export function rankOptions<T extends { id: string; judgment_counts?: Partial<Ju
     };
     const totalBallots = Object.values(counts).reduce((sum, count) => sum + count, 0);
     
-    const mjAnalysis = computeMJAnalysis(counts, totalBallots, option.id, true);
+    const mjAnalysis = computeMJAnalysis(counts);
     
     return {
       ...option,
@@ -439,20 +427,13 @@ export function rankOptions<T extends { id: string; judgment_counts?: Partial<Ju
       // Fallback: assign current rank to all remaining options
       for (const option of remainingOptions) {
         option.mjAnalysis.rank = currentRank;
-        option.mjAnalysis.isWinner = currentRank === 1;
-        option.mjAnalysis.isExAequo = remainingOptions.length > 1;
       }
       break;
     }
 
     // Step 2d: Assign ranks
-    const isWinner = currentRank === 1;
-    const isExAequo = winners.length > 1;
-
     for (const winner of winners) {
       winner.mjAnalysis.rank = currentRank;
-      winner.mjAnalysis.isWinner = isWinner;
-      winner.mjAnalysis.isExAequo = isExAequo;
     }
 
     // Step 2e: Remove winners from remaining options and update rank
@@ -470,8 +451,6 @@ export function rankOptions<T extends { id: string; judgment_counts?: Partial<Ju
   if (remainingOptions.length > 0) {
     for (const option of remainingOptions) {
       option.mjAnalysis.rank = currentRank;
-      option.mjAnalysis.isWinner = false;
-      option.mjAnalysis.isExAequo = remainingOptions.length > 1;
     }
   }
 

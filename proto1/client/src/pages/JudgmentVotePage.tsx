@@ -56,7 +56,7 @@ const JudgmentVotePage: React.FC = () => {
   const rankedOptions = rankOptions(vote.options || []);
 
   // Find winners (all tied for first)
-  const winners = new Set(rankedOptions.filter(opt => opt.mjAnalysis.isWinner).map(opt => opt.id));
+  const winners = new Set(rankedOptions.filter(opt => opt.mjAnalysis.rank === 1).map(opt => opt.id));
 
   // Check if there are any votes/ballots submitted
   const totalBallots = Math.max(...(vote.options || []).map(option => option.total_judgments || 0));
@@ -91,7 +91,7 @@ const JudgmentVotePage: React.FC = () => {
             compact={false}
             showSecond={hasVotes && winners.size > 1 && winners.has(option.id)}
             rank={hasVotes ? option.mjAnalysis.rank : undefined}
-            isExAequo={hasVotes && option.mjAnalysis.isExAequo}
+            isExAequo={hasVotes && rankedOptions.filter(opt => opt.mjAnalysis.rank === option.mjAnalysis.rank).length > 1}
           />
         ))}
       </div>

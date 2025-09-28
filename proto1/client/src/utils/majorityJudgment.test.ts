@@ -23,7 +23,7 @@ describe('Pure Majority Judgment Algorithm', () => {
         Good: 0, VeryGood: 0, Excellent: 0
       };
       
-      const result = computeMJAnalysis(counts, 0);
+      const result = computeMJAnalysis(counts);
       
       expect(result.majorityMention).toBe('ToReject');
       expect(result.majorityPercentage).toBe(0);
@@ -37,7 +37,7 @@ describe('Pure Majority Judgment Algorithm', () => {
         Good: 0, VeryGood: 0, Excellent: 1
       };
       
-      const result = computeMJAnalysis(counts, 1);
+      const result = computeMJAnalysis(counts);
       
       expect(result.majorityMention).toBe('Excellent');
       expect(result.majorityPercentage).toBe(100);
@@ -52,7 +52,7 @@ describe('Pure Majority Judgment Algorithm', () => {
         Good: 0, VeryGood: 0, Excellent: 0
       };
       
-      const result = computeMJAnalysis(counts, 1);
+      const result = computeMJAnalysis(counts);
       
       expect(result.majorityMention).toBe('ToReject');
       expect(result.majorityPercentage).toBe(100);
@@ -66,12 +66,12 @@ describe('Pure Majority Judgment Algorithm', () => {
         Good: 2, VeryGood: 3, Excellent: 0
       };
       
-      const result = computeMJAnalysis(counts, 5);
+      const result = computeMJAnalysis(counts);
       
       expect(result.majorityMention).toBe('VeryGood');
       expect(result.majorityPercentage).toBeCloseTo(60, 1);
       expect(result.majorityStrengthPercent).toBeCloseTo(10, 1); // 60% - 50%
-      expect(result.iterations.length).toBe(1); // Only first iteration by default
+      expect(result.iterations.length).toBeGreaterThanOrEqual(1); // Complete MJ analysis
     });
     
     test('handles exact 50% majority', () => {
@@ -81,7 +81,7 @@ describe('Pure Majority Judgment Algorithm', () => {
         Good: 2, VeryGood: 2, Excellent: 0
       };
       
-      const result = computeMJAnalysis(counts, 4);
+      const result = computeMJAnalysis(counts);
       
       expect(result.majorityMention).toBe('VeryGood');
       expect(result.majorityPercentage).toBe(50);
@@ -101,8 +101,8 @@ describe('Pure Majority Judgment Algorithm', () => {
         Good: 1, VeryGood: 2, Excellent: 0
       };
       
-      // Test with all iterations for tie-breaking analysis
-      const result = computeMJAnalysis(counts, 5, undefined, true);
+      // Test with complete MJ analysis
+      const result = computeMJAnalysis(counts);
       
       // Should find Good as majority (60% "at least Good")
       expect(result.majorityMention).toBe('Good');
@@ -121,8 +121,8 @@ describe('Pure Majority Judgment Algorithm', () => {
         Good: 1, VeryGood: 2, Excellent: 0
       };
       
-      // Test with all iterations for tie-breaking analysis
-      const result = computeMJAnalysis(counts, 5, undefined, true);
+      // Test with complete MJ analysis
+      const result = computeMJAnalysis(counts);
       
       // Same majority as Option 1
       expect(result.majorityMention).toBe('Good');
@@ -143,7 +143,7 @@ describe('Pure Majority Judgment Algorithm', () => {
         Good: 1, VeryGood: 2, Excellent: 0
       };
       
-      const comparison = compareMJ(option1, 5, option2, 5);
+      const comparison = compareMJ(option1, option2);
       
       // Option 1 should win (Insufficient > ToReject in final iteration)
       expect(comparison.winner).toBe('A');
@@ -168,7 +168,7 @@ describe('Pure Majority Judgment Algorithm', () => {
         Good: 3, VeryGood: 0, Excellent: 0
       };
       
-      const comparison = compareMJ(excellent, 3, good, 3);
+      const comparison = compareMJ(excellent, good);
       
       expect(comparison.winner).toBe('A'); // Excellent > Good
       expect(comparison.finalResult).toContain('Excellent vs Good');
@@ -185,7 +185,7 @@ describe('Pure Majority Judgment Algorithm', () => {
         Good: 2, VeryGood: 3, Excellent: 0 // 60% VeryGood
       };
       
-      const comparison = compareMJ(stronger, 5, weaker, 5);
+      const comparison = compareMJ(stronger, weaker);
       
       expect(comparison.winner).toBe('A'); // Stronger majority wins
       expect(comparison.finalResult).toContain('strength');
@@ -202,7 +202,7 @@ describe('Pure Majority Judgment Algorithm', () => {
         Good: 1, VeryGood: 1, Excellent: 1
       };
       
-      const comparison = compareMJ(option1, 7, option2, 7);
+      const comparison = compareMJ(option1, option2);
       
       expect(comparison.winner).toBe('TIE');
       expect(comparison.finalResult).toContain('ex aequo');
@@ -244,8 +244,7 @@ describe('Pure Majority Judgment Algorithm', () => {
       
       expect(ranked).toHaveLength(3);
       expect(ranked[0].id).toBe('option2'); // VeryGood wins
-      expect(ranked[0].mjAnalysis.rank).toBe(1);
-      expect(ranked[0].mjAnalysis.isWinner).toBe(true);
+      expect(ranked[0].mjAnalysis.rank).toBe(1); // Winner has rank 1
       
       expect(ranked[1].id).toBe('option1'); // Good second
       expect(ranked[1].mjAnalysis.rank).toBe(2);
@@ -275,9 +274,7 @@ describe('Pure Majority Judgment Algorithm', () => {
       const ranked = rankOptions(options);
       
       expect(ranked[0].mjAnalysis.rank).toBe(1);
-      expect(ranked[1].mjAnalysis.rank).toBe(1); // Same rank
-      expect(ranked[0].mjAnalysis.isExAequo).toBe(true);
-      expect(ranked[1].mjAnalysis.isExAequo).toBe(true);
+      expect(ranked[1].mjAnalysis.rank).toBe(1); // Same rank (tied)
     });
   });
   
@@ -293,7 +290,7 @@ describe('Pure Majority Judgment Algorithm', () => {
         Good: 10, VeryGood: 0, Excellent: 0
       };
       
-      const result = computeMJAnalysis(counts, 10);
+      const result = computeMJAnalysis(counts);
       
       expect(result.majorityMention).toBe('Good');
       expect(result.majorityPercentage).toBe(100);
@@ -307,7 +304,7 @@ describe('Pure Majority Judgment Algorithm', () => {
         Good: 300, VeryGood: 350, Excellent: 400 // Total: 1750
       };
       
-      const result = computeMJAnalysis(counts, 1750);
+      const result = computeMJAnalysis(counts);
       
       expect(result.majorityMention).toBe('Good');
       expect(result.majorityPercentage).toBeCloseTo(60, 1); // (300+350+400)/1750
@@ -321,8 +318,8 @@ describe('Pure Majority Judgment Algorithm', () => {
         Good: 2, VeryGood: 3, Excellent: 3 // Total: 10
       };
       
-      // Test with all iterations for tie-breaking analysis
-      const result = computeMJAnalysis(counts, 10, undefined, true);
+      // Test with complete MJ analysis
+      const result = computeMJAnalysis(counts);
       
       expect(result.iterations.length).toBeGreaterThan(1);
       expect(result.majorityMention).toBe('VeryGood'); // 60% "at least VeryGood"
@@ -341,14 +338,14 @@ describe('Pure Majority Judgment Algorithm', () => {
         Good: 2, VeryGood: 3, Excellent: 0
       };
       
-      const result = computeMJAnalysis(counts, 5);
+      const result = computeMJAnalysis(counts);
       
       expect(result.displaySummary).toMatch(/VeryGood/);
       expect(result.displaySummary).toMatch(/\+10\.0%/); // Strength display
     });
     
     test('creates unique comparison signatures', () => {
-      const counts1: JudgmentCounts = {
+      const counts: JudgmentCounts = {
         ToReject: 0, Insufficient: 0, OnlyAverage: 0, GoodEnough: 0,
         Good: 2, VeryGood: 3, Excellent: 0
       };
@@ -358,8 +355,8 @@ describe('Pure Majority Judgment Algorithm', () => {
         Good: 3, VeryGood: 2, Excellent: 0
       };
       
-      const result1 = computeMJAnalysis(counts1, 5);
-      const result2 = computeMJAnalysis(counts2, 5);
+      const result1 = computeMJAnalysis(counts);
+      const result2 = computeMJAnalysis(counts2);
       
       expect(result1.comparisonSignature).not.toBe(result2.comparisonSignature);
       expect(result1.comparisonSignature).toContain('VeryGood');
@@ -405,7 +402,7 @@ describe('Real World Integration Tests', () => {
     const results = rankOptions(candidates);
     
     expect(results).toHaveLength(3);
-    expect(results[0].mjAnalysis.isWinner).toBe(true);
+    expect(results[0].mjAnalysis.rank).toBe(1); // Winner has rank 1
     
     // Verify all have different ranks (no ties in this scenario)
     const ranks = results.map((r: any) => r.mjAnalysis.rank);
