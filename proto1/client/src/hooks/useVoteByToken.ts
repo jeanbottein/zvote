@@ -37,10 +37,10 @@ function buildVoteByTokenFromCache(token: string): VoteWithOptions | null {
       const approvalsCount = Number(option.approvalsCount || 0);
       // MJ counts (7-level)
       let judgmentCounts: Record<string, number> = {
-        ToReject: 0,
-        Insufficient: 0,
-        OnlyAverage: 0,
-        GoodEnough: 0,
+        Bad: 0,
+        Inadequate: 0,
+        Passable: 0,
+        Fair: 0,
         Good: 0,
         VeryGood: 0,
         Excellent: 0,
@@ -49,10 +49,10 @@ function buildVoteByTokenFromCache(token: string): VoteWithOptions | null {
       const sumRow = summaryByOptionId.get(String(option.id));
       if (sumRow) {
         judgmentCounts = {
-          ToReject: Number(sumRow.toReject || 0),
-          Insufficient: Number(sumRow.insufficient || 0),
-          OnlyAverage: Number(sumRow.onlyAverage || 0),
-          GoodEnough: Number(sumRow.goodEnough || 0),
+          Bad: Number(sumRow.Bad || 0),
+          Inadequate: Number(sumRow.Inadequate || 0),
+          Passable: Number(sumRow.Passable || 0),
+          Fair: Number(sumRow.Fair || 0),
           Good: Number(sumRow.good || 0),
           VeryGood: Number(sumRow.veryGood || 0),
           Excellent: Number(sumRow.excellent || 0)

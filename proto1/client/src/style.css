@@ -600,14 +600,14 @@ footer { padding: 10px 16px; border-top: 1px solid var(--border); color: var(--m
 .mj-bar[data-has="true"] { opacity: 1; }
 
 /* MJ colors: color mode (do not change per user rule) */
-.mj-bar[data-judgment="ToReject"], .mj-badge[data-judgment="ToReject"] { background: #dc2626; color: #fff; }
+.mj-bar[data-judgment="Bad"], .mj-badge[data-judgment="Bad"] { background: #dc2626; color: #fff; }
 .mj-bar[data-judgment="Passable"], .mj-badge[data-judgment="Passable"] { background: #f97316; color: #fff; }
 .mj-bar[data-judgment="Good"], .mj-badge[data-judgment="Good"] { background: #facc15; color: #0b0b0b; }
 .mj-bar[data-judgment="VeryGood"], .mj-badge[data-judgment="VeryGood"] { background: #4ade80; color: #0b0b0b; }
 .mj-bar[data-judgment="Excellent"], .mj-badge[data-judgment="Excellent"] { background: #16a34a; color: #fff; }
 
 /* MJ colors: colorblind mode */
-body[data-colorblind="true"] .mj-bar[data-judgment="ToReject"], body[data-colorblind="true"] .mj-badge[data-judgment="ToReject"] { background: #1f2937; color: #fff; }
+body[data-colorblind="true"] .mj-bar[data-judgment="Bad"], body[data-colorblind="true"] .mj-badge[data-judgment="Bad"] { background: #1f2937; color: #fff; }
 body[data-colorblind="true"] .mj-bar[data-judgment="Passable"], body[data-colorblind="true"] .mj-badge[data-judgment="Passable"] { background: #4b5563; color: #fff; }
 body[data-colorblind="true"] .mj-bar[data-judgment="Good"], body[data-colorblind="true"] .mj-badge[data-judgment="Good"] { background: #9ca3af; color: #0b0b0b; }
 body[data-colorblind="true"] .mj-bar[data-judgment="VeryGood"], body[data-colorblind="true"] .mj-badge[data-judgment="VeryGood"] { background: #d1d5db; color: #0b0b0b; }
@@ -680,14 +680,14 @@ body[data-colorblind="true"] .mj-slider {
 .mj-mention[data-selected="true"] { font-weight: 700; border-width: 2px; }
 
 /* Colors for mentions (match MJ graph) */
-.mj-mention[data-mention="ToReject"][data-selected="true"] { border-color: #dc2626; background: #dc2626; color: #fff; }
+.mj-mention[data-mention="Bad"][data-selected="true"] { border-color: #dc2626; background: #dc2626; color: #fff; }
 .mj-mention[data-mention="Passable"][data-selected="true"] { border-color: #f97316; background: #f97316; color: #fff; }
 .mj-mention[data-mention="Good"][data-selected="true"] { border-color: #facc15; background: #facc15; color: #0b0b0b; }
 .mj-mention[data-mention="VeryGood"][data-selected="true"] { border-color: #4ade80; background: #4ade80; color: #0b0b0b; }
 .mj-mention[data-mention="Excellent"][data-selected="true"] { border-color: #16a34a; background: #16a34a; color: #fff; }
 
 /* Colorblind variants */
-body[data-colorblind="true"] .mj-mention[data-mention="ToReject"][data-selected="true"] { border-color: #1f2937; background: #1f2937; color: #fff; }
+body[data-colorblind="true"] .mj-mention[data-mention="Bad"][data-selected="true"] { border-color: #1f2937; background: #1f2937; color: #fff; }
 body[data-colorblind="true"] .mj-mention[data-mention="Passable"][data-selected="true"] { border-color: #4b5563; background: #4b5563; color: #fff; }
 body[data-colorblind="true"] .mj-mention[data-mention="Good"][data-selected="true"] { border-color: #9ca3af; background: #9ca3af; color: #0b0b0b; }
 body[data-colorblind="true"] .mj-mention[data-mention="VeryGood"][data-selected="true"] { border-color: #d1d5db; background: #d1d5db; color: #0b0b0b; }

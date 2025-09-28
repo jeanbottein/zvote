@@ -79,10 +79,10 @@ const JudgmentVotePage: React.FC = () => {
             key={option.id}
             optionLabel={option.label}
             judgmentCounts={option.judgment_counts || {
-              ToReject: 0,
-              Insufficient: 0,
-              OnlyAverage: 0,
-              GoodEnough: 0,
+              Bad: 0,
+              Inadequate: 0,
+              Passable: 0,
+              Fair: 0,
               Good: 0,
               VeryGood: 0,
               Excellent: 0

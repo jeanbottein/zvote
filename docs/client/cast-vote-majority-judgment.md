@@ -3,7 +3,7 @@
 - **Persona**: Participant
 - **Goal**: Assign a judgment (grade) to each option using a 5-level scale.
 - **Desired outcome/flow**:
-  - On the vote page, use a slider or labeled buttons to assign one of: ToReject, Passable, Good, VeryGood, Excellent.
+  - On the vote page, use a slider or labeled buttons to assign one of: Bad, Passable, Good, VeryGood, Excellent.
   - On first interaction in a vote, all options default to a baseline mention; the user then updates specific options.
   - The user’s selections persist on reload and can be changed at any time.
 

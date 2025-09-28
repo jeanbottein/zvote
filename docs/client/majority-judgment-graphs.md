@@ -8,7 +8,7 @@
   - Graphs update live as participants cast or change judgments.
 
 ## Acceptance criteria
-- **Clarity**: Each mention category (ToReject → Excellent) is clearly distinguished.
+- **Clarity**: Each mention category (Bad → Excellent) is clearly distinguished.
 - **Totals**: Show per-option totals and majority mention; optionally display the “second” mention for tie explanations.
 - **Real-time**: Changes appear without refresh while the page remains open.
 - **Privacy**: Graphs never expose individual voters; only aggregated counts are shown.

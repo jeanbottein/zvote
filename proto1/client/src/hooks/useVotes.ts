@@ -35,10 +35,10 @@ export interface VoteWithOptions {
     label: string;
     approvals_count: number;
     judgment_counts?: {
-      ToReject: number;
-      Insufficient: number;
-      OnlyAverage: number;
-      GoodEnough: number;
+      Bad: number;
+      Inadequate: number;
+      Passable: number;
+      Fair: number;
       Good: number;
       VeryGood: number;
       Excellent: number;
@@ -113,10 +113,10 @@ export const useVotes = () => {
             const approvalsCount = Number(option.approvalsCount || 0);
             // Majority Judgment counts: use mj_summary only (privacy-safe)
             let judgmentCounts = {
-              ToReject: 0,
-              Insufficient: 0,
-              OnlyAverage: 0,
-              GoodEnough: 0,
+              Bad: 0,
+              Inadequate: 0,
+              Passable: 0,
+              Fair: 0,
               Good: 0,
               VeryGood: 0,
               Excellent: 0,
@@ -125,10 +125,10 @@ export const useVotes = () => {
             const sumRow = summaryByOptionId.get(String(option.id));
             if (sumRow) {
               judgmentCounts = {
-                ToReject: Number(sumRow.toReject || 0),
-                Insufficient: Number(sumRow.insufficient || 0),
-                OnlyAverage: Number(sumRow.onlyAverage || 0),
-                GoodEnough: Number(sumRow.goodEnough || 0),
+                Bad: Number(sumRow.bad || 0),
+                Inadequate: Number(sumRow.inadequate || 0),
+                Passable: Number(sumRow.passable || 0),
+                Fair: Number(sumRow.fair || 0),
                 Good: Number(sumRow.good || 0),
                 VeryGood: Number(sumRow.veryGood || 0),
                 Excellent: Number(sumRow.excellent || 0),

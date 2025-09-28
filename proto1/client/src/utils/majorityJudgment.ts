@@ -298,7 +298,7 @@ function breakTiesUsingUnsatisfiedGroups<T extends { mjAnalysis: MJAnalysis; _co
   // All candidates have the same majority mention
   const majorityMention = candidates[0].mjAnalysis.majorityMention;
   const mentionOrder: (keyof JudgmentCounts)[] = [
-    'Excellent', 'VeryGood', 'Good', 'GoodEnough', 'OnlyAverage', 'Insufficient', 'ToReject'
+    'Excellent', 'VeryGood', 'Good', 'Fair', 'Passable', 'Inadequate', 'Bad'
   ];
   const majorityIndex = mentionOrder.indexOf(majorityMention);
 

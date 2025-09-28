@@ -24,7 +24,7 @@ const MajorityJudgmentBallotInterface: React.FC<MajorityJudgmentBallotInterfaceP
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // 7-level mentions best-to-worst (for UI header left-to-right)
-  const mentionKeys = ['Excellent','VeryGood','Good','GoodEnough','OnlyAverage','Insufficient','ToReject'] as const;
+  const mentionKeys = ['Excellent','VeryGood','Good','Fair','Passable','Inadequate','Bad'] as const;
   const mentionLabel = (m: string) => m.replace(/([A-Z])/g, ' $1').trim();
 
   const handleJudgmentSubmit = async (optionId: string, mention: string) => {
@@ -40,12 +40,12 @@ const MajorityJudgmentBallotInterface: React.FC<MajorityJudgmentBallotInterfaceP
       await spacetimeDB.call('submit_judgment_ballot', optionId, mentionValue);
 
       if (isFirstJudgment) {
-        // Server automatically set all options to ToReject, then updated this specific one
+        // Server automatically set all options to Bad, then updated this specific one
         for (const option of options) {
           if (option.id === optionId) {
             if (onJudgmentChanged) onJudgmentChanged(option.id, mention);
           } else {
-            if (onJudgmentChanged) onJudgmentChanged(option.id, 'ToReject');
+            if (onJudgmentChanged) onJudgmentChanged(option.id, 'Bad');
           }
         }
       } else {

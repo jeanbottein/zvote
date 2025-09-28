@@ -7,7 +7,7 @@
   - Participants approve zero or more options.
   - Result metric: per-option total approvals.
 - **Majority Judgment (MJ)**
-  - Participants assign a mention (ToReject, Passable, Good, VeryGood, Excellent) to each option.
+  - Participants assign a mention (Bad, Passable, Good, VeryGood, Excellent) to each option.
   - Result metric: per-option majority (median) mention; secondary mentions support tie-breaking among winners.
 
 ## Why

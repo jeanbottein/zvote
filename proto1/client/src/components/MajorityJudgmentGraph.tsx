@@ -2,10 +2,10 @@ import React from 'react';
 import MajorityJudgmentResultsGraph from '../features/VotingSystem/MajorityJudgment/MajorityJudgmentResultsGraph';
 
 interface JudgmentCounts {
-  ToReject: number;
-  Insufficient: number;
-  OnlyAverage: number;
-  GoodEnough: number;
+  Bad: number;
+  Inadequate: number;
+  Passable: number;
+  Fair: number;
   Good: number;
   VeryGood: number;
   Excellent: number;

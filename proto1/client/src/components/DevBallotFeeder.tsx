@@ -46,10 +46,10 @@ const DevBallotFeeder: React.FC<DevBallotFeederProps> = ({ vote }) => {
       // 2. Create and submit a full random ballot for the new user
       try {
         const mentions = [
-          Mention.ToReject,
-          Mention.Insufficient, 
-          Mention.OnlyAverage,
-          Mention.GoodEnough,
+          Mention.Bad,
+          Mention.Inadequate, 
+          Mention.Passable,
+          Mention.Fair,
           Mention.Good,
           Mention.VeryGood,
           Mention.Excellent
