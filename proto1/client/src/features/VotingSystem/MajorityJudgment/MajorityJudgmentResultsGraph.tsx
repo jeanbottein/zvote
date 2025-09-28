@@ -73,32 +73,6 @@ const MajorityJudgmentResultsGraph: React.FC<MajorityJudgmentResultsGraphProps> 
           })()}
           <div className="mj-results-title">{optionLabel}</div>
         </div>
-        {!isEmpty && (
-          <div className="mj-results-badges">
-            <span className="mj-results-hint">Majority Mention:</span>
-            <div className="mj-results-badge" data-judgment={majorityJudgment || undefined}>
-              {majorityJudgment ? judgmentLabels[majorityJudgment as keyof typeof judgmentLabels] : '-'}
-            </div>
-            {mjAnalysis.majorityStrengthPercent > 0 && (
-              <div className="mj-majority-strength-badge" data-judgment={majorityJudgment} title={`${mjAnalysis.majorityPercentage.toFixed(1)}% rated at least ${judgmentLabels[majorityJudgment as keyof typeof judgmentLabels]}`}>
-                +{mjAnalysis.majorityStrengthPercent.toFixed(2)}%
-              </div>
-            )}
-            {showSettlingSection && (
-              <>
-                <span className="mj-results-hint" style={{ marginLeft: '8px' }}>Settling</span>
-                <div className="mj-results-badge" data-variant="second" data-judgment={settlingJudgment || undefined} title="Tie-breaking mention">
-                  {hasSecondIteration && settlingJudgment ? judgmentLabels[settlingJudgment as keyof typeof judgmentLabels] : '-'}
-                </div>
-                {hasSecondIteration && mjAnalysis.iterations[1].strengthPercent > 0 && (
-                  <div className="mj-majority-strength-badge" data-judgment={settlingJudgment} title={`${mjAnalysis.iterations[1].percentage.toFixed(1)}% rated at least ${judgmentLabels[settlingJudgment as keyof typeof judgmentLabels]} (after removing majority votes)`}>
-                    +{mjAnalysis.iterations[1].strengthPercent.toFixed(2)}%
-                  </div>
-                )}
-              </>
-            )}
-          </div>
-        )}
       </div>
 
       <div className="mj-results-chart">
@@ -155,6 +129,36 @@ const MajorityJudgmentResultsGraph: React.FC<MajorityJudgmentResultsGraphProps> 
           );
         }).filter(Boolean)}
       </div>
+
+      {/* Majority and Settling mentions below the chart */}
+      {!isEmpty && (
+        <div className="mj-results-badges-below">
+          <div className="mj-results-badges">
+            <span className="mj-results-hint">Majority Mention:</span>
+            <div className="mj-results-badge" data-judgment={majorityJudgment || undefined}>
+              {majorityJudgment ? judgmentLabels[majorityJudgment as keyof typeof judgmentLabels] : '-'}
+            </div>
+            {mjAnalysis.majorityStrengthPercent > 0 && (
+              <div className="mj-majority-strength-badge" data-judgment={majorityJudgment} title={`${mjAnalysis.majorityPercentage.toFixed(1)}% rated at least ${judgmentLabels[majorityJudgment as keyof typeof judgmentLabels]}`}>
+                +{mjAnalysis.majorityStrengthPercent.toFixed(2)}%
+              </div>
+            )}
+            {showSettlingSection && (
+              <>
+                <span className="mj-results-hint" style={{ marginLeft: '8px' }}>Settling Mention:</span>
+                <div className="mj-results-badge" data-variant="second" data-judgment={settlingJudgment || undefined} title="Tie-breaking mention">
+                  {hasSecondIteration && settlingJudgment ? judgmentLabels[settlingJudgment as keyof typeof judgmentLabels] : '-'}
+                </div>
+                {hasSecondIteration && mjAnalysis.iterations[1].strengthPercent > 0 && (
+                  <div className="mj-majority-strength-badge" data-judgment={settlingJudgment} title={`${mjAnalysis.iterations[1].percentage.toFixed(1)}% rated at least ${judgmentLabels[settlingJudgment as keyof typeof judgmentLabels]} (after removing majority votes)`}>
+                    +{mjAnalysis.iterations[1].strengthPercent.toFixed(2)}%
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

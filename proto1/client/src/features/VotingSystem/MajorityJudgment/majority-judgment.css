@@ -89,7 +89,12 @@
 }
 .mj-results-title { font-weight: 500; }
 .mj-results-badges { display: flex; align-items: center; gap: 6px; }
-.mj-results-hint { font-size: 12px; color: var(--muted); }
+.mj-results-badges-below { 
+  margin-top: 12px; 
+  display: flex;
+  justify-content: flex-end;
+}
+.mj-results-hint { font-size: 12px; color: var(--muted); font-style: italic; }
 .mj-results-badge { font-size: 12px; padding: 2px 6px; border-radius: 4px; }
 .mj-results-badge[data-variant="second"] { border: 1px dashed var(--border); }
 .mj-majority-strength-badge { 
