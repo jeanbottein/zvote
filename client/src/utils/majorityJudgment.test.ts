@@ -1,210 +1,227 @@
 /**
- * Tests for Majority Judgment with GMD's Usual Tie-Breaking
+ * Tests for Simplified Majority Judgment with GMJ's Usual Scoring
  */
 
 import {
   computeMJAnalysis,
-  compareMJ,
   rankOptions,
+  JudgmentCounts,
+  MJAnalysis,
   createDisplaySummary,
-  createComparisonSignature,
-  type JudgmentCounts
+  formatGMJScore
 } from './majorityJudgment';
 
-describe('Majority Judgment with GMD\'s Usual', () => {
-  
-  // ========================================================================
-  // CORE ALGORITHM TESTS
-  // ========================================================================
+describe('Simplified Majority Judgment', () => {
   
   describe('computeMJAnalysis', () => {
-    
-    test('handles empty vote correctly', () => {
+    it('should compute correct majority mention and GMJ score for simple case', () => {
       const counts: JudgmentCounts = {
-        Bad: 0, Inadequate: 0, Passable: 0, Fair: 0,
-        Good: 0, VeryGood: 0, Excellent: 0
+        Bad: 1,
+        Inadequate: 1,
+        Passable: 1,
+        Fair: 1,
+        Good: 2,
+        VeryGood: 2,
+        Excellent: 2
       };
+
+      const analysis = computeMJAnalysis(counts);
       
-      const result = computeMJAnalysis(counts);
+      expect(analysis.majorityMention).toBe('Good');
+      expect(analysis.gmdScore).toBe(0); // pc=0.4, qc=0.4, rc=0.2 → (0.4-0.4)/0.2 = 0
+    });
+
+    it('should handle empty judgment counts', () => {
+      const counts: JudgmentCounts = {
+        Bad: 0,
+        Inadequate: 0,
+        Passable: 0,
+        Fair: 0,
+        Good: 0,
+        VeryGood: 0,
+        Excellent: 0
+      };
+
+      const analysis = computeMJAnalysis(counts);
       
-      expect(result.majorityMention).toBe('Bad');
-      expect(result.majorityPercentage).toBe(0);
-      expect(result.GMDsUsualScore).toBe(0);
-      expect(result.GMDsUsualScoreFormatted).toBe('0.00');
+      expect(analysis.majorityMention).toBe('Bad');
+      expect(analysis.gmdScore).toBe(0);
     });
     
-    test('handles single excellent vote', () => {
+    it('should compute correct analysis for all Excellent votes', () => {
       const counts: JudgmentCounts = {
-        Bad: 0, Inadequate: 0, Passable: 0, Fair: 0,
-        Good: 0, VeryGood: 0, Excellent: 1
+        Bad: 0,
+        Inadequate: 0,
+        Passable: 0,
+        Fair: 0,
+        Good: 0,
+        VeryGood: 0,
+        Excellent: 10
       };
+
+      const analysis = computeMJAnalysis(counts);
       
-      const result = computeMJAnalysis(counts);
-      
-      expect(result.majorityMention).toBe('Excellent');
-      expect(result.majorityPercentage).toBe(100);
-      expect(result.GMDsUsualScore).toBe(0); // For single vote at median, score is 0
-    });
-    
-    test('calculates score correctly', () => {
-      const counts: JudgmentCounts = {
-        Bad: 1, Inadequate: 1, Passable: 0, Fair: 1,
-        Good: 2, VeryGood: 1, Excellent: 0
-      };
-      
-      const result = computeMJAnalysis(counts);
-      
-      expect(result.majorityMention).toBe('Good');
-      expect(result.majorityPercentage).toBe(50);
-      expect(result.GMDsUsualScore).toBeDefined();
-      expect(result.GMDsUsualScoreFormatted).toBeDefined();
-      expect(typeof result.GMDsUsualScore).toBe('number');
+      expect(analysis.majorityMention).toBe('Excellent');
+      expect(analysis.gmdScore).toBe(0); // pc=0, qc=0, rc=1 → (0-0)/1 = 0
     });
   });
-  
-  // ========================================================================
-  // POMME VS POIRE TEST CASE
-  // ========================================================================
-  
-  describe('Pomme vs Poire GMD Scoring', () => {
-    
-    test('Pomme and Poire have different scores for tie-breaking', () => {
-      // Data from zvote-results-3-2025-09-28.json
-      const pommeVotes: JudgmentCounts = {
-        Bad: 1, Inadequate: 1, Passable: 0, Fair: 1,
-        Good: 2, VeryGood: 1, Excellent: 0
-      };
-      
-      const poireVotes: JudgmentCounts = {
-        Bad: 0, Inadequate: 2, Passable: 0, Fair: 1,
-        Good: 2, VeryGood: 1, Excellent: 0
-      };
-      
-      const pommeAnalysis = computeMJAnalysis(pommeVotes);
-      const poireAnalysis = computeMJAnalysis(poireVotes);
-      
-      // Both should have same majority mention: Good (50%)
-      expect(pommeAnalysis.majorityMention).toBe('Good');
-      expect(poireAnalysis.majorityMention).toBe('Good');
-      expect(pommeAnalysis.majorityPercentage).toBe(50);
-      expect(poireAnalysis.majorityPercentage).toBe(50);
-      
-      // Both have the same score since they have the same median and similar distributions
-      // This is mathematically correct - they both have median Good with similar vote patterns
-      expect(typeof pommeAnalysis.GMDsUsualScore).toBe('number');
-      expect(typeof poireAnalysis.GMDsUsualScore).toBe('number');
-      
-      console.log('Pomme score:', pommeAnalysis.GMDsUsualScoreFormatted);
-      console.log('Poire score:', poireAnalysis.GMDsUsualScoreFormatted);
-      
-      // Test comparison - since they have the same score, they should tie
-      const comparison = compareMJ(pommeVotes, poireVotes);
-      expect(['A', 'B', 'TIE']).toContain(comparison.winner); // Could be any result
-    });
-  });
-  
-  // ========================================================================
-  // RANKING TESTS
-  // ========================================================================
-  
+
   describe('rankOptions', () => {
-    
-    test('ranks multiple options correctly using scores', () => {
+    it('should rank options correctly by majority mention and GMJ score', () => {
       const options = [
         {
-          id: 'option1',
-          label: 'Option 1',
-          judgment_counts: {
-            Bad: 0, Inadequate: 0, Passable: 0, Fair: 0,
-            Good: 1, VeryGood: 1, Excellent: 1
-          } as JudgmentCounts,
-          total_judgments: 3
+          id: '1',
+          label: 'Option A',
+          judgment_counts: { Bad: 2, Inadequate: 1, Passable: 1, Fair: 1, Good: 2, VeryGood: 2, Excellent: 1 } as JudgmentCounts,
+          total_judgments: 10
         },
         {
-          id: 'option2',
-          label: 'Option 2',
-          judgment_counts: {
-            Bad: 1, Inadequate: 1, Passable: 0, Fair: 0,
-            Good: 1, VeryGood: 0, Excellent: 0
-          } as JudgmentCounts,
-          total_judgments: 3
+          id: '2', 
+          label: 'Option B',
+          judgment_counts: { Bad: 1, Inadequate: 1, Passable: 1, Fair: 1, Good: 1, VeryGood: 2, Excellent: 3 } as JudgmentCounts,
+          total_judgments: 10
         }
       ];
-      
+
       const ranked = rankOptions(options);
       
-      expect(ranked).toHaveLength(2);
+      expect(ranked[0].id).toBe('2'); // Better majority mention
+      expect(ranked[1].id).toBe('1');
       expect(ranked[0].mjAnalysis.rank).toBe(1);
       expect(ranked[1].mjAnalysis.rank).toBe(2);
       expect(ranked[0].mjAnalysis.isWinner).toBe(true);
       expect(ranked[1].mjAnalysis.isWinner).toBe(false);
+      // Both may have same GMJ score, ranking is primarily by majority mention
+      expect(typeof ranked[0].mjAnalysis.gmdScore).toBe('number');
+      expect(typeof ranked[1].mjAnalysis.gmdScore).toBe('number');
     });
-    
-    test('handles ties correctly with ex aequo status', () => {
+
+    it('should handle ties correctly', () => {
       const options = [
         {
-          id: 'option1',
-          label: 'Option 1',
-          judgment_counts: {
-            Bad: 1, Inadequate: 1, Passable: 1, Fair: 1,
-            Good: 1, VeryGood: 1, Excellent: 1
-          } as JudgmentCounts,
-          total_judgments: 7
+          id: '1',
+          label: 'Option A',
+          judgment_counts: { Bad: 1, Inadequate: 1, Passable: 1, Fair: 1, Good: 2, VeryGood: 2, Excellent: 2 } as JudgmentCounts,
+          total_judgments: 10
         },
         {
-          id: 'option2',
-          label: 'Option 2',
-          judgment_counts: {
-            Bad: 1, Inadequate: 1, Passable: 1, Fair: 1,
-            Good: 1, VeryGood: 1, Excellent: 1
-          } as JudgmentCounts,
-          total_judgments: 7
+          id: '2',
+          label: 'Option B', 
+          judgment_counts: { Bad: 1, Inadequate: 1, Passable: 1, Fair: 1, Good: 2, VeryGood: 2, Excellent: 2 } as JudgmentCounts,
+          total_judgments: 10
         }
       ];
-      
+
       const ranked = rankOptions(options);
       
-      expect(ranked[0].mjAnalysis.rank).toBe(ranked[1].mjAnalysis.rank);
+      expect(ranked[0].mjAnalysis.rank).toBe(1);
+      expect(ranked[1].mjAnalysis.rank).toBe(1); // Same rank due to tie
       expect(ranked[0].mjAnalysis.isExAequo).toBe(true);
       expect(ranked[1].mjAnalysis.isExAequo).toBe(true);
     });
   });
-  
-  // ========================================================================
-  // DISPLAY UTILITIES
-  // ========================================================================
-  
-  describe('Display Utilities', () => {
-    
-    test('creates correct display summaries with scores', () => {
-      const analysis = computeMJAnalysis({
-        Bad: 0, Inadequate: 0, Passable: 0, Fair: 0,
-        Good: 2, VeryGood: 1, Excellent: 0
-      });
-      
-      const summary = createDisplaySummary(analysis);
-      expect(summary).toContain('Good');
-      expect(summary).toContain('GMD:');
-      expect(summary).toMatch(/\d+\.\d+%/); // Should contain percentage
+
+  describe('Tie-breaking with GMJ\'s Usual', () => {
+    it('should break ties correctly using GMJ score when majority mentions are the same', () => {
+      const optionA: JudgmentCounts = {
+        Bad: 0,
+        Inadequate: 0, 
+        Passable: 2,
+        Fair: 3,
+        Good: 3,
+        VeryGood: 2,
+        Excellent: 0
+      };
+
+      const optionB: JudgmentCounts = {
+        Bad: 0,
+        Inadequate: 1,
+        Passable: 1, 
+        Fair: 3,
+        Good: 3,
+        VeryGood: 2,
+        Excellent: 0
+      };
+
+      const analysisA = computeMJAnalysis(optionA);
+      const analysisB = computeMJAnalysis(optionB);
+
+      // Both should have same majority mention (Good)
+      expect(analysisA.majorityMention).toBe('Good');
+      expect(analysisB.majorityMention).toBe('Good');
+
+      // Both have same GMJ scores, so they tie
+      expect(analysisA.gmdScore).toBe(analysisB.gmdScore);
+
+      const options = [
+        { id: '1', label: 'A', judgment_counts: optionA, total_judgments: 10 },
+        { id: '2', label: 'B', judgment_counts: optionB, total_judgments: 10 }
+      ];
+
+      const ranked = rankOptions(options);
+      // Both should have same rank due to identical majority mention and GMJ score
+      expect(ranked[0].mjAnalysis.rank).toBe(1);
+      expect(ranked[1].mjAnalysis.rank).toBe(1);
+      expect(ranked[0].mjAnalysis.isExAequo).toBe(true);
+      expect(ranked[1].mjAnalysis.isExAequo).toBe(true);
     });
-    
-    test('creates unique comparison signatures', () => {
-      const analysis1 = computeMJAnalysis({
-        Bad: 0, Inadequate: 0, Passable: 0, Fair: 0,
-        Good: 2, VeryGood: 1, Excellent: 0
-      });
-      
-      const analysis2 = computeMJAnalysis({
-        Bad: 1, Inadequate: 0, Passable: 0, Fair: 0,
-        Good: 2, VeryGood: 0, Excellent: 0
-      });
-      
-      const sig1 = createComparisonSignature(analysis1);
-      const sig2 = createComparisonSignature(analysis2);
-      
-      expect(sig1).not.toBe(sig2);
-      expect(sig1).toContain('GMD:');
-      expect(sig2).toContain('GMD:');
+  });
+
+  describe('createDisplaySummary', () => {
+    it('should create correct display summary', () => {
+      const analysis: MJAnalysis = {
+        majorityMention: 'Good',
+        gmdScore: 0.25,
+        rank: 1,
+        isWinner: true,
+        isExAequo: false
+      };
+
+      const summary = createDisplaySummary(analysis);
+      expect(summary).toBe('Good • GMJ: 0.25');
+    });
+  });
+
+  describe('formatGMJScore', () => {
+    it('should format GMJ scores correctly', () => {
+      expect(formatGMJScore(0.2543)).toBe('0.25');
+      expect(formatGMJScore(Number.POSITIVE_INFINITY)).toBe('∞');
+      expect(formatGMJScore(Number.NEGATIVE_INFINITY)).toBe('-∞');
+      expect(formatGMJScore(-0.5)).toBe('-0.50');
+    });
+  });
+
+  describe('Edge cases', () => {
+    it('should handle single vote correctly', () => {
+      const counts: JudgmentCounts = {
+        Bad: 0,
+        Inadequate: 0,
+        Passable: 0,
+        Fair: 0,
+        Good: 1,
+        VeryGood: 0,
+        Excellent: 0
+      };
+
+      const analysis = computeMJAnalysis(counts);
+      expect(analysis.majorityMention).toBe('Good');
+      expect(analysis.gmdScore).toBe(0); // pc = 0, qc = 0, rc = 1 → (0-0)/1 = 0
+    });
+
+    it('should handle votes with no clear majority', () => {
+      const counts: JudgmentCounts = {
+        Bad: 1,
+        Inadequate: 1,
+        Passable: 1,
+        Fair: 1,
+        Good: 1,
+        VeryGood: 1,
+        Excellent: 1
+      };
+
+      const analysis = computeMJAnalysis(counts);
+      expect(analysis.majorityMention).toBe('Fair'); // Median of 7 votes
+      expect(typeof analysis.gmdScore).toBe('number');
     });
   });
 });

@@ -1,5 +1,5 @@
 import React from 'react';
-import { computeMJAnalysis, type JudgmentCounts } from '../../../utils/majorityJudgment';
+import { computeMJAnalysis, formatGMJScore, type JudgmentCounts } from '../../../utils/majorityJudgment';
 
 interface MajorityJudgmentResultsGraphProps {
   optionLabel: string;
@@ -135,9 +135,9 @@ const MajorityJudgmentResultsGraph: React.FC<MajorityJudgmentResultsGraphProps> 
               {majorityJudgment ? judgmentLabels[majorityJudgment as keyof typeof judgmentLabels] : '-'}
             </div>
           
-            <span className="mj-results-hint" style={{ marginLeft: '16px' }}>Score:</span>
-            <div className="mj-score-badge" title={`GMD's Usual judgment score: ${mjAnalysis.GMDsUsualScore.toFixed(4)} - used for tie-breaking when majority mentions are equal`}>
-              {mjAnalysis.GMDsUsualScoreFormatted}
+            <span className="mj-results-hint" style={{ marginLeft: '16px' }}>GMJ Score:</span>
+            <div className="mj-score-badge" title={`GMJ's Usual judgment score: ${mjAnalysis.gmdScore.toFixed(4)} - used for tie-breaking when majority mentions are equal`}>
+              {formatGMJScore(mjAnalysis.gmdScore)}
             </div>
           </div>
         </div>
