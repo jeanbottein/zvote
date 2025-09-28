@@ -9,6 +9,7 @@ type Props = {
 const TieBreakSelector: React.FC<Props> = ({ value, onChange }) => {
   const strategies = getAvailableStrategies();
   const active = value || getActiveStrategyKey();
+  const activeStrategy = strategies.find(s => s.key === active) || strategies[0];
 
   const handleSelect = (key: string) => {
     setActiveStrategyKey(key);
@@ -18,20 +19,25 @@ const TieBreakSelector: React.FC<Props> = ({ value, onChange }) => {
   return (
     <div className="panel" style={{ padding: '12px', marginTop: '12px' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-        <div style={{ fontWeight: 600, color: 'var(--muted)' }}>Tie-break strategy:</div>
+        <div style={{ fontWeight: 600, color: 'var(--muted)', display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span>Tie-break strategy:</span>
+          <span className="badge" title={activeStrategy.description}>Active: {activeStrategy.label}</span>
+        </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          {strategies.map((s) => (
-            <button
-              key={s.key}
-              onClick={() => handleSelect(s.key)}
-              aria-pressed={active === s.key}
-              className={active === s.key ? 'btn btn-primary' : 'btn'}
-              title={s.description}
-              style={{ padding: '6px 10px', borderRadius: 6 }}
-            >
-              {s.label}
-            </button>
-          ))}
+          {strategies.map((s) => {
+            const isActive = active === s.key;
+            return (
+              <button
+                key={s.key}
+                onClick={() => handleSelect(s.key)}
+                aria-pressed={isActive}
+                className={`inline-choice-button${isActive ? ' active' : ''}`}
+                title={s.description}
+              >
+                {s.label}
+              </button>
+            );
+          })}
         </div>
       </div>
     </div>
