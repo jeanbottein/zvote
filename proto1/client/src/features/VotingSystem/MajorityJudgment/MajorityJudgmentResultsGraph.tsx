@@ -31,8 +31,8 @@ const MajorityJudgmentResultsGraph: React.FC<MajorityJudgmentResultsGraphProps> 
     'Excellent': 'Excellent'
   };
 
-  // Use the MJ library for analysis (compute all iterations only when settling is needed)
-  const mjAnalysis = computeMJAnalysis(judgmentCounts, settlingMentionUsed);
+  // Use the MJ library for complete analysis
+  const mjAnalysis = computeMJAnalysis(judgmentCounts);
   const majorityJudgment = mjAnalysis.majorityMention;
   const hasSecondIteration = mjAnalysis.iterations.length > 1;
   const settlingJudgment = hasSecondIteration ? mjAnalysis.iterations[1].mention : null;

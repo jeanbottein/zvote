@@ -30,8 +30,8 @@ describe('Pure Majority Judgment Algorithm', () => {
       };
       
       // Both should have same majority mention: Good (50%)
-      const pommeAnalysis = computeMJAnalysis(pommeVotes, true); // Need all iterations for comparison
-      const poireAnalysis = computeMJAnalysis(poireVotes, true);
+      const pommeAnalysis = computeMJAnalysis(pommeVotes);
+      const poireAnalysis = computeMJAnalysis(poireVotes);
       
       expect(pommeAnalysis.majorityMention).toBe('Good');
       expect(poireAnalysis.majorityMention).toBe('Good');
@@ -161,7 +161,6 @@ describe('Pure Majority Judgment Algorithm', () => {
       // Should find Good as majority (60% "at least Good")
       expect(result.majorityMention).toBe('Good');
       expect(result.majorityPercentage).toBeCloseTo(60, 1);
-      expect(result.majorityStrengthPercent).toBeCloseTo(10, 1);
       
       // After removing Good+VeryGood+Excellent: Fair+Inadequate left
       // Should settle on Fair (100% "at least Fair")

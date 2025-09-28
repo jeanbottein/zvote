@@ -58,8 +58,7 @@ export type MJComparison = {
  * Compute Majority Judgment analysis for a single option
  */
 export function computeMJAnalysis(
-  judgmentCounts: JudgmentCounts,
-  computeAllIterations: boolean = false
+  judgmentCounts: JudgmentCounts
 ): MJAnalysis {
   const totalBallots = Object.values(judgmentCounts).reduce((sum, count) => sum + count, 0);
   
@@ -119,10 +118,6 @@ export function computeMJAnalysis(
         votesRemaining: currentTotal,
       });
 
-      // If we only need the first iteration (majority mention), stop here
-      if (!computeAllIterations) {
-        break;
-      }
 
       // Remove this mention's votes for next iteration
       const countToRemove = currentCounts[bestMention];
@@ -326,96 +321,6 @@ function breakTiesUsingMJComparison<T extends { mjAnalysis: MJAnalysis; _counts:
   return winners.length > 0 ? winners : candidates;
 }
 
-// Adrien Fabre's "groupes d'insatisfaits" tie-breaking method (DEPRECATED - keeping for reference)
-function breakTiesUsingUnsatisfiedGroups<T extends { mjAnalysis: MJAnalysis; _counts: JudgmentCounts; _total: number }>(
-  candidates: T[]
-): T[] {
-  if (candidates.length <= 1) {
-    return candidates;
-  }
-
-  // Safety check: if all candidates have 0 total votes, return all as ex aequo
-  if (candidates.every(c => c._total === 0)) {
-    return candidates;
-  }
-
-  // All candidates have the same majority mention
-  const majorityMention = candidates[0].mjAnalysis.majorityMention;
-  const mentionOrder: (keyof JudgmentCounts)[] = [
-    'Excellent', 'VeryGood', 'Good', 'Fair', 'Passable', 'Inadequate', 'Bad'
-  ];
-  const majorityIndex = mentionOrder.indexOf(majorityMention);
-
-  // Safety check: if majority mention not found, return all as ex aequo
-  if (majorityIndex === -1) {
-    return candidates;
-  }
-
-  // Step 1: Calculate supporters and opponents for each candidate
-  const candidateStats = candidates.map(candidate => {
-    // Supporters: votes STRICTLY ABOVE majority mention
-    const supporterCount = mentionOrder
-      .slice(0, majorityIndex)
-      .reduce((sum, mention) => sum + (candidate._counts[mention] || 0), 0);
-    const supporterPercent = candidate._total > 0 ? (supporterCount / candidate._total) * 100 : 0;
-
-    // Opponents: votes STRICTLY BELOW majority mention  
-    const opponentCount = mentionOrder
-      .slice(majorityIndex + 1)
-      .reduce((sum, mention) => sum + (candidate._counts[mention] || 0), 0);
-    const opponentPercent = candidate._total > 0 ? (opponentCount / candidate._total) * 100 : 0;
-
-    return {
-      candidate,
-      supporterPercent,
-      opponentPercent,
-      supporterCount,
-      opponentCount
-    };
-  });
-
-  // Step 2: Find the maximum value among all supporters and opponents
-  const allValues = candidateStats.flatMap(stats => [stats.supporterPercent, stats.opponentPercent]);
-  const maxValue = Math.max(...allValues);
-
-  // Safety check: if maxValue is NaN or negative, return all as ex aequo
-  if (!isFinite(maxValue) || maxValue < 0) {
-    return candidates;
-  }
-
-  // Step 3: Apply Fabre's rules with tolerance for floating point comparison
-  const tolerance = 0.001;
-  const candidatesWithMaxSupporters = candidateStats.filter(stats => 
-    Math.abs(stats.supporterPercent - maxValue) < tolerance
-  );
-  const candidatesWithMaxOpponents = candidateStats.filter(stats => 
-    Math.abs(stats.opponentPercent - maxValue) < tolerance
-  );
-
-  if (candidatesWithMaxSupporters.length === 1 && candidatesWithMaxOpponents.length === 0) {
-    // Unique maximum is a supporter percentage -> that candidate wins
-    return [candidatesWithMaxSupporters[0].candidate];
-  }
-
-  if (candidatesWithMaxOpponents.length > 0 && candidatesWithMaxSupporters.length === 0) {
-    // Maximum is opponent percentage(s) -> those candidates lose
-    const losers = new Set(candidatesWithMaxOpponents.map(stats => stats.candidate));
-    const remaining = candidates.filter(candidate => !losers.has(candidate));
-    // Safety check: ensure we don't eliminate all candidates
-    return remaining.length > 0 ? remaining : candidates;
-  }
-
-  if (candidatesWithMaxSupporters.length > 0 && candidatesWithMaxOpponents.length > 0) {
-    // Both supporters and opponents have max value -> opponents lose (Fabre's rule)
-    const losers = new Set(candidatesWithMaxOpponents.map(stats => stats.candidate));
-    const remaining = candidates.filter(candidate => !losers.has(candidate));
-    // Safety check: ensure we don't eliminate all candidates
-    return remaining.length > 0 ? remaining : candidates;
-  }
-
-  // If we reach here, return all as ex aequo (true tie)
-  return candidates;
-}
 
 /**
  * Rank multiple options using Fabre's tie-breaking method
