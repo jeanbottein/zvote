@@ -1,13 +1,16 @@
 import type { TieBreakStrategy } from './types';
-import jeanbottein from './mj-tiebreak-jeanbottein';
-import majorityGauge from './mj-majority-gauge';
+import jugementMajoritaireVariant from './jugement-majoritaire-variant';
+import fabresTypical from './fabre-typical';
+import fabresUsual from './fabre-usual';
+import fabresCentral from './fabre-central';
 
 const STRATEGY_STORAGE_KEY = 'mj.tieBreakStrategy';
 
 export const strategies: Record<string, TieBreakStrategy> = {
-  [jeanbottein.key]: jeanbottein,
-  [majorityGauge.key]: majorityGauge,
-  // Future: add canonical MJ ballot-removal and Highest Median variants here
+  [jugementMajoritaireVariant.key]: jugementMajoritaireVariant,
+  [fabresTypical.key]: fabresTypical,
+  [fabresUsual.key]: fabresUsual,
+  [fabresCentral.key]: fabresCentral,
 };
 
 export type StrategyKey = keyof typeof strategies;
@@ -23,7 +26,7 @@ export function getActiveStrategyKey(): string {
       if (k && strategies[k]) return k;
     }
   } catch {}
-  return jeanbottein.key;
+  return fabresUsual.key;
 }
 
 export function setActiveStrategyKey(key: string) {

@@ -2,6 +2,7 @@
 // Pluggable tie-break strategies (default: Jeanbottein iterative truncation)
 import { getStrategyByKey, getActiveStrategyKey } from './tiebreak';
 import type { TieBreakStrategy } from './tiebreak/types';
+import { calculateAllFabresScores } from './fabresScores';
 
 export type JudgmentCounts = {
   Bad: number;
@@ -14,26 +15,30 @@ export type JudgmentCounts = {
 };
 
 export type MJAnalysis = {
-  // Majority mention and strength
+  // Majority mention (median)
   majorityMention: keyof JudgmentCounts;
   majorityPercentage: number;
-  majorityStrengthPercent: number;
+  
+  // Second mention (first tie-breaking iteration)
+  secondMention: keyof JudgmentCounts | null;
+  secondPercentage: number;
   
   // Tie-breaking iterations
   iterations: Array<{
     mention: keyof JudgmentCounts;
     percentage: number;
-    strengthPercent: number;
     votesRemaining: number;
   }>;
   
-  // Final iteration results
-  finalMention: keyof JudgmentCounts;
-  finalPercentage: number;
-  finalStrengthPercent: number;
-  
   // Ranking information
   rank: number;
+  
+  // Fabre's tie-breaking scores (when applicable)
+  fabresScores?: {
+    typical?: number;    // sT = pc - qc
+    usual?: number;      // sU = (pc - qc) / rc
+    central?: number;    // sC = pc / qc
+  };
   
   // Display helpers
   displaySummary: string;
@@ -54,6 +59,13 @@ export type MJComparison = {
     result: 'A_WINS' | 'B_WINS' | 'TIE';
   }>;
   finalResult: string; // Human readable explanation
+  
+  // Fabre's scores (when using Fabre's methods)
+  fabresScores?: {
+    scoreA?: number;
+    scoreB?: number;
+    method?: 'typical' | 'usual' | 'central';
+  };
 };
 
 /**
@@ -68,11 +80,9 @@ export function computeMJAnalysis(
     return {
       majorityMention: 'Bad',
       majorityPercentage: 0,
-      majorityStrengthPercent: 0,
+      secondMention: null,
+      secondPercentage: 0,
       iterations: [],
-      finalMention: 'Bad',
-      finalPercentage: 0,
-      finalStrengthPercent: 0,
       rank: 1,
       displaySummary: 'No votes',
       comparisonSignature: 'EMPTY',
@@ -111,12 +121,9 @@ export function computeMJAnalysis(
     }
 
     if (bestMention) {
-      const strengthPercent = Math.max(0, bestPercentage - 50.0);
-      
       iterations.push({
         mention: bestMention,
         percentage: bestPercentage,
-        strengthPercent,
         votesRemaining: currentTotal,
       });
 
@@ -143,31 +150,35 @@ export function computeMJAnalysis(
 
   // Extract results
   const majorityIteration = iterations[0];
-  const finalIteration = iterations[iterations.length - 1] || majorityIteration;
+  const secondIteration = iterations[1] || null;
+
+  // Calculate Fabre's tie-breaking scores
+  const fabresScores = calculateAllFabresScores(judgmentCounts);
 
   return {
     majorityMention: majorityIteration?.mention || 'Bad',
     majorityPercentage: majorityIteration?.percentage || 0,
-    majorityStrengthPercent: majorityIteration?.strengthPercent || 0,
+    
+    secondMention: secondIteration?.mention || null,
+    secondPercentage: secondIteration?.percentage || 0,
     
     iterations,
-    
-    finalMention: finalIteration?.mention || 'Bad',
-    finalPercentage: finalIteration?.percentage || 0,
-    finalStrengthPercent: finalIteration?.strengthPercent || 0,
     
     // Ranking will be computed separately
     rank: 1,
     
-    displaySummary: createDisplaySummary(majorityIteration?.mention || 'Bad', majorityIteration?.strengthPercent || 0),
+    // Fabre's tie-breaking scores
+    fabresScores,
+    
+    displaySummary: createDisplaySummary(majorityIteration?.mention || 'Bad', majorityIteration?.percentage || 0),
     comparisonSignature: createComparisonSignature(iterations),
   };
 }
 
 // Helper function to create display summary
-function createDisplaySummary(mention: keyof JudgmentCounts, strength: number): string {
-  const strengthText = strength > 0 ? ` +${strength.toFixed(1)}%` : '';
-  return `${mention}${strengthText}`;
+function createDisplaySummary(mention: keyof JudgmentCounts, percentage: number): string {
+  const percentageText = percentage > 0 ? ` (${percentage.toFixed(1)}%)` : '';
+  return `${mention}${percentageText}`;
 }
 
 // Helper function to create comparison signature
@@ -182,7 +193,13 @@ function makeStrategyDeps() {
   return {
     computeMJAnalysis: (counts: JudgmentCounts) => {
       const { iterations } = computeMJAnalysis(counts);
-      return { iterations };
+      // Convert to expected format for backward compatibility
+      const compatibleIterations = iterations.map(iter => ({
+        mention: iter.mention,
+        percentage: iter.percentage,
+        strengthPercent: Math.max(0, iter.percentage - 50.0)
+      }));
+      return { iterations: compatibleIterations };
     },
     compareMentions,
   } as const;
