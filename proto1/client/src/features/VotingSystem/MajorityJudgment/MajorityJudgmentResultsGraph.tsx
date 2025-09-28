@@ -37,8 +37,8 @@ const MajorityJudgmentResultsGraph: React.FC<MajorityJudgmentResultsGraphProps> 
   const isWinner = rank === 1;
   
   // Show settling section only when this option is marked as ex aequo (tied with others)
-  // Settling mention is only relevant when comparing tied options
-  const showSettlingSection = !!isExAequo;
+  // AND there's actually a settling judgment to display
+  const showSettlingSection = !!isExAequo && hasSecondIteration && settlingJudgment;
 
   // List mentions best-to-worst for visual left-to-right ordering
   const mentionsDesc: Array<keyof JudgmentCounts> = ['Excellent','VeryGood','Good','Fair','Passable','Inadequate','Bad'];

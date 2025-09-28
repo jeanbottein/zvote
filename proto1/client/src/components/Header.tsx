@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { spacetimeDB } from '../lib/spacetimeClient';
 import { getColorMode, setColorMode as persistColorMode, onColorModeChange } from '../lib/colorMode';
+import { useVoteByToken } from '../hooks/useVoteByToken';
+import { rankOptions } from '../utils/majorityJudgment';
 
 interface HeaderProps {
   onViewChange?: (view: 'home' | 'create' | 'vote') => void;
@@ -119,6 +121,98 @@ const Header: React.FC<HeaderProps> = ({ onViewChange }) => {
     }
   };
 
+  // Check if we're on a vote page and get the token
+  const getVoteToken = () => {
+    const path = location.pathname;
+    const searchParams = new URLSearchParams(location.search);
+    
+    if (path.startsWith('/approval/') || path.startsWith('/judgment/')) {
+      return searchParams.get('token');
+    }
+    return null;
+  };
+
+  const isOnVotePage = () => {
+    const path = location.pathname;
+    return path.startsWith('/approval/') || path.startsWith('/judgment/');
+  };
+
+  // Get vote data for export
+  const voteToken = getVoteToken();
+  const { vote } = useVoteByToken(voteToken);
+
+  const handleExportResults = () => {
+    if (!vote) {
+      alert('No vote data available to export');
+      return;
+    }
+
+    try {
+      let exportData: any = {
+        vote: {
+          id: vote.id,
+          title: vote.title,
+          visibility: vote.visibility,
+          voting_system: vote.voting_system,
+          created_at: vote.created_at,
+          creator: vote.creator,
+          token: vote.token,
+        },
+        options: vote.options || [],
+        export_timestamp: new Date().toISOString(),
+      };
+
+      // Add system-specific analysis
+      if (vote.voting_system?.tag === 'MajorityJudgment') {
+        const rankedOptions = rankOptions(vote.options || []);
+        exportData.majority_judgment_analysis = {
+          ranked_options: rankedOptions.map(option => ({
+            id: option.id,
+            label: option.label,
+            rank: option.mjAnalysis.rank,
+            majority_mention: option.mjAnalysis.majorityMention,
+            majority_percentage: option.mjAnalysis.majorityPercentage,
+            majority_strength_percent: option.mjAnalysis.majorityStrengthPercent,
+            judgment_counts: option.judgment_counts,
+            total_judgments: option.total_judgments,
+          })),
+          winners: rankedOptions.filter(opt => opt.mjAnalysis.rank === 1),
+        };
+      } else if (vote.voting_system?.tag === 'Approval') {
+        const totalVoters = Math.max(...(vote.options || []).map(o => o.approvals_count || 0), 0);
+        exportData.approval_analysis = {
+          total_voters: totalVoters,
+          options_by_approvals: (vote.options || [])
+            .map(option => ({
+              id: option.id,
+              label: option.label,
+              approvals_count: option.approvals_count || 0,
+              approval_percentage: totalVoters > 0 ? ((option.approvals_count || 0) / totalVoters * 100) : 0,
+            }))
+            .sort((a, b) => b.approvals_count - a.approvals_count),
+        };
+      }
+
+      // Create and download JSON file
+      const jsonString = JSON.stringify(exportData, null, 2);
+      const blob = new Blob([jsonString], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `zvote-results-${vote.id}-${new Date().toISOString().split('T')[0]}.json`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      
+      setMenuOpen(false);
+    } catch (error) {
+      console.error('Export failed:', error);
+      alert('Failed to export results. Please try again.');
+    }
+  };
+
   return (
     <header id="app-header" className="app-header">
       {/* Left menu area, fixed width to keep center title perfectly centered */}
@@ -183,6 +277,17 @@ const Header: React.FC<HeaderProps> = ({ onViewChange }) => {
                 </div>
 
                 {/* Menu Items */}
+                {isOnVotePage() && vote && (
+                  <button
+                    id="menu-export-results"
+                    className="menu-item"
+                    onClick={handleExportResults}
+                    disabled={!connected}
+                  >
+                    📊 Export Results (JSON)
+                  </button>
+                )}
+
                 <button
                   id="menu-random-user"
                   className="menu-item"
