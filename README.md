@@ -9,7 +9,7 @@ This repository is a first step — a working prototype focused on core mechanic
 ## Key Features
 
 - **Graduated Majority Judgment (GMJ)**: a single-winner rated voting rule selecting candidates with the highest (graduated) median, enabling nuanced voter judgments with principled tie-breaking.
-- **Approval Voting**: voters approve any number of candidates for more expressive ballots and fairer outcomes.
+- **Approval Voting**: voters approve any number of candidates for simplier ballots and fairer outcomes.
 - **Real-time by design**: built on spacetimedb for low-latency updates and responsive interactions.
 - **Privacy-minded results**: aggregate outcomes are public; individual ballots are private by design.
 - **Simple TypeScript client**: test, learn, and interact quickly with a minimal client.
