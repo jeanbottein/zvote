@@ -49,10 +49,10 @@ function buildVoteByTokenFromCache(token: string): VoteWithOptions | null {
       const sumRow = summaryByOptionId.get(String(option.id));
       if (sumRow) {
         judgmentCounts = {
-          Bad: Number(sumRow.Bad || 0),
-          Inadequate: Number(sumRow.Inadequate || 0),
-          Passable: Number(sumRow.Passable || 0),
-          Fair: Number(sumRow.Fair || 0),
+          Bad: Number(sumRow.bad || 0),
+          Inadequate: Number(sumRow.inadequate || 0),
+          Passable: Number(sumRow.passable || 0),
+          Fair: Number(sumRow.fair || 0),
           Good: Number(sumRow.good || 0),
           VeryGood: Number(sumRow.veryGood || 0),
           Excellent: Number(sumRow.excellent || 0)
