@@ -155,10 +155,13 @@ export function rankOptions<T extends {
     
     analyzed[i].mjAnalysis.rank = currentRank;
     analyzed[i].mjAnalysis.isWinner = currentRank === 1;
-    
-    // Check for ties with other options at same rank
+  }
+
+  // Determine ex aequo status after all ranks are assigned
+  for (let i = 0; i < analyzed.length; i++) {
+    const currentOptionRank = analyzed[i].mjAnalysis.rank;
     analyzed[i].mjAnalysis.isExAequo = analyzed.some((other, j) => 
-      i !== j && other.mjAnalysis.rank === currentRank
+      i !== j && other.mjAnalysis.rank === currentOptionRank
     );
   }
 

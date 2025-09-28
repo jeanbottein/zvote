@@ -119,6 +119,65 @@ describe('Simplified Majority Judgment', () => {
       expect(ranked[0].mjAnalysis.isExAequo).toBe(true);
       expect(ranked[1].mjAnalysis.isExAequo).toBe(true);
     });
+
+    it('should handle multiple ex aequo with complex ranking (1, 2-2-2, 5)', () => {
+      const options = [
+        {
+          id: '1',
+          label: 'Winner',
+          judgment_counts: { Bad: 0, Inadequate: 0, Passable: 1, Fair: 1, Good: 1, VeryGood: 3, Excellent: 4 } as JudgmentCounts,
+          total_judgments: 10
+        },
+        {
+          id: '2',
+          label: 'Tied A',
+          judgment_counts: { Bad: 1, Inadequate: 1, Passable: 2, Fair: 2, Good: 2, VeryGood: 1, Excellent: 1 } as JudgmentCounts,
+          total_judgments: 10
+        },
+        {
+          id: '3',
+          label: 'Tied B',
+          judgment_counts: { Bad: 1, Inadequate: 1, Passable: 2, Fair: 2, Good: 2, VeryGood: 1, Excellent: 1 } as JudgmentCounts,
+          total_judgments: 10
+        },
+        {
+          id: '4',
+          label: 'Tied C',
+          judgment_counts: { Bad: 1, Inadequate: 1, Passable: 2, Fair: 2, Good: 2, VeryGood: 1, Excellent: 1 } as JudgmentCounts,
+          total_judgments: 10
+        },
+        {
+          id: '5',
+          label: 'Last',
+          judgment_counts: { Bad: 5, Inadequate: 3, Passable: 1, Fair: 1, Good: 0, VeryGood: 0, Excellent: 0 } as JudgmentCounts,
+          total_judgments: 10
+        }
+      ];
+
+      const ranked = rankOptions(options);
+      
+      // Winner should be rank 1
+      expect(ranked[0].id).toBe('1');
+      expect(ranked[0].mjAnalysis.rank).toBe(1);
+      expect(ranked[0].mjAnalysis.isWinner).toBe(true);
+      expect(ranked[0].mjAnalysis.isExAequo).toBe(false);
+      
+      // Three tied options should all be rank 2 and ex aequo
+      const tiedOptions = ranked.slice(1, 4);
+      expect(tiedOptions).toHaveLength(3);
+      tiedOptions.forEach(option => {
+        expect(['2', '3', '4']).toContain(option.id);
+        expect(option.mjAnalysis.rank).toBe(2);
+        expect(option.mjAnalysis.isWinner).toBe(false);
+        expect(option.mjAnalysis.isExAequo).toBe(true);
+      });
+      
+      // Last option should be rank 5 (not 4, because 3 options tied at rank 2)
+      expect(ranked[4].id).toBe('5');
+      expect(ranked[4].mjAnalysis.rank).toBe(5);
+      expect(ranked[4].mjAnalysis.isWinner).toBe(false);
+      expect(ranked[4].mjAnalysis.isExAequo).toBe(false);
+    });
   });
 
   describe('Tie-breaking with GMJ\'s Usual', () => {
