@@ -29,7 +29,7 @@ const HomePage: React.FC = () => {
       <div id="home-panel-my" className="panel">
         <div id="home-panel-head-my" className="panel-head">
           <h2 id="home-panel-title-my" className="panel-head-title">My votes</h2>
-          <button id="home-create-btn" onClick={() => navigate('/create')}>+ Create vote</button>
+          <button id="home-create-btn" onClick={() => navigate('/create')}>New vote</button>
         </div>
         <VotesList
           votes={myVotes}

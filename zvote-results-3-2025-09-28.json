@@ -1,0 +1,247 @@
+{
+  "vote": {
+    "id": "3",
+    "title": "Tie",
+    "visibility": 0,
+    "voting_system": {
+      "tag": "MajorityJudgment",
+      "value": {}
+    },
+    "created_at": null,
+    "creator": "[object Object]",
+    "token": "UP6JUhIMgcIeDnwlWaacPg"
+  },
+  "options": [
+    {
+      "id": "8",
+      "label": "Pomme",
+      "approvals_count": 0,
+      "judgment_counts": {
+        "Bad": 1,
+        "Inadequate": 1,
+        "Passable": 0,
+        "Fair": 1,
+        "Good": 2,
+        "VeryGood": 1,
+        "Excellent": 0
+      },
+      "total_judgments": 6,
+      "majority_tag": null
+    },
+    {
+      "id": "9",
+      "label": "Poire",
+      "approvals_count": 0,
+      "judgment_counts": {
+        "Bad": 0,
+        "Inadequate": 2,
+        "Passable": 0,
+        "Fair": 1,
+        "Good": 2,
+        "VeryGood": 1,
+        "Excellent": 0
+      },
+      "total_judgments": 6,
+      "majority_tag": null
+    },
+    {
+      "id": "10",
+      "label": "Peche",
+      "approvals_count": 0,
+      "judgment_counts": {
+        "Bad": 2,
+        "Inadequate": 2,
+        "Passable": 1,
+        "Fair": 0,
+        "Good": 1,
+        "VeryGood": 0,
+        "Excellent": 0
+      },
+      "total_judgments": 6,
+      "majority_tag": null
+    },
+    {
+      "id": "11",
+      "label": "Abricot",
+      "approvals_count": 0,
+      "judgment_counts": {
+        "Bad": 3,
+        "Inadequate": 0,
+        "Passable": 3,
+        "Fair": 0,
+        "Good": 0,
+        "VeryGood": 0,
+        "Excellent": 0
+      },
+      "total_judgments": 6,
+      "majority_tag": null
+    }
+  ],
+  "export_timestamp": "2025-09-28T14:15:33.880Z",
+  "majority_judgment_analysis": {
+    "ranked_options": [
+      {
+        "id": "8",
+        "label": "Pomme",
+        "rank": 1,
+        "majority_mention": "Good",
+        "majority_percentage": 50,
+        "majority_strength_percent": 0,
+        "judgment_counts": {
+          "Bad": 1,
+          "Inadequate": 1,
+          "Passable": 0,
+          "Fair": 1,
+          "Good": 2,
+          "VeryGood": 1,
+          "Excellent": 0
+        },
+        "total_judgments": 6
+      },
+      {
+        "id": "9",
+        "label": "Poire",
+        "rank": 1,
+        "majority_mention": "Good",
+        "majority_percentage": 50,
+        "majority_strength_percent": 0,
+        "judgment_counts": {
+          "Bad": 0,
+          "Inadequate": 2,
+          "Passable": 0,
+          "Fair": 1,
+          "Good": 2,
+          "VeryGood": 1,
+          "Excellent": 0
+        },
+        "total_judgments": 6
+      },
+      {
+        "id": "11",
+        "label": "Abricot",
+        "rank": 3,
+        "majority_mention": "Passable",
+        "majority_percentage": 50,
+        "majority_strength_percent": 0,
+        "judgment_counts": {
+          "Bad": 3,
+          "Inadequate": 0,
+          "Passable": 3,
+          "Fair": 0,
+          "Good": 0,
+          "VeryGood": 0,
+          "Excellent": 0
+        },
+        "total_judgments": 6
+      },
+      {
+        "id": "10",
+        "label": "Peche",
+        "rank": 4,
+        "majority_mention": "Inadequate",
+        "majority_percentage": 66.66666666666666,
+        "majority_strength_percent": 16.666666666666657,
+        "judgment_counts": {
+          "Bad": 2,
+          "Inadequate": 2,
+          "Passable": 1,
+          "Fair": 0,
+          "Good": 1,
+          "VeryGood": 0,
+          "Excellent": 0
+        },
+        "total_judgments": 6
+      }
+    ],
+    "winners": [
+      {
+        "id": "8",
+        "label": "Pomme",
+        "approvals_count": 0,
+        "judgment_counts": {
+          "Bad": 1,
+          "Inadequate": 1,
+          "Passable": 0,
+          "Fair": 1,
+          "Good": 2,
+          "VeryGood": 1,
+          "Excellent": 0
+        },
+        "total_judgments": 6,
+        "majority_tag": null,
+        "mjAnalysis": {
+          "majorityMention": "Good",
+          "majorityPercentage": 50,
+          "majorityStrengthPercent": 0,
+          "iterations": [
+            {
+              "mention": "Good",
+              "percentage": 50,
+              "strengthPercent": 0,
+              "votesRemaining": 6
+            },
+            {
+              "mention": "Inadequate",
+              "percentage": 66.66666666666666,
+              "strengthPercent": 16.666666666666657,
+              "votesRemaining": 3
+            },
+            {
+              "mention": "Bad",
+              "percentage": 100,
+              "strengthPercent": 50,
+              "votesRemaining": 1
+            }
+          ],
+          "finalMention": "Bad",
+          "finalPercentage": 100,
+          "finalStrengthPercent": 50,
+          "rank": 1,
+          "displaySummary": "Good",
+          "comparisonSignature": "Good:50.0|Inadequate:66.7|Bad:100.0"
+        }
+      },
+      {
+        "id": "9",
+        "label": "Poire",
+        "approvals_count": 0,
+        "judgment_counts": {
+          "Bad": 0,
+          "Inadequate": 2,
+          "Passable": 0,
+          "Fair": 1,
+          "Good": 2,
+          "VeryGood": 1,
+          "Excellent": 0
+        },
+        "total_judgments": 6,
+        "majority_tag": null,
+        "mjAnalysis": {
+          "majorityMention": "Good",
+          "majorityPercentage": 50,
+          "majorityStrengthPercent": 0,
+          "iterations": [
+            {
+              "mention": "Good",
+              "percentage": 50,
+              "strengthPercent": 0,
+              "votesRemaining": 6
+            },
+            {
+              "mention": "Inadequate",
+              "percentage": 100,
+              "strengthPercent": 50,
+              "votesRemaining": 3
+            }
+          ],
+          "finalMention": "Inadequate",
+          "finalPercentage": 100,
+          "finalStrengthPercent": 50,
+          "rank": 1,
+          "displaySummary": "Good",
+          "comparisonSignature": "Good:50.0|Inadequate:100.0"
+        }
+      }
+    ]
+  }
+}

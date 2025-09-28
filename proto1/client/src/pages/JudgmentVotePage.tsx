@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useVoteByToken } from '../hooks/useVoteByToken';
 import { spacetimeDB } from '../lib/spacetimeClient';
@@ -7,12 +7,18 @@ import MajorityJudgmentResultsGraph from '../features/VotingSystem/MajorityJudgm
 import { useToast } from '../components/ToastProvider';
 import DevBallotFeeder from '../components/DevBallotFeeder';
 import { rankOptions } from '../utils/majorityJudgment';
+import TieBreakSelector from '../components/TieBreakSelector';
+import { getActiveStrategyKey } from '../utils/tiebreak';
 
 const JudgmentVotePage: React.FC = () => {
   const [params] = useSearchParams();
   const token = params.get('token');
   const { vote, loading, error } = useVoteByToken(token);
   const { showToast } = useToast();
+  // Active tie-break strategy selection (must be before any early return)
+  const [strategyKey, setStrategyKey] = useState<string>(getActiveStrategyKey());
+  // Build sorted options by MJ ranking with ranks (winners first), recompute on strategy change
+  const rankedOptions = useMemo(() => rankOptions((vote?.options || []) as any[], strategyKey), [vote?.options, strategyKey]);
 
   useEffect(() => {
     if (token) {
@@ -51,9 +57,6 @@ const JudgmentVotePage: React.FC = () => {
   if (!vote) {
     return <div className="panel"><h2>Vote not found</h2></div>;
   }
-
-  // Build sorted options by MJ ranking with ranks (winners first)
-  const rankedOptions = rankOptions(vote.options || []);
 
   // Find winners (all tied for first)
   const winners = new Set(rankedOptions.filter(opt => opt.mjAnalysis.rank === 1).map(opt => opt.id));
@@ -121,6 +124,9 @@ const JudgmentVotePage: React.FC = () => {
           />
         ))}
       </div>
+
+      {/* Tie-break strategy selector (below results, before ballot) */}
+      <TieBreakSelector value={strategyKey} onChange={setStrategyKey} />
 
       <BallotInterface 
         vote={vote}

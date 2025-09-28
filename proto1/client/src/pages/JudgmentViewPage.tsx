@@ -1,14 +1,19 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useVoteByToken } from '../hooks/useVoteByToken';
 import { spacetimeDB } from '../lib/spacetimeClient';
 import MajorityJudgmentGraph from '../components/MajorityJudgmentGraph';
 import { rankOptions } from '../utils/majorityJudgment';
+import TieBreakSelector from '../components/TieBreakSelector';
+import { getActiveStrategyKey } from '../utils/tiebreak';
 
 const JudgmentViewPage: React.FC = () => {
   const [params] = useSearchParams();
   const token = params.get('token');
   const { vote, loading, error } = useVoteByToken(token);
+  // Active tie-break strategy selection (must be before any early return)
+  const [strategyKey, setStrategyKey] = useState<string>(getActiveStrategyKey());
+  const rankedOptions = useMemo(() => rankOptions((vote?.options || []) as any[], strategyKey), [vote?.options, strategyKey]);
 
   useEffect(() => {
     if (token) {
@@ -28,8 +33,6 @@ const JudgmentViewPage: React.FC = () => {
   if (!vote) {
     return <div className="panel"><h2>Vote not found</h2></div>;
   }
-
-  const rankedOptions = rankOptions(vote.options || []);
   const winners = new Set(rankedOptions.filter(opt => opt.mjAnalysis.rank === 1).map(opt => opt.id));
   
   // Detect which options required settling mentions for ranking
@@ -60,6 +63,8 @@ const JudgmentViewPage: React.FC = () => {
   return (
     <div className="panel">
       <h2>{vote.title}</h2>
+      {/* Tie-break strategy selector (view mode) */}
+      <TieBreakSelector value={strategyKey} onChange={setStrategyKey} />
       <div style={{ marginTop: '16px' }}>
         {rankedOptions.map((option: any) => (
           <MajorityJudgmentGraph

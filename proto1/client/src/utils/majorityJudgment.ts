@@ -1,5 +1,7 @@
 // Majority Judgment Algorithm Implementation
-// State-of-the-art MJ with Fabre's "groupes d'insatisfaits" tie-breaking method
+// Pluggable tie-break strategies (default: Jeanbottein iterative truncation)
+import { getStrategyByKey, getActiveStrategyKey } from './tiebreak';
+import type { TieBreakStrategy } from './tiebreak/types';
 
 export type JudgmentCounts = {
   Bad: number;
@@ -175,6 +177,17 @@ function createComparisonSignature(iterations: MJAnalysis['iterations']): string
     .join('|');
 }
 
+// Helper to build strategy deps without exposing internal shapes
+function makeStrategyDeps() {
+  return {
+    computeMJAnalysis: (counts: JudgmentCounts) => {
+      const { iterations } = computeMJAnalysis(counts);
+      return { iterations };
+    },
+    compareMentions,
+  } as const;
+}
+
 /**
  * Compare two options using MJ algorithm
  */
@@ -182,73 +195,8 @@ export function compareMJ(
   countsA: JudgmentCounts, 
   countsB: JudgmentCounts
 ): MJComparison {
-  const analysisA = computeMJAnalysis(countsA);
-  const analysisB = computeMJAnalysis(countsB);
-  
-  const maxIterations = Math.max(analysisA.iterations.length, analysisB.iterations.length);
-  const iterations: MJComparison['iterations'] = [];
-  
-  for (let i = 0; i < maxIterations; i++) {
-    const iterA = analysisA.iterations[i];
-    const iterB = analysisB.iterations[i];
-    
-    if (iterA && iterB) {
-      // Compare mention quality first
-      const mentionComparison = compareMentions(iterA.mention, iterB.mention);
-      
-      if (mentionComparison !== 0) {
-        iterations.push({
-          mention: iterA.mention,
-          percentageA: iterA.percentage,
-          percentageB: iterB.percentage,
-          strengthA: iterA.strengthPercent,
-          strengthB: iterB.strengthPercent,
-          result: mentionComparison > 0 ? 'A_WINS' : 'B_WINS'
-        });
-        
-        return {
-          winner: mentionComparison > 0 ? 'A' : 'B',
-          iterations,
-          finalResult: `${mentionComparison > 0 ? 'A' : 'B'} wins on ${iterA.mention} vs ${iterB.mention}`
-        };
-      }
-      
-      // Same mention - compare strength
-      if (iterA.strengthPercent !== iterB.strengthPercent) {
-        const strengthWinner = iterA.strengthPercent > iterB.strengthPercent ? 'A_WINS' : 'B_WINS';
-        iterations.push({
-          mention: iterA.mention,
-          percentageA: iterA.percentage,
-          percentageB: iterB.percentage,
-          strengthA: iterA.strengthPercent,
-          strengthB: iterB.strengthPercent,
-          result: strengthWinner
-        });
-        
-        return {
-          winner: strengthWinner === 'A_WINS' ? 'A' : 'B',
-          iterations,
-          finalResult: `${strengthWinner === 'A_WINS' ? 'A' : 'B'} wins on strength: ${iterA.strengthPercent.toFixed(1)}% vs ${iterB.strengthPercent.toFixed(1)}%`
-        };
-      }
-      
-      // Tied on this iteration
-      iterations.push({
-        mention: iterA.mention,
-        percentageA: iterA.percentage,
-        percentageB: iterB.percentage,
-        strengthA: iterA.strengthPercent,
-        strengthB: iterB.strengthPercent,
-        result: 'TIE'
-      });
-    }
-  }
-  
-  return {
-    winner: 'TIE',
-    iterations,
-    finalResult: 'Perfect tie - ex aequo'
-  };
+  const strategy: TieBreakStrategy = getStrategyByKey(getActiveStrategyKey());
+  return strategy.compare(countsA, countsB, makeStrategyDeps());
 }
 
 // Helper function to get mention quality value
@@ -286,47 +234,14 @@ function findBestMajorityMention<T extends { mjAnalysis: MJAnalysis }>(options: 
   return bestMention;
 }
 
-// Standard MJ tie-breaking using iterative comparison
-function breakTiesUsingMJComparison<T extends { mjAnalysis: MJAnalysis; _counts: JudgmentCounts; _total: number }>(
-  candidates: T[]
-): T[] {
-  if (candidates.length <= 1) {
-    return candidates;
-  }
-
-  // Use pairwise comparisons to find the best candidate(s)
-  const winners: T[] = [];
-  
-  for (const candidate of candidates) {
-    let isWinner = true;
-    
-    // Check if this candidate beats or ties with all others
-    for (const other of candidates) {
-      if (candidate === other) continue;
-      
-      const comparison = compareMJ(candidate._counts, other._counts);
-      if (comparison.winner === 'B') {
-        // This candidate loses to another, so it's not a winner
-        isWinner = false;
-        break;
-      }
-    }
-    
-    if (isWinner) {
-      winners.push(candidate);
-    }
-  }
-  
-  // If no clear winners (shouldn't happen with proper MJ), return all as tied
-  return winners.length > 0 ? winners : candidates;
-}
 
 
 /**
- * Rank multiple options using Fabre's tie-breaking method
+ * Rank multiple options using the active tie-breaking strategy
  */
 export function rankOptions<T extends { id: string; judgment_counts?: Partial<JudgmentCounts> }>(
-  options: T[]
+  options: T[],
+  strategyKey?: string
 ): Array<T & { mjAnalysis: MJAnalysis }> {
   // Step 1: Calculate basic MJ analysis for each option
   const analyzed = options.map(option => {
@@ -373,8 +288,26 @@ export function rankOptions<T extends { id: string; judgment_counts?: Partial<Ju
       break;
     }
 
-    // Step 2c: Apply tie-breaking using standard MJ comparison
-    const winners = breakTiesUsingMJComparison(candidatesWithBestMention);
+    // Step 2c: Apply tie-breaking using selected strategy
+    const prevActiveKey = getActiveStrategyKey();
+    // Temporarily force requested strategy for this ranking pass
+    const getStrategy = () => getStrategyByKey(strategyKey || prevActiveKey);
+    const winners = (() => {
+      // Use a local pairwise compare from the resolved strategy
+      const strategy = getStrategy();
+      if (candidatesWithBestMention.length <= 1) return candidatesWithBestMention;
+      const w: typeof candidatesWithBestMention = [];
+      for (const cand of candidatesWithBestMention) {
+        let ok = true;
+        for (const oth of candidatesWithBestMention) {
+          if (cand === oth) continue;
+          const cmp = strategy.compare(cand._counts, oth._counts, makeStrategyDeps());
+          if (cmp.winner === 'B') { ok = false; break; }
+        }
+        if (ok) w.push(cand);
+      }
+      return w.length > 0 ? w : candidatesWithBestMention;
+    })();
 
     // Safety check: ensure we have winners and they're making progress
     if (winners.length === 0 || winners.length > remainingOptions.length) {
