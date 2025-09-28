@@ -4,7 +4,7 @@ set -euo pipefail
 # Build the SpacetimeDB module under proto1/server
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-MODULE_DIR="${MODULE_DIR:-"$SCRIPT_DIR/server"}"
+MODULE_DIR="${MODULE_DIR:-"$SCRIPT_DIR/../server"}"
 
 export PATH="$HOME/.cargo/bin:$PATH"
 
@@ -23,7 +23,7 @@ fi
 
 # Run tests
 echo "[build] Running tests..."
-./test.sh 1>/dev/null || exit 2
+"$SCRIPT_DIR/test_stdb_module.sh" 1>/dev/null || exit 2
 
 cd "$MODULE_DIR" || exit 1
 

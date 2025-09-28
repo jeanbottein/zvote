@@ -8,7 +8,7 @@ set -euo pipefail
 #   ZVOTE_MODULE_NAME - alternate env var to set module name
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-MODULE_DIR="${MODULE_DIR:-"$SCRIPT_DIR/server"}"
+MODULE_DIR="${MODULE_DIR:-"$SCRIPT_DIR/../server"}"
 MODULE_NAME="${MODULE_NAME:-${ZVOTE_MODULE_NAME:-zvote-proto1}}"
 LOG_FILE="$SCRIPT_DIR/.spacetime.log"
 PID_FILE="$SCRIPT_DIR/.spacetime.pid"
