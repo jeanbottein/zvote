@@ -42,6 +42,7 @@
   justify-content: space-between;
   align-items: center;
   height: 30px;
+  margin: 5px 0px;
 }
 
 .mj-results-title-section {
@@ -121,7 +122,7 @@
 .mj-results-title { font-weight: 500; }
 .mj-results-badges { display: flex; align-items: center; gap: 6px; }
 .mj-results-badges-below { 
-  margin-top: 12px; 
+  padding: 7px 0px;
   display: flex;
   justify-content: flex-end;
 }
@@ -341,13 +342,14 @@ body[data-colorblind="true"] .mj-results-bar[data-judgment="Excellent"], body[da
 /* Majority Judgment Ballot Interface */
 /* ================================== */
 /* Table-based ballot */
-.mj-ballot-table { width: 100%; border-collapse: separate; border-spacing: 0; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; background: var(--panel); }
-.mj-ballot-table thead th { font-size: 12px; font-weight: 600; color: var(--muted); padding: 10px 6px; text-align: center; border-bottom: 1px solid var(--border); background: rgba(255,255,255,0.03); }
-.mj-ballot-table thead th:first-child { text-align: left; padding-left: 12px; }
-.mj-ballot-table tbody td { padding: 6px; border-bottom: 1px solid var(--border); text-align: center; }
+.mj-ballot-table { width: 100%; border-collapse: separate; border-spacing: 0; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; background: var(--panel); table-layout: fixed; }
+.mj-ballot-table thead th { font-size: 12px; font-weight: 600; color: var(--muted); padding: 10px 6px; text-align: center; border-bottom: 1px solid var(--border); background: rgba(255,255,255,0.03); width: 12.5%; }
+.mj-ballot-table thead th:first-child { text-align: left; padding-left: 12px; width: 25%; }
+.mj-ballot-table tbody td { padding: 6px; border-bottom: 1px solid var(--border); text-align: center; width: 12.5%; }
+.mj-ballot-table tbody td:first-child { width: 25%; }
 .mj-ballot-table tbody tr:last-child td { border-bottom: none; }
 .mj-option-title { text-align: left; font-weight: 500; padding-left: 12px; }
-.mj-cell-btn { width: 100%; padding: 8px 0; border: 1px solid var(--border); background: transparent; color: var(--fg); border-radius: 6px; cursor: pointer; transition: all 0.15s ease; }
+.mj-cell-btn { width: 32px; height: 32px; padding: 0; border: 1px solid var(--border); background: transparent; color: var(--fg); border-radius: 6px; cursor: pointer; transition: all 0.15s ease; display: flex; align-items: center; justify-content: center; margin: 0 auto; }
 .mj-cell-btn:hover { background: rgba(255,255,255,0.05); border-color: var(--border-hover); }
 .mj-cell-btn[disabled] { cursor: not-allowed; opacity: 0.6; }
 .mj-cell-btn[data-selected="true"] { border-width: 2px; transform: translateY(-1px); }
