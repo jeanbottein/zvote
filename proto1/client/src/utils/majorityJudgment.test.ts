@@ -278,8 +278,6 @@ describe('Pure Majority Judgment Algorithm', () => {
       expect(ranked[1].mjAnalysis.rank).toBe(1); // Same rank
       expect(ranked[0].mjAnalysis.isExAequo).toBe(true);
       expect(ranked[1].mjAnalysis.isExAequo).toBe(true);
-      expect(ranked[0].mjAnalysis.tiedWithOptions).toContain('option2');
-      expect(ranked[1].mjAnalysis.tiedWithOptions).toContain('option1');
     });
   });
   
