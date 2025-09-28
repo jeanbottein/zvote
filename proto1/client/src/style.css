@@ -11,18 +11,19 @@
   --panel: rgba(16, 24, 21, 0.6); /* glassy panel */
   --border: rgba(70, 94, 83, 0.35);
 
-  /* Accents lean green/teal with solar amber highlight */
-  --accent: linear-gradient(135deg, #22c55e, #14b8a6 60%, #f59e0b);
-  --accent-solid: #10b981;
+  /* Accents lean blue with highlight */
+  --accent: linear-gradient(135deg, rgb(50, 100, 200), rgb(40, 80, 180) 60%, rgb(60, 110, 220));
+  --accent-solid: rgb(50, 100, 200);
+  --accent-fg: #ffffff;
 
   /* Glass feel */
   --glass-blur: 12px;
-  --glass-shadow: 0 8px 24px rgba(16, 185, 129, 0.15);
-  --border-hover: rgba(120, 160, 140, 0.55);
+  --glass-shadow: 0 8px 24px rgba(50, 100, 200, 0.15);
+  --border-hover: rgba(50, 100, 200, 0.55);
 
   /* Positive/confirm action */
-  --positive-bg: #10b981;       /* emerald */
-  --positive-hover-bg: #059669; /* emerald deeper */
+  --positive-bg: rgb(50, 100, 200);
+  --positive-hover-bg: rgb(40, 80, 180);
   --positive-fg: #ffffff;
 }
 
@@ -33,13 +34,14 @@ body[data-theme="light"] {
   --muted: #5f6f65;
   --panel: rgba(255, 255, 255, 0.7);
   --border: rgba(16, 36, 31, 0.18);
-  --accent: linear-gradient(135deg, #34d399, #2dd4bf 60%, #fbbf24);
-  --accent-solid: #22c55e;
+  --accent: linear-gradient(135deg, rgb(50, 100, 200), rgb(40, 80, 180) 60%, rgb(60, 110, 220));
+  --accent-solid: rgb(50, 100, 200);
+  --accent-fg: #ffffff;
   --glass-blur: 10px;
-  --glass-shadow: 0 8px 24px rgba(34, 197, 94, 0.12);
-  --border-hover: rgba(34, 197, 94, 0.35);
-  --positive-bg: #16a34a;
-  --positive-hover-bg: #15803d;
+  --glass-shadow: 0 8px 24px rgba(50, 100, 200, 0.12);
+  --border-hover: rgba(50, 100, 200, 0.35);
+  --positive-bg: rgb(50, 100, 200);
+  --positive-hover-bg: rgb(40, 80, 180);
   --positive-fg: #ffffff;
 }
 
@@ -50,13 +52,14 @@ body[data-theme="dark"] {
   --muted: #9ec6b0;
   --panel: rgba(16, 24, 21, 0.6);
   --border: rgba(70, 94, 83, 0.35);
-  --accent: linear-gradient(135deg, #22c55e, #14b8a6 60%, #f59e0b);
-  --accent-solid: #10b981;
+  --accent: linear-gradient(135deg, rgb(50, 100, 200), rgb(40, 80, 180) 60%, rgb(60, 110, 220));
+  --accent-solid: rgb(50, 100, 200);
+  --accent-fg: #ffffff;
   --glass-blur: 12px;
-  --glass-shadow: 0 8px 24px rgba(16, 185, 129, 0.15);
-  --border-hover: rgba(120, 160, 140, 0.55);
-  --positive-bg: #10b981;
-  --positive-hover-bg: #059669;
+  --glass-shadow: 0 8px 24px rgba(50, 100, 200, 0.15);
+  --border-hover: rgba(50, 100, 200, 0.55);
+  --positive-bg: rgb(50, 100, 200);
+  --positive-hover-bg: rgb(40, 80, 180);
   --positive-fg: #ffffff;
 }
 .hidden { display: none !important; }
@@ -109,8 +112,8 @@ input, textarea {
 .actions { margin-top: 8px; }
 button {
   appearance: none;
-  background-image: var(--accent);
-  color: #0b0b0b;
+  background-color: rgb(50, 100, 200);
+  color: #ffffff;
   border: none;
   padding: 10px 14px;
   border-radius: 8px;
@@ -268,12 +271,12 @@ footer { padding: 10px 16px; border-top: 1px solid var(--border); color: var(--m
 .title-button { background: none; border: none; color: inherit; font: inherit; cursor: pointer; font-size: inherit; font-weight: inherit; }
 .header-actions { position: relative; display: flex; align-items: center; gap: 8px; }
 .back-button { 
-  background: #22c55e; color: white; border: none; border-radius: 8px; 
+  background: rgb(50, 100, 200); color: white; border: none; border-radius: 8px; 
   padding: 1px; cursor: pointer; display: inline-flex; align-items: center; 
   font-size: 32px; font-weight: 500; transition: all 0.15s ease;
   min-width: 80px; justify-content: center; line-height: 1;
 }
-.back-button:hover { background: #16a34a; transform: translateY(-1px); }
+.back-button:hover { background: rgb(40, 80, 180); transform: translateY(-1px); }
 .back-button:active { transform: translateY(0) scale(0.98); }
 .menu-toggle { background: none; color: var(--fg); border: 1px solid var(--border); border-radius: 6px; padding: 8px 12px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; }
 .menu-backdrop { position: fixed; inset: 0; z-index: 10; background: transparent; }
@@ -500,8 +503,8 @@ footer { padding: 10px 16px; border-top: 1px solid var(--border); color: var(--m
   width: 80%;
   max-width: 400px;
   padding: 16px 32px;
-  background: var(--positive-bg);
-  color: var(--positive-fg);
+  background: rgb(50, 100, 200);
+  color: white;
   border: none;
   border-radius: 8px;
   font-size: 18px;
@@ -511,7 +514,7 @@ footer { padding: 10px 16px; border-top: 1px solid var(--border); color: var(--m
 }
 
 .create-button:hover:not(:disabled) {
-  background: var(--positive-hover-bg);
+  background: rgb(40, 80, 180);
   transform: translateY(-1px);
 }
 
