@@ -111,7 +111,7 @@
 .mj-majority-strength-badge[data-judgment="Excellent"] { background: #065f46; color: #fff; }
 .mj-majority-strength-badge[data-judgment="VeryGood"] { background: #15803d; color: #fff; }
 .mj-majority-strength-badge[data-judgment="Good"] { background: #86efac; color: #0b0b0b; }
-.mj-majority-strength-badge[data-judgment="Fair"] { background: #ffffff; color: #0b0b0b; }
+.mj-majority-strength-badge[data-judgment="Fair"] { background: #f9f1c4; color: #0b0b0b; }
 .mj-majority-strength-badge[data-judgment="Passable"] { background: #fecaca; color: #0b0b0b; }
 .mj-majority-strength-badge[data-judgment="Inadequate"] { background: #ef4444; color: #fff; }
 .mj-majority-strength-badge[data-judgment="Bad"] { background: #7f1d1d; color: #fff; }
@@ -292,7 +292,7 @@ body[data-colorblind="true"] .mj-majority-strength-badge[data-judgment="Excellen
 .mj-results-bar[data-judgment="Excellent"], .mj-results-badge[data-judgment="Excellent"] { background: #065f46; color: #fff; }
 .mj-results-bar[data-judgment="VeryGood"], .mj-results-badge[data-judgment="VeryGood"] { background: #15803d; color: #fff; }
 .mj-results-bar[data-judgment="Good"], .mj-results-badge[data-judgment="Good"] { background: #86efac; color: #0b0b0b; }
-.mj-results-bar[data-judgment="Fair"], .mj-results-badge[data-judgment="Fair"] { background: #ffffff; color: #0b0b0b; }
+.mj-results-bar[data-judgment="Fair"], .mj-results-badge[data-judgment="Fair"] { background: #f9f1c4; color: #0b0b0b; }
 .mj-results-bar[data-judgment="Passable"], .mj-results-badge[data-judgment="Passable"] { background: #fecaca; color: #0b0b0b; }
 .mj-results-bar[data-judgment="Inadequate"], .mj-results-badge[data-judgment="Inadequate"] { background: #ef4444; color: #fff; }
 .mj-results-bar[data-judgment="Bad"], .mj-results-badge[data-judgment="Bad"] { background: #7f1d1d; color: #fff; }
@@ -323,7 +323,7 @@ body[data-colorblind="true"] .mj-results-bar[data-judgment="Excellent"], body[da
 .mj-cell-btn[data-mention="Excellent"][data-selected="true"] { background: #065f46; color: #fff; border-color: #065f46; }
 .mj-cell-btn[data-mention="VeryGood"][data-selected="true"] { background: #15803d; color: #fff; border-color: #15803d; }
 .mj-cell-btn[data-mention="Good"][data-selected="true"] { background: #86efac; color: #0b0b0b; border-color: #22c55e; }
-.mj-cell-btn[data-mention="Fair"][data-selected="true"] { background: #ffffff; color: #0b0b0b; border-color: #e5e7eb; }
+.mj-cell-btn[data-mention="Fair"][data-selected="true"] { background: #f9f1c4; color: #0b0b0b; border-color: #e6d875; }
 .mj-cell-btn[data-mention="Passable"][data-selected="true"] { background: #fecaca; color: #0b0b0b; border-color: #fca5a5; }
 .mj-cell-btn[data-mention="Inadequate"][data-selected="true"] { background: #ef4444; color: #fff; border-color: #ef4444; }
 .mj-cell-btn[data-mention="Bad"][data-selected="true"] { background: #7f1d1d; color: #fff; border-color: #7f1d1d; }
