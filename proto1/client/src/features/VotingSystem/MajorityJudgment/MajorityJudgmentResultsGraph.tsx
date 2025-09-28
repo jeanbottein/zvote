@@ -45,10 +45,10 @@ const MajorityJudgmentResultsGraph: React.FC<MajorityJudgmentResultsGraphProps> 
 
   const getRankBadge = (rank?: number) => {
     if (!rank) return null;
-    if (rank === 1) return { badge: '🥇', isMedal: true };
-    if (rank === 2) return { badge: '🥈', isMedal: true };
-    if (rank === 3) return { badge: '🥉', isMedal: true };
-    return { badge: rank.toString(), isMedal: false };
+    if (rank === 1) return { badge: '1', isMedal: true, medalType: 'gold' };
+    if (rank === 2) return { badge: '2', isMedal: true, medalType: 'silver' };
+    if (rank === 3) return { badge: '3', isMedal: true, medalType: 'bronze' };
+    return { badge: rank.toString(), isMedal: false, medalType: null };
   };
 
   // Check if empty (no ballots)
@@ -62,7 +62,10 @@ const MajorityJudgmentResultsGraph: React.FC<MajorityJudgmentResultsGraphProps> 
             const rankInfo = getRankBadge(rank);
             return rankInfo ? (
               <div className="mj-rank-container">
-                <div className="mj-rank-badge" data-medal={rankInfo.isMedal ? 'true' : 'false'}>
+                <div 
+                  className="mj-rank-badge" 
+                  data-medal={rankInfo.isMedal ? rankInfo.medalType || 'true' : 'false'}
+                >
                   {rankInfo.badge}
                 </div>
                 {isExAequo && (
