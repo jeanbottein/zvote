@@ -58,7 +58,8 @@ export type MJComparison = {
  * Compute Majority Judgment analysis for a single option
  */
 export function computeMJAnalysis(
-  judgmentCounts: JudgmentCounts
+  judgmentCounts: JudgmentCounts,
+  computeAllIterations: boolean = false
 ): MJAnalysis {
   const totalBallots = Object.values(judgmentCounts).reduce((sum, count) => sum + count, 0);
   
@@ -118,9 +119,17 @@ export function computeMJAnalysis(
         votesRemaining: currentTotal,
       });
 
-      // Continue to next iteration for complete MJ analysis
+      // If we only need the first iteration (majority mention), stop here
+      if (!computeAllIterations) {
+        break;
+      }
 
-      // Remove this mention AND all mentions above it (corrected MJ logic!)
+      // Remove this mention's votes for next iteration
+      const countToRemove = currentCounts[bestMention];
+      currentCounts[bestMention] = 0;
+      currentTotal -= countToRemove;
+
+      // Remove all mentions above this one (corrected MJ logic!)
       const mentionIndex = mentions.indexOf(bestMention);
       let totalRemoved = 0;
       
@@ -282,7 +291,42 @@ function findBestMajorityMention<T extends { mjAnalysis: MJAnalysis }>(options: 
   return bestMention;
 }
 
-// Adrien Fabre's "groupes d'insatisfaits" tie-breaking method
+// Standard MJ tie-breaking using iterative comparison
+function breakTiesUsingMJComparison<T extends { mjAnalysis: MJAnalysis; _counts: JudgmentCounts; _total: number }>(
+  candidates: T[]
+): T[] {
+  if (candidates.length <= 1) {
+    return candidates;
+  }
+
+  // Use pairwise comparisons to find the best candidate(s)
+  const winners: T[] = [];
+  
+  for (const candidate of candidates) {
+    let isWinner = true;
+    
+    // Check if this candidate beats or ties with all others
+    for (const other of candidates) {
+      if (candidate === other) continue;
+      
+      const comparison = compareMJ(candidate._counts, other._counts);
+      if (comparison.winner === 'B') {
+        // This candidate loses to another, so it's not a winner
+        isWinner = false;
+        break;
+      }
+    }
+    
+    if (isWinner) {
+      winners.push(candidate);
+    }
+  }
+  
+  // If no clear winners (shouldn't happen with proper MJ), return all as tied
+  return winners.length > 0 ? winners : candidates;
+}
+
+// Adrien Fabre's "groupes d'insatisfaits" tie-breaking method (DEPRECATED - keeping for reference)
 function breakTiesUsingUnsatisfiedGroups<T extends { mjAnalysis: MJAnalysis; _counts: JudgmentCounts; _total: number }>(
   candidates: T[]
 ): T[] {
@@ -424,8 +468,8 @@ export function rankOptions<T extends { id: string; judgment_counts?: Partial<Ju
       break;
     }
 
-    // Step 2c: Apply tie-breaking using "groupes d'insatisfaits"
-    const winners = breakTiesUsingUnsatisfiedGroups(candidatesWithBestMention);
+    // Step 2c: Apply tie-breaking using standard MJ comparison
+    const winners = breakTiesUsingMJComparison(candidatesWithBestMention);
 
     // Safety check: ensure we have winners and they're making progress
     if (winners.length === 0 || winners.length > remainingOptions.length) {

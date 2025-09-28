@@ -12,6 +12,60 @@ import {
 describe('Pure Majority Judgment Algorithm', () => {
   
   // ========================================================================
+  // TIE-BREAKING BUG REPRODUCTION TEST
+  // ========================================================================
+  
+  describe('Tie-Breaking Bug from zvote-results-3-2025-09-28.json', () => {
+    
+    test('Poire should beat Pomme in tie-breaking (settling mention strength)', () => {
+      // Data from the exported JSON file
+      const pommeVotes: JudgmentCounts = {
+        Bad: 1, Inadequate: 1, Passable: 0, Fair: 1,
+        Good: 2, VeryGood: 1, Excellent: 0
+      };
+      
+      const poireVotes: JudgmentCounts = {
+        Bad: 0, Inadequate: 2, Passable: 0, Fair: 1,
+        Good: 2, VeryGood: 1, Excellent: 0
+      };
+      
+      // Both should have same majority mention: Good (50%)
+      const pommeAnalysis = computeMJAnalysis(pommeVotes, true); // Need all iterations for comparison
+      const poireAnalysis = computeMJAnalysis(poireVotes, true);
+      
+      expect(pommeAnalysis.majorityMention).toBe('Good');
+      expect(poireAnalysis.majorityMention).toBe('Good');
+      expect(pommeAnalysis.majorityPercentage).toBe(50);
+      expect(poireAnalysis.majorityPercentage).toBe(50);
+      
+      // Compare them - Poire should win on settling mention strength
+      const comparison = compareMJ(pommeVotes, poireVotes);
+      
+      console.log('Pomme iterations:', pommeAnalysis.iterations);
+      console.log('Poire iterations:', poireAnalysis.iterations);
+      console.log('Comparison result:', comparison);
+      
+      // Poire should win because it has stronger settling mention
+      // Pomme: Inadequate 66.7% (strength 16.7%)
+      // Poire: Inadequate 100% (strength 50%)
+      expect(comparison.winner).toBe('B'); // B = Poire should win
+      
+      // Test ranking
+      const options = [
+        { id: '8', label: 'Pomme', judgment_counts: pommeVotes, total_judgments: 6 },
+        { id: '9', label: 'Poire', judgment_counts: poireVotes, total_judgments: 6 }
+      ];
+      
+      const ranked = rankOptions(options);
+      
+      expect(ranked[0].label).toBe('Poire'); // Poire should be rank 1
+      expect(ranked[1].label).toBe('Pomme'); // Pomme should be rank 2
+      expect(ranked[0].mjAnalysis.rank).toBe(1);
+      expect(ranked[1].mjAnalysis.rank).toBe(2);
+    });
+  });
+  
+  // ========================================================================
   // CORE ALGORITHM TESTS
   // ========================================================================
   

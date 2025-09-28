@@ -31,6 +31,31 @@ const JudgmentViewPage: React.FC = () => {
 
   const rankedOptions = rankOptions(vote.options || []);
   const winners = new Set(rankedOptions.filter(opt => opt.mjAnalysis.rank === 1).map(opt => opt.id));
+  
+  // Detect which options required settling mentions for ranking
+  // Group options by majority mention AND strength to find exact ties
+  const majorityGroups = new Map<string, any[]>();
+  rankedOptions.forEach(option => {
+    // Create key from both majority mention and strength percentage
+    const majorityMention = option.mjAnalysis.majorityMention;
+    const majorityStrength = option.mjAnalysis.majorityStrengthPercent;
+    const groupKey = `${majorityMention}:${majorityStrength}`;
+    
+    if (!majorityGroups.has(groupKey)) {
+      majorityGroups.set(groupKey, []);
+    }
+    majorityGroups.get(groupKey)!.push(option);
+  });
+  
+  // Options that were in groups with multiple candidates needed settling mentions
+  // Only when they have EXACT same majority mention AND same strength
+  const optionsRequiringSettling = new Set<string>();
+  majorityGroups.forEach(group => {
+    if (group.length > 1) {
+      // Multiple options had same majority mention AND same strength → settling needed
+      group.forEach(option => optionsRequiringSettling.add(option.id));
+    }
+  });
 
   return (
     <div className="panel">
@@ -56,6 +81,7 @@ const JudgmentViewPage: React.FC = () => {
             showSecond={winners.size > 1 && winners.has(option.id)}
             rank={option.mjAnalysis.rank}
             isExAequo={rankedOptions.filter(opt => opt.mjAnalysis.rank === option.mjAnalysis.rank).length > 1}
+            settlingMentionUsed={optionsRequiringSettling.has(option.id)}
           />
         ))}
       </div>

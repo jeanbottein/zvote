@@ -9,6 +9,7 @@ interface MajorityJudgmentResultsGraphProps {
   rank?: number;
   isExAequo?: boolean;
   showSecond?: boolean;
+  settlingMentionUsed?: boolean; // Indicates if settling mention was required for ranking
 }
 
 const MajorityJudgmentResultsGraph: React.FC<MajorityJudgmentResultsGraphProps> = ({ 
@@ -18,6 +19,7 @@ const MajorityJudgmentResultsGraph: React.FC<MajorityJudgmentResultsGraphProps> 
   compact = false,
   rank,
   isExAequo = false,
+  settlingMentionUsed = false,
 }) => {
   const judgmentLabels = {
     'Bad': 'Bad',
@@ -29,16 +31,17 @@ const MajorityJudgmentResultsGraph: React.FC<MajorityJudgmentResultsGraphProps> 
     'Excellent': 'Excellent'
   };
 
-  // Use the MJ library for complete analysis
-  const mjAnalysis = computeMJAnalysis(judgmentCounts);
+  // Use the MJ library for analysis (compute all iterations only when settling is needed)
+  const mjAnalysis = computeMJAnalysis(judgmentCounts, settlingMentionUsed);
   const majorityJudgment = mjAnalysis.majorityMention;
   const hasSecondIteration = mjAnalysis.iterations.length > 1;
   const settlingJudgment = hasSecondIteration ? mjAnalysis.iterations[1].mention : null;
   const isWinner = rank === 1;
   
-  // Show settling section only when this option is marked as ex aequo (tied with others)
-  // AND there's actually a settling judgment to display
-  const showSettlingSection = !!isExAequo && hasSecondIteration && settlingJudgment;
+  // Show settling section when settling mention was required for ranking
+  // This happens when this option was involved in a tie that needed to be broken
+  const wasInvolvedInTieBreaking = settlingMentionUsed || (hasSecondIteration && settlingJudgment);
+  const showSettlingSection = wasInvolvedInTieBreaking;
 
   // List mentions best-to-worst for visual left-to-right ordering
   const mentionsDesc: Array<keyof JudgmentCounts> = ['Excellent','VeryGood','Good','Fair','Passable','Inadequate','Bad'];
@@ -149,11 +152,11 @@ const MajorityJudgmentResultsGraph: React.FC<MajorityJudgmentResultsGraphProps> 
             {showSettlingSection && (
               <>
                 <span className="mj-results-hint" style={{ marginLeft: '8px' }}>Settling Mention:</span>
-                <div className="mj-results-badge" data-variant="second" data-judgment={settlingJudgment || undefined} title="Tie-breaking mention">
+                <div className="mj-results-badge" data-variant="second" data-judgment={settlingJudgment || undefined} title="Settling mention used for tie-breaking when majority mentions are equal">
                   {hasSecondIteration && settlingJudgment ? judgmentLabels[settlingJudgment as keyof typeof judgmentLabels] : '-'}
                 </div>
                 {hasSecondIteration && mjAnalysis.iterations[1].strengthPercent >= 0 && (
-                  <div className="mj-majority-strength-badge" data-judgment={settlingJudgment} title={`${mjAnalysis.iterations[1].percentage.toFixed(1)}% rated at least ${judgmentLabels[settlingJudgment as keyof typeof judgmentLabels]} (after removing majority votes)`}>
+                  <div className="mj-majority-strength-badge" data-judgment={settlingJudgment} title={`${mjAnalysis.iterations[1].percentage.toFixed(1)}% rated at least ${judgmentLabels[settlingJudgment as keyof typeof judgmentLabels]} (after removing majority votes) - higher percentage wins ties`}>
                     +{mjAnalysis.iterations[1].strengthPercent.toFixed(2)}%
                   </div>
                 )}
