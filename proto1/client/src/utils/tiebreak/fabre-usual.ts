@@ -95,7 +95,7 @@ function compareUsual(
   const medianB = calculateMedian(countsB);
   
   // First compare by median mention
-  const medianComparison = deps.compareMentions(medianA, medianB);
+  const medianComparison = deps.getMentionValue(medianA) - deps.getMentionValue(medianB);
   
   if (medianComparison !== 0) {
     return {

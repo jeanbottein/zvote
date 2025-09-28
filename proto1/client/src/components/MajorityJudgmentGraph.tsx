@@ -14,39 +14,28 @@ interface JudgmentCounts {
 interface MajorityJudgmentGraphProps {
   optionLabel: string;
   judgmentCounts: JudgmentCounts;
-  totalJudgments: number;
+  totalBallots: number;
   compact?: boolean;
-  majorityTag?: string | null;
-  secondTag?: string | null;
-  isWinner?: boolean;
-  showSecond?: boolean;
   rank?: number;
   isExAequo?: boolean;
-  settlingMentionUsed?: boolean;
 }
 
 const MajorityJudgmentGraph: React.FC<MajorityJudgmentGraphProps> = ({ 
   optionLabel, 
   judgmentCounts, 
-  totalJudgments,
+  totalBallots,
   compact = false,
-  majorityTag,
-  secondTag,
-  isWinner = false,
-  showSecond = false,
   rank,
   isExAequo = false,
-  settlingMentionUsed = false,
 }) => {
   return (
     <MajorityJudgmentResultsGraph
       optionLabel={optionLabel}
       judgmentCounts={judgmentCounts}
-      totalBallots={totalJudgments}
+      totalBallots={totalBallots}
       compact={compact}
       rank={rank}
       isExAequo={isExAequo}
-      settlingMentionUsed={settlingMentionUsed}
     />
   );
 };

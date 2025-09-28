@@ -148,6 +148,16 @@
 .mj-majority-strength-badge[data-judgment="Inadequate"] { background: #ef4444; color: #fff; }
 .mj-majority-strength-badge[data-judgment="Bad"] { background: #7f1d1d; color: #fff; }
 
+/* Fabre score badge */
+.mj-fabre-score-badge { 
+  font-size: 12px; 
+  padding: 2px 6px; 
+  border-radius: 4px;
+  background: #3b82f6; 
+  color: #fff;
+  font-weight: 500;
+}
+
 /* Colorblind variants for strength badge */
 body[data-colorblind="true"] .mj-majority-strength-badge[data-judgment="Bad"] { background: #1f2937; color: #fff; }
 body[data-colorblind="true"] .mj-majority-strength-badge[data-judgment="Inadequate"] { background: #4b5563; color: #fff; }

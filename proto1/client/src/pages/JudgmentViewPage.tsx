@@ -29,42 +29,16 @@ const JudgmentViewPage: React.FC = () => {
   }
   if (error) {
     return <div className="panel"><h2>Error</h2><div style={{color:'var(--muted)'}}>{error}</div></div>;
-  }
   if (!vote) {
     return <div className="panel"><h2>Vote not found</h2></div>;
   }
   const winners = new Set(rankedOptions.filter(opt => opt.mjAnalysis.rank === 1).map(opt => opt.id));
   
-  // Detect which options required settling mentions for ranking
-  // Group options by majority mention AND strength to find exact ties
-  const majorityGroups = new Map<string, any[]>();
-  rankedOptions.forEach(option => {
-    // Create key from both majority mention and strength percentage
-    const majorityMention = option.mjAnalysis.majorityMention;
-    const majorityStrength = option.mjAnalysis.majorityStrengthPercent;
-    const groupKey = `${majorityMention}:${majorityStrength}`;
-    
-    if (!majorityGroups.has(groupKey)) {
-      majorityGroups.set(groupKey, []);
-    }
-    majorityGroups.get(groupKey)!.push(option);
-  });
-  
-  // Options that were in groups with multiple candidates needed settling mentions
-  // Only when they have EXACT same majority mention AND same strength
-  const optionsRequiringSettling = new Set<string>();
-  majorityGroups.forEach(group => {
-    if (group.length > 1) {
-      // Multiple options had same majority mention AND same strength → settling needed
-      group.forEach(option => optionsRequiringSettling.add(option.id));
-    }
-  });
 
   return (
     <div className="panel">
-      <h2>{vote.title}</h2>
+      <h2>{vote?.title || 'Vote not found'}</h2>
       {/* Tie-break strategy selector (view mode) */}
-      <TieBreakSelector value={strategyKey} onChange={setStrategyKey} />
       <div style={{ marginTop: '16px' }}>
         {rankedOptions.map((option: any) => (
           <MajorityJudgmentGraph

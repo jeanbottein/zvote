@@ -1,16 +1,10 @@
 import type { TieBreakStrategy } from './types';
-import jugementMajoritaireVariant from './jugement-majoritaire-variant';
-import fabresTypical from './fabre-typical';
 import fabresUsual from './fabre-usual';
-import fabresCentral from './fabre-central';
 
 const STRATEGY_STORAGE_KEY = 'mj.tieBreakStrategy';
 
 export const strategies: Record<string, TieBreakStrategy> = {
-  [jugementMajoritaireVariant.key]: jugementMajoritaireVariant,
-  [fabresTypical.key]: fabresTypical,
   [fabresUsual.key]: fabresUsual,
-  [fabresCentral.key]: fabresCentral,
 };
 
 export type StrategyKey = keyof typeof strategies;

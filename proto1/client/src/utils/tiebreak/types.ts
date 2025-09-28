@@ -24,14 +24,8 @@ export type MJComparison = {
 };
 
 export type StrategyDeps = {
-  computeMJAnalysis: (counts: JudgmentCounts) => {
-    iterations: Array<{
-      mention: keyof JudgmentCounts;
-      percentage: number;
-      strengthPercent: number;
-    }>;
-  };
-  compareMentions: (a: keyof JudgmentCounts, b: keyof JudgmentCounts) => number;
+  calculateMedian: (counts: JudgmentCounts) => keyof JudgmentCounts;
+  getMentionValue: (mention: keyof JudgmentCounts) => number;
 };
 
 export type TieBreakStrategy = {
