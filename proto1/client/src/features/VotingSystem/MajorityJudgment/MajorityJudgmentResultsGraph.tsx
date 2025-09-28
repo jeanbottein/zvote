@@ -20,10 +20,10 @@ const MajorityJudgmentResultsGraph: React.FC<MajorityJudgmentResultsGraphProps> 
   isExAequo = false,
 }) => {
   const judgmentLabels = {
-    'ToReject': 'To Reject',
-    'Insufficient': 'Insufficient', 
-    'OnlyAverage': 'Only Average',
-    'GoodEnough': 'Good Enough',
+    'Bad': 'Bad',
+    'Inadequate': 'Inadequate', 
+    'Passable': 'Passable',
+    'Fair': 'Fair',
     'Good': 'Good',
     'VeryGood': 'Very Good',
     'Excellent': 'Excellent'
@@ -41,7 +41,7 @@ const MajorityJudgmentResultsGraph: React.FC<MajorityJudgmentResultsGraphProps> 
   const showSettlingSection = !!isExAequo;
 
   // List mentions best-to-worst for visual left-to-right ordering
-  const mentionsDesc: Array<keyof JudgmentCounts> = ['Excellent','VeryGood','Good','GoodEnough','OnlyAverage','Insufficient','ToReject'];
+  const mentionsDesc: Array<keyof JudgmentCounts> = ['Excellent','VeryGood','Good','Fair','Passable','Inadequate','Bad'];
 
   const getRankBadge = (rank?: number) => {
     if (!rank) return null;

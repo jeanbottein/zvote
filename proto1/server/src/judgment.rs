@@ -5,12 +5,12 @@ use crate::vote::{find_vote_by_id, find_vote_option_by_id, get_vote_options, Vot
 #[derive(SpacetimeType, Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Mention {
     // Ordered from worst to best (lowest to highest)
-    ToReject,     // À rejeter
-    Insufficient, // Insuffisant
-    OnlyAverage,  // Médiocre / Moyen
-    GoodEnough,   // Assez Bien / Suffisant
-    Good,         // Bien
-    VeryGood,     // Très Bien
+    Bad,          // Bad
+    Inadequate,   // Inadequate
+    Passable,     // Passable
+    Fair,         // Fair
+    Good,         // Good
+    VeryGood,     // Very Good
     Excellent,    // Excellent
 }
 
@@ -51,10 +51,10 @@ pub struct MjSummary {
     pub vote_id: u32,
     pub total: u32,
     // Counts per mention (ordered lowest to highest)
-    pub to_reject: u32,
-    pub insufficient: u32,
-    pub only_average: u32,
-    pub good_enough: u32,
+    pub bad: u32,
+    pub inadequate: u32,
+    pub passable: u32,
+    pub fair: u32,
     pub good: u32,
     pub very_good: u32,
     pub excellent: u32,
@@ -73,10 +73,10 @@ fn recompute_mj_summary_for_vote(ctx: &ReducerContext, vote_id: u32) {
         let mut total: u32 = 0;
         for j in ctx.db.judgment().by_option().filter(opt.id) {
             match j.mention {
-                Mention::ToReject => counts[0] += 1,
-                Mention::Insufficient => counts[1] += 1,
-                Mention::OnlyAverage => counts[2] += 1,
-                Mention::GoodEnough => counts[3] += 1,
+                Mention::Bad => counts[0] += 1,
+                Mention::Inadequate => counts[1] += 1,
+                Mention::Passable => counts[2] += 1,
+                Mention::Fair => counts[3] += 1,
                 Mention::Good => counts[4] += 1,
                 Mention::VeryGood => counts[5] += 1,
                 Mention::Excellent => counts[6] += 1,
@@ -96,10 +96,10 @@ fn recompute_mj_summary_for_vote(ctx: &ReducerContext, vote_id: u32) {
                 option_id: opt.id,
                 vote_id,
                 total,
-                to_reject: counts[0],
-                insufficient: counts[1],
-                only_average: counts[2],
-                good_enough: counts[3],
+                bad: counts[0],
+                inadequate: counts[1],
+                passable: counts[2],
+                fair: counts[3],
                 good: counts[4],
                 very_good: counts[5],
                 excellent: counts[6],
@@ -109,10 +109,10 @@ fn recompute_mj_summary_for_vote(ctx: &ReducerContext, vote_id: u32) {
                 option_id: opt.id,
                 vote_id,
                 total,
-                to_reject: counts[0],
-                insufficient: counts[1],
-                only_average: counts[2],
-                good_enough: counts[3],
+                bad: counts[0],
+                inadequate: counts[1],
+                passable: counts[2],
+                fair: counts[3],
                 good: counts[4],
                 very_good: counts[5],
                 excellent: counts[6],
@@ -147,13 +147,13 @@ pub fn cast_judgment(ctx: &ReducerContext, option_id: u32, mention: Mention) -> 
 
     if existing_judgments_for_vote.is_empty() {
         // This is the first time the user is judging any option in this vote.
-        // Default all options to `ToReject`.
+        // Default all options to `Bad`.
         for opt in get_vote_options(ctx, vote.id) {
             ctx.db.judgment().insert(Judgment {
                 id: 0,
                 option_id: opt.id,
                 voter: ctx.sender,
-                mention: Mention::ToReject, // Default mention
+                mention: Mention::Bad, // Default mention
             });
         }
         // Recompute summaries for the entire vote (ensures correct tie semantics)
@@ -162,7 +162,7 @@ pub fn cast_judgment(ctx: &ReducerContext, option_id: u32, mention: Mention) -> 
 
     // 4. Now, insert or update the specific judgment the user just cast.
     if let Some(existing_judgment) = ctx.db.judgment().by_option().filter(option_id).filter(|j| j.voter == ctx.sender).next() {
-        // An entry for this specific option already exists (likely just created with ToReject).
+        // An entry for this specific option already exists (likely just created with Bad).
         // Update it with the user's actual mention.
         if existing_judgment.mention != mention {
             ctx.db.judgment().id().update(Judgment {

@@ -2,10 +2,10 @@
 // State-of-the-art MJ with Fabre's "groupes d'insatisfaits" tie-breaking method
 
 export type JudgmentCounts = {
-  ToReject: number;
-  Insufficient: number;
-  OnlyAverage: number;
-  GoodEnough: number;
+  Bad: number;
+  Inadequate: number;
+  Passable: number;
+  Fair: number;
   Good: number;
   VeryGood: number;
   Excellent: number;
@@ -64,11 +64,11 @@ export function computeMJAnalysis(
   
   if (totalBallots === 0) {
     return {
-      majorityMention: 'ToReject',
+      majorityMention: 'Bad',
       majorityPercentage: 0,
       majorityStrengthPercent: 0,
       iterations: [],
-      finalMention: 'ToReject',
+      finalMention: 'Bad',
       finalPercentage: 0,
       finalStrengthPercent: 0,
       rank: 1,
@@ -79,7 +79,7 @@ export function computeMJAnalysis(
 
   // Mention levels from best to worst (for "at least X" calculation)
   const mentions: (keyof JudgmentCounts)[] = [
-    'Excellent', 'VeryGood', 'Good', 'GoodEnough', 'OnlyAverage', 'Insufficient', 'ToReject'
+    'Excellent', 'VeryGood', 'Good', 'Fair', 'Passable', 'Inadequate', 'Bad'
   ];
 
   // Current vote counts (will be modified during iterations)
@@ -140,20 +140,20 @@ export function computeMJAnalysis(
   const finalIteration = iterations[iterations.length - 1] || majorityIteration;
 
   return {
-    majorityMention: majorityIteration?.mention || 'ToReject',
+    majorityMention: majorityIteration?.mention || 'Bad',
     majorityPercentage: majorityIteration?.percentage || 0,
     majorityStrengthPercent: majorityIteration?.strengthPercent || 0,
     
     iterations,
     
-    finalMention: finalIteration?.mention || 'ToReject',
+    finalMention: finalIteration?.mention || 'Bad',
     finalPercentage: finalIteration?.percentage || 0,
     finalStrengthPercent: finalIteration?.strengthPercent || 0,
     
     // Ranking will be computed separately
     rank: 1,
     
-    displaySummary: createDisplaySummary(majorityIteration?.mention || 'ToReject', majorityIteration?.strengthPercent || 0),
+    displaySummary: createDisplaySummary(majorityIteration?.mention || 'Bad', majorityIteration?.strengthPercent || 0),
     comparisonSignature: createComparisonSignature(iterations),
   };
 }
@@ -247,19 +247,24 @@ export function compareMJ(
   };
 }
 
+// Helper function to get mention quality value
+function getMentionValue(mention: keyof JudgmentCounts): number {
+  const values = {
+    'Excellent': 6, 'VeryGood': 5, 'Good': 4, 'Fair': 3, 'Passable': 2, 'Inadequate': 1, 'Bad': 0
+  };
+  return values[mention];
+}
+
 // Helper function to compare mention quality
 function compareMentions(a: keyof JudgmentCounts, b: keyof JudgmentCounts): number {
-  const order: (keyof JudgmentCounts)[] = [
-    'Excellent', 'VeryGood', 'Good', 'GoodEnough', 'OnlyAverage', 'Insufficient', 'ToReject'
-  ];
-  return order.indexOf(b) - order.indexOf(a); // Higher quality = lower index
+  return getMentionValue(b) - getMentionValue(a); // Higher quality = lower index
 }
 
 // Helper function to find the best majority mention among options
 function findBestMajorityMention<T extends { mjAnalysis: MJAnalysis }>(options: T[]): keyof JudgmentCounts {
   const mentions = options.map(option => option.mjAnalysis.majorityMention);
   const order: (keyof JudgmentCounts)[] = [
-    'Excellent', 'VeryGood', 'Good', 'GoodEnough', 'OnlyAverage', 'Insufficient', 'ToReject'
+    'Excellent', 'VeryGood', 'Good', 'Fair', 'Passable', 'Inadequate', 'Bad'
   ];
   
   // Find the mention with the lowest index (best quality)
@@ -377,10 +382,10 @@ export function rankOptions<T extends { id: string; judgment_counts?: Partial<Ju
   // Step 1: Calculate basic MJ analysis for each option
   const analyzed = options.map(option => {
     const counts: JudgmentCounts = {
-      ToReject: option.judgment_counts?.ToReject || 0,
-      Insufficient: option.judgment_counts?.Insufficient || 0,
-      OnlyAverage: option.judgment_counts?.OnlyAverage || 0,
-      GoodEnough: option.judgment_counts?.GoodEnough || 0,
+      Bad: option.judgment_counts?.Bad || 0,
+      Inadequate: option.judgment_counts?.Inadequate || 0,
+      Passable: option.judgment_counts?.Passable || 0,
+      Fair: option.judgment_counts?.Fair || 0,
       Good: option.judgment_counts?.Good || 0,
       VeryGood: option.judgment_counts?.VeryGood || 0,
       Excellent: option.judgment_counts?.Excellent || 0,
