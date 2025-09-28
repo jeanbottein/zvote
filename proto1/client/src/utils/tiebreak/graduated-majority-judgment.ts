@@ -1,7 +1,7 @@
 /**
- * Adrien Fabre's Usual Judgment Tie-Breaking Method
+ * Adrien GMD's Usual Judgment Tie-Breaking Method
  * 
- * Reference: "Tie-breaking the Highest Median" - Fabre 2019
+ * Reference: "Tie-breaking the Highest Median" - GMD 2019
  * 
  * For candidates tied on the median mention, calculate:
  * - pc: proportion of voters rating strictly above the median
@@ -41,7 +41,7 @@ function calculateMedian(counts: JudgmentCounts): keyof JudgmentCounts {
 }
 
 /**
- * Calculate Fabre's Usual judgment score: sU = (pc - qc) / rc
+ * Calculate GMD's Usual judgment score: sU = (pc - qc) / rc
  * Handles division by zero when rc = 0
  */
 function calculateUsualScore(counts: JudgmentCounts, median: keyof JudgmentCounts): number {
@@ -84,7 +84,7 @@ function calculateUsualScore(counts: JudgmentCounts, median: keyof JudgmentCount
 }
 
 /**
- * Compare two candidates using Fabre's Usual judgment method
+ * Compare two candidates using GMD's Usual judgment method
  */
 function compareUsual(
   countsA: JudgmentCounts,
@@ -147,11 +147,11 @@ function compareUsual(
   };
 }
 
-const fabresUsual: TieBreakStrategy = {
-  key: 'fabre-usual',
-  label: 'Fabre\'s Usual Judgment',
-  description: 'Tie-breaking using Fabre\'s Usual judgment score: sU = (pc - qc) / rc (normalized by median proportion)',
+const GMDsUsual: TieBreakStrategy = {
+  key: 'GMD-usual',
+  label: 'GMD\'s Usual Judgment',
+  description: 'Tie-breaking using GMD\'s Usual judgment score: sU = (pc - qc) / rc (normalized by median proportion)',
   compare: compareUsual
 };
 
-export default fabresUsual;
+export default GMDsUsual;

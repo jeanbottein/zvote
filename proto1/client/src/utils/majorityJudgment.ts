@@ -1,12 +1,12 @@
 /**
- * Majority Judgment Algorithm with Fabre's Usual Tie-Breaking
+ * Majority Judgment Algorithm with GMD's Usual Tie-Breaking
  * 
- * This implementation focuses solely on Fabre's Usual judgment method
+ * This implementation focuses solely on GMD's Usual judgment method
  * for tie-breaking, which has proven to be the most effective approach.
  */
 
-import { calculateUsualScore, formatFabresScore } from './fabresScores';
-import { getStrategyByKey } from './tiebreak';
+import { calculateUsualScore, formatGMDsScore } from './gmdScores';
+import { getStrategy } from './tiebreak';
 
 export type JudgmentCounts = {
   Bad: number;
@@ -22,9 +22,9 @@ export type MJAnalysis = {
   majorityMention: keyof JudgmentCounts;
   majorityPercentage: number;
   
-  // Fabre's Usual score instead of settling mention
-  fabresUsualScore: number;
-  fabresUsualScoreFormatted: string;
+  // GMD's Usual score instead of settling mention
+  GMDsUsualScore: number;
+  GMDsUsualScoreFormatted: string;
   
   iterations: Array<{
     mention: keyof JudgmentCounts;
@@ -47,12 +47,12 @@ export function computeMJAnalysis(judgmentCounts: JudgmentCounts): MJAnalysis {
   const totalBallots = Object.values(judgmentCounts).reduce((sum, count) => sum + count, 0);
   
   if (totalBallots === 0) {
-    const fabresScore = calculateUsualScore(judgmentCounts);
+    const GMDsScore = calculateUsualScore(judgmentCounts);
     return {
       majorityMention: 'Bad',
       majorityPercentage: 0,
-      fabresUsualScore: fabresScore,
-      fabresUsualScoreFormatted: formatFabresScore(fabresScore),
+      GMDsUsualScore: GMDsScore,
+      GMDsUsualScoreFormatted: formatGMDsScore(GMDsScore),
       iterations: [],
       rank: 1,
       isWinner: false,
@@ -118,15 +118,15 @@ export function computeMJAnalysis(judgmentCounts: JudgmentCounts): MJAnalysis {
   // Extract results
   const majorityIteration = iterations[0];
   
-  // Calculate Fabre's Usual score
-  const fabresScore = calculateUsualScore(judgmentCounts);
+  // Calculate GMD's Usual score
+  const GMDsScore = calculateUsualScore(judgmentCounts);
 
   return {
     majorityMention: majorityIteration?.mention || 'Bad',
     majorityPercentage: majorityIteration?.percentage || 0,
     
-    fabresUsualScore: fabresScore,
-    fabresUsualScoreFormatted: formatFabresScore(fabresScore),
+    GMDsUsualScore: GMDsScore,
+    GMDsUsualScoreFormatted: formatGMDsScore(GMDsScore),
     
     iterations,
     
@@ -141,10 +141,10 @@ export function computeMJAnalysis(judgmentCounts: JudgmentCounts): MJAnalysis {
 }
 
 /**
- * Compare two options using Fabre's Usual tie-breaking
+ * Compare two options using GMD's Usual tie-breaking
  */
 export function compareMJ(countsA: JudgmentCounts, countsB: JudgmentCounts) {
-  const strategy = getStrategyByKey();
+  const strategy = getStrategy();
   return strategy.compare(countsA, countsB, {
     calculateMedian: (counts: JudgmentCounts) => computeMJAnalysis(counts).majorityMention,
     getMentionValue: (mention: keyof JudgmentCounts) => {
@@ -158,7 +158,7 @@ export function compareMJ(countsA: JudgmentCounts, countsB: JudgmentCounts) {
 }
 
 /**
- * Rank multiple options using majority judgment with Fabre's Usual tie-breaking
+ * Rank multiple options using majority judgment with GMD's Usual tie-breaking
  */
 export function rankOptions<T extends { 
   id: string; 
@@ -173,7 +173,7 @@ export function rankOptions<T extends {
     mjAnalysis: computeMJAnalysis(option.judgment_counts)
   }));
 
-  // Sort using pairwise comparisons with Fabre's Usual tie-breaking
+  // Sort using pairwise comparisons with GMD's Usual tie-breaking
   analyzed.sort((a, b) => {
     const comparison = compareMJ(a.judgment_counts, b.judgment_counts);
     if (comparison.winner === 'A') return -1;
@@ -207,12 +207,12 @@ export function rankOptions<T extends {
  * Create a display summary for an MJ analysis
  */
 export function createDisplaySummary(analysis: MJAnalysis): string {
-  return `${analysis.majorityMention} (${analysis.majorityPercentage.toFixed(1)}%) • Fabre: ${analysis.fabresUsualScoreFormatted}`;
+  return `${analysis.majorityMention} (${analysis.majorityPercentage.toFixed(1)}%) • GMD: ${analysis.GMDsUsualScoreFormatted}`;
 }
 
 /**
  * Create a comparison signature for caching/comparison purposes
  */
 export function createComparisonSignature(analysis: MJAnalysis): string {
-  return `${analysis.majorityMention}:${analysis.majorityPercentage.toFixed(1)}|Fabre:${analysis.fabresUsualScore.toFixed(4)}`;
+  return `${analysis.majorityMention}:${analysis.majorityPercentage.toFixed(1)}|GMD:${analysis.GMDsUsualScore.toFixed(4)}`;
 }

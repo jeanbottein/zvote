@@ -126,7 +126,7 @@ const MajorityJudgmentResultsGraph: React.FC<MajorityJudgmentResultsGraphProps> 
         }).filter(Boolean)}
       </div>
 
-      {/* Majority mention and Fabre score below the chart */}
+      {/* Majority mention and score below the chart */}
       {!isEmpty && (
         <div className="mj-results-badges-below">
           <div className="mj-results-badges">
@@ -134,13 +134,10 @@ const MajorityJudgmentResultsGraph: React.FC<MajorityJudgmentResultsGraphProps> 
             <div className="mj-results-badge" data-judgment={majorityJudgment || undefined}>
               {majorityJudgment ? judgmentLabels[majorityJudgment as keyof typeof judgmentLabels] : '-'}
             </div>
-            <div className="mj-majority-strength-badge" data-judgment={majorityJudgment} title={`${mjAnalysis.majorityPercentage.toFixed(1)}% rated at least ${judgmentLabels[majorityJudgment as keyof typeof judgmentLabels]}`}>
-              {mjAnalysis.majorityPercentage.toFixed(1)}%
-            </div>
-            
-            <span className="mj-results-hint" style={{ marginLeft: '16px' }}>Fabre Score:</span>
-            <div className="mj-fabre-score-badge" title={`Fabre's Usual judgment score: ${mjAnalysis.fabresUsualScore.toFixed(4)} - used for tie-breaking when majority mentions are equal`}>
-              {mjAnalysis.fabresUsualScoreFormatted}
+          
+            <span className="mj-results-hint" style={{ marginLeft: '16px' }}>Score:</span>
+            <div className="mj-score-badge" title={`GMD's Usual judgment score: ${mjAnalysis.GMDsUsualScore.toFixed(4)} - used for tie-breaking when majority mentions are equal`}>
+              {mjAnalysis.GMDsUsualScoreFormatted}
             </div>
           </div>
         </div>

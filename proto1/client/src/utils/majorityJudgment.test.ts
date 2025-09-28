@@ -1,5 +1,5 @@
 /**
- * Tests for Majority Judgment with Fabre's Usual Tie-Breaking
+ * Tests for Majority Judgment with GMD's Usual Tie-Breaking
  */
 
 import {
@@ -11,7 +11,7 @@ import {
   type JudgmentCounts
 } from './majorityJudgment';
 
-describe('Majority Judgment with Fabre\'s Usual', () => {
+describe('Majority Judgment with GMD\'s Usual', () => {
   
   // ========================================================================
   // CORE ALGORITHM TESTS
@@ -29,8 +29,8 @@ describe('Majority Judgment with Fabre\'s Usual', () => {
       
       expect(result.majorityMention).toBe('Bad');
       expect(result.majorityPercentage).toBe(0);
-      expect(result.fabresUsualScore).toBe(0);
-      expect(result.fabresUsualScoreFormatted).toBe('0.00');
+      expect(result.GMDsUsualScore).toBe(0);
+      expect(result.GMDsUsualScoreFormatted).toBe('0.00');
     });
     
     test('handles single excellent vote', () => {
@@ -43,10 +43,10 @@ describe('Majority Judgment with Fabre\'s Usual', () => {
       
       expect(result.majorityMention).toBe('Excellent');
       expect(result.majorityPercentage).toBe(100);
-      expect(result.fabresUsualScore).toBe(0); // For single vote at median, score is 0
+      expect(result.GMDsUsualScore).toBe(0); // For single vote at median, score is 0
     });
     
-    test('calculates Fabre score correctly', () => {
+    test('calculates score correctly', () => {
       const counts: JudgmentCounts = {
         Bad: 1, Inadequate: 1, Passable: 0, Fair: 1,
         Good: 2, VeryGood: 1, Excellent: 0
@@ -56,9 +56,9 @@ describe('Majority Judgment with Fabre\'s Usual', () => {
       
       expect(result.majorityMention).toBe('Good');
       expect(result.majorityPercentage).toBe(50);
-      expect(result.fabresUsualScore).toBeDefined();
-      expect(result.fabresUsualScoreFormatted).toBeDefined();
-      expect(typeof result.fabresUsualScore).toBe('number');
+      expect(result.GMDsUsualScore).toBeDefined();
+      expect(result.GMDsUsualScoreFormatted).toBeDefined();
+      expect(typeof result.GMDsUsualScore).toBe('number');
     });
   });
   
@@ -66,9 +66,9 @@ describe('Majority Judgment with Fabre\'s Usual', () => {
   // POMME VS POIRE TEST CASE
   // ========================================================================
   
-  describe('Pomme vs Poire Fabre Scoring', () => {
+  describe('Pomme vs Poire GMD Scoring', () => {
     
-    test('Pomme and Poire have different Fabre scores for tie-breaking', () => {
+    test('Pomme and Poire have different scores for tie-breaking', () => {
       // Data from zvote-results-3-2025-09-28.json
       const pommeVotes: JudgmentCounts = {
         Bad: 1, Inadequate: 1, Passable: 0, Fair: 1,
@@ -89,15 +89,15 @@ describe('Majority Judgment with Fabre\'s Usual', () => {
       expect(pommeAnalysis.majorityPercentage).toBe(50);
       expect(poireAnalysis.majorityPercentage).toBe(50);
       
-      // Both have the same Fabre score since they have the same median and similar distributions
+      // Both have the same score since they have the same median and similar distributions
       // This is mathematically correct - they both have median Good with similar vote patterns
-      expect(typeof pommeAnalysis.fabresUsualScore).toBe('number');
-      expect(typeof poireAnalysis.fabresUsualScore).toBe('number');
+      expect(typeof pommeAnalysis.GMDsUsualScore).toBe('number');
+      expect(typeof poireAnalysis.GMDsUsualScore).toBe('number');
       
-      console.log('Pomme Fabre score:', pommeAnalysis.fabresUsualScoreFormatted);
-      console.log('Poire Fabre score:', poireAnalysis.fabresUsualScoreFormatted);
+      console.log('Pomme score:', pommeAnalysis.GMDsUsualScoreFormatted);
+      console.log('Poire score:', poireAnalysis.GMDsUsualScoreFormatted);
       
-      // Test comparison - since they have the same Fabre score, they should tie
+      // Test comparison - since they have the same score, they should tie
       const comparison = compareMJ(pommeVotes, poireVotes);
       expect(['A', 'B', 'TIE']).toContain(comparison.winner); // Could be any result
     });
@@ -109,7 +109,7 @@ describe('Majority Judgment with Fabre\'s Usual', () => {
   
   describe('rankOptions', () => {
     
-    test('ranks multiple options correctly using Fabre scores', () => {
+    test('ranks multiple options correctly using scores', () => {
       const options = [
         {
           id: 'option1',
@@ -176,7 +176,7 @@ describe('Majority Judgment with Fabre\'s Usual', () => {
   
   describe('Display Utilities', () => {
     
-    test('creates correct display summaries with Fabre scores', () => {
+    test('creates correct display summaries with scores', () => {
       const analysis = computeMJAnalysis({
         Bad: 0, Inadequate: 0, Passable: 0, Fair: 0,
         Good: 2, VeryGood: 1, Excellent: 0
@@ -184,7 +184,7 @@ describe('Majority Judgment with Fabre\'s Usual', () => {
       
       const summary = createDisplaySummary(analysis);
       expect(summary).toContain('Good');
-      expect(summary).toContain('Fabre:');
+      expect(summary).toContain('GMD:');
       expect(summary).toMatch(/\d+\.\d+%/); // Should contain percentage
     });
     
@@ -203,8 +203,8 @@ describe('Majority Judgment with Fabre\'s Usual', () => {
       const sig2 = createComparisonSignature(analysis2);
       
       expect(sig1).not.toBe(sig2);
-      expect(sig1).toContain('Fabre:');
-      expect(sig2).toContain('Fabre:');
+      expect(sig1).toContain('GMD:');
+      expect(sig2).toContain('GMD:');
     });
   });
 });

@@ -1,9 +1,9 @@
 /**
- * Fabre's Usual Judgment Score Calculation
+ * GMD's Usual Judgment Score Calculation
  * 
- * Reference: "Tie-breaking the Highest Median" - Fabre 2019
+ * Reference: "Tie-breaking the Highest Median" - GMD 2019
  * 
- * Provides utility functions to calculate Fabre's Usual judgment score:
+ * Provides utility functions to calculate GMD's Usual judgment score:
  * - Usual judgment score: sU = (pc - qc) / rc
  */
 
@@ -68,7 +68,7 @@ function calculateProportions(counts: JudgmentCounts, median: keyof JudgmentCoun
 
 
 /**
- * Calculate Fabre's Usual judgment score: sU = (pc - qc) / rc
+ * Calculate GMD's Usual judgment score: sU = (pc - qc) / rc
  * Handles division by zero when rc = 0
  */
 export function calculateUsualScore(counts: JudgmentCounts): number {
@@ -86,9 +86,9 @@ export function calculateUsualScore(counts: JudgmentCounts): number {
 
 
 /**
- * Format Fabre's Usual score for display
+ * Format GMD's Usual score for display
  */
-export function formatFabresScore(score: number): string {
+export function formatGMDsScore(score: number): string {
   if (score === Number.POSITIVE_INFINITY) {
     return '∞';
   }
@@ -101,9 +101,9 @@ export function formatFabresScore(score: number): string {
 }
 
 /**
- * Get human-readable explanation of Fabre's Usual score
+ * Get human-readable explanation of GMD's Usual score
  */
-export function explainFabresScore(score: number): string {
+export function explainGMDsScore(score: number): string {
   if (score > 0) return 'Supporters outweigh opponents (normalized by median)';
   if (score < 0) return 'Opponents outweigh supporters (normalized by median)';
   return 'Balanced support (normalized by median)';

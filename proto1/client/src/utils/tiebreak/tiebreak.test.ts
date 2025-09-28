@@ -1,14 +1,14 @@
 /**
- * Test Suite for Fabre's Usual Judgment Tie-Breaking Method
+ * Test Suite for GMD's Usual Judgment Tie-Breaking Method
  * 
- * Tests the Fabre's Usual Judgment tie-breaking strategy:
+ * Tests the GMD's Usual Judgment tie-breaking strategy:
  * - sU = (pc - qc) / rc
  * 
- * Reference: "Tie-breaking the Highest Median" - Fabre 2019
+ * Reference: "Tie-breaking the Highest Median" - GMD 2019
  */
 
 import type { JudgmentCounts } from './types';
-import fabresUsual from './fabre-usual';
+import GMDsUsual from './graduated-majority-judgment';
 
 // Mock strategy dependencies
 const mockDeps = {
@@ -41,7 +41,7 @@ const mockDeps = {
   }
 };
 
-describe('Fabre\'s Usual Judgment Tie-Breaking', () => {
+describe('GMD\'s Usual Judgment Tie-Breaking', () => {
 
   describe('Basic Functionality', () => {
     
@@ -56,7 +56,7 @@ describe('Fabre\'s Usual Judgment Tie-Breaking', () => {
         Good: 2, VeryGood: 1, Excellent: 0
       };
       
-      const result = fabresUsual.compare(countsA, countsB, mockDeps);
+      const result = GMDsUsual.compare(countsA, countsB, mockDeps);
       
       expect(['A', 'B', 'TIE']).toContain(result.winner);
       expect(result.finalResult).toBeDefined();
@@ -73,7 +73,7 @@ describe('Fabre\'s Usual Judgment Tie-Breaking', () => {
         Good: 0, VeryGood: 3, Excellent: 0
       };
       
-      const result = fabresUsual.compare(countsA, countsB, mockDeps);
+      const result = GMDsUsual.compare(countsA, countsB, mockDeps);
       
       expect(['A', 'B', 'TIE']).toContain(result.winner);
       expect(result.finalResult).toBeDefined();
@@ -85,7 +85,7 @@ describe('Fabre\'s Usual Judgment Tie-Breaking', () => {
         Good: 1, VeryGood: 1, Excellent: 1
       };
       
-      const result = fabresUsual.compare(counts, counts, mockDeps);
+      const result = GMDsUsual.compare(counts, counts, mockDeps);
       
       expect(result.winner).toBe('TIE');
       expect(result.finalResult).toContain('tie');
@@ -100,7 +100,7 @@ describe('Fabre\'s Usual Judgment Tie-Breaking', () => {
         Good: 0, VeryGood: 0, Excellent: 0
       };
       
-      const result = fabresUsual.compare(emptyCounts, emptyCounts, mockDeps);
+      const result = GMDsUsual.compare(emptyCounts, emptyCounts, mockDeps);
       expect(['A', 'B', 'TIE']).toContain(result.winner);
       expect(result.finalResult).toBeDefined();
     });
@@ -111,7 +111,7 @@ describe('Fabre\'s Usual Judgment Tie-Breaking', () => {
         Good: 1, VeryGood: 0, Excellent: 0
       };
       
-      const result = fabresUsual.compare(singleVote, singleVote, mockDeps);
+      const result = GMDsUsual.compare(singleVote, singleVote, mockDeps);
       expect(result.winner).toBe('TIE');
       expect(result.finalResult).toBeDefined();
     });
