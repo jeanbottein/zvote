@@ -32,8 +32,6 @@ import {
   type ReducerEventContextInterface,
   type SubscriptionEventContextInterface,
 } from "@clockworklabs/spacetimedb-sdk";
-import { Mention as __Mention } from "./mention_type";
-
 export type MjSummary = {
   optionId: number,
   voteId: number,
@@ -45,7 +43,6 @@ export type MjSummary = {
   good: number,
   veryGood: number,
   excellent: number,
-  majority: __Mention,
 };
 
 /**
@@ -68,7 +65,6 @@ export namespace MjSummary {
       new ProductTypeElement("good", AlgebraicType.createU32Type()),
       new ProductTypeElement("veryGood", AlgebraicType.createU32Type()),
       new ProductTypeElement("excellent", AlgebraicType.createU32Type()),
-      new ProductTypeElement("majority", __Mention.getTypeScriptAlgebraicType()),
     ]);
   }
 

@@ -58,38 +58,10 @@ pub struct MjSummary {
     pub good: u32,
     pub very_good: u32,
     pub excellent: u32,
-    // Majority mention (median using lower median for even totals) - canonical, stored server-side
-    pub majority: Mention,
+    // Server stores only raw counts - all MJ logic is client-side!
 }
 
-fn compute_majority_from_counts(counts: &[u32; 7], total: u32) -> Mention {
-    // Order: ToReject(0) < Insufficient(1) < OnlyAverage(2) < GoodEnough(3) < Good(4) < VeryGood(5) < Excellent(6)
-    let order = [
-        Mention::ToReject,
-        Mention::Insufficient,
-        Mention::OnlyAverage,
-        Mention::GoodEnough,
-        Mention::Good,
-        Mention::VeryGood,
-        Mention::Excellent,
-    ];
-    if total == 0 {
-        return Mention::ToReject; // default when no judgments
-    }
-
-    let target = (total + 1) / 2; // median position (1-indexed), lower median for even totals
-    let mut cum = 0u32;
-    for (i, m) in order.iter().enumerate() {
-        cum = cum.saturating_add(counts[i]);
-        if cum >= target {
-            return *m;
-        }
-    }
-    // Fallback (shouldn't happen)
-    Mention::Excellent
-}
-
-// Server only computes and stores the canonical majority (median). Tie-breaking is client-side.
+// Server is now a pure database - no MJ logic!
 
 fn recompute_mj_summary_for_vote(ctx: &ReducerContext, vote_id: u32) {
     // Collect options and their counts
@@ -115,11 +87,11 @@ fn recompute_mj_summary_for_vote(ctx: &ReducerContext, vote_id: u32) {
         totals_vec.push(total);
     }
 
-    // Upsert summaries for each option
+    // Upsert summaries for each option - pure raw data storage
     for (opt, counts) in options.iter().zip(counts_vec.iter()) {
         let total = totals_vec[counts_vec.iter().position(|c| c == counts).unwrap_or(0)];
-        let majority = compute_majority_from_counts(counts, total);
-        if let Some(existing) = ctx.db.mj_summary().option_id().find(opt.id) {
+        
+        if let Some(_existing) = ctx.db.mj_summary().option_id().find(opt.id) {
             ctx.db.mj_summary().option_id().update(MjSummary {
                 option_id: opt.id,
                 vote_id,
@@ -131,8 +103,6 @@ fn recompute_mj_summary_for_vote(ctx: &ReducerContext, vote_id: u32) {
                 good: counts[4],
                 very_good: counts[5],
                 excellent: counts[6],
-                majority,
-                ..existing
             });
         } else {
             ctx.db.mj_summary().insert(MjSummary {
@@ -146,12 +116,10 @@ fn recompute_mj_summary_for_vote(ctx: &ReducerContext, vote_id: u32) {
                 good: counts[4],
                 very_good: counts[5],
                 excellent: counts[6],
-                majority,
             });
         }
     }
 }
-
 // Note: SpacetimeDB reducers cannot return data directly.
 // Private tables are not accessible via client subscriptions.
 // We need to use optimistic UI updates and server-side validation.
@@ -218,33 +186,6 @@ pub fn cast_judgment(ctx: &ReducerContext, option_id: u32, mention: Mention) -> 
     Ok(())
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    // Helper to build 7-level counts array in worst..best order
-    fn counts(tr: u32, insuff: u32, only_avg: u32, good_enough: u32, gd: u32, vg: u32, ex: u32) -> [u32; 7] {
-        [tr, insuff, only_avg, good_enough, gd, vg, ex]
-    }
-
-    #[test]
-    fn test_majority_median_odd_total() {
-        // 3 voters: Good, VeryGood, Excellent => median is VeryGood
-        let c = counts(0, 0, 0, 0, 1, 1, 1);
-        let maj = compute_majority_from_counts(&c, 3);
-        assert_eq!(maj, Mention::VeryGood);
-    }
-
-    #[test]
-    fn test_majority_median_even_total_lower_median() {
-        // 4 voters: Good, Good, VeryGood, Excellent => lower median is Good
-        let c = counts(0, 0, 0, 0, 2, 1, 1);
-        let maj = compute_majority_from_counts(&c, 4);
-        assert_eq!(maj, Mention::Good);
-    }
-
-    // No server-side tests for tie-break 'second' — tie logic is client-side.
-}
 
 #[spacetimedb::reducer]
 pub fn withdraw_judgments(ctx: &ReducerContext, vote_id: u32) -> Result<(), String> {

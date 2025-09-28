@@ -15,10 +15,18 @@ if ! command -v npm >/dev/null 2>&1; then
   exit 1
 fi
 
+cd "$CLIENT_DIR" || exit 1
 # Install dependencies (idempotent)
-( cd "$CLIENT_DIR" && npm install )
+npm install || exit 2
+
+# Run tests (optional - don't fail build if tests fail)
+echo "Running MJ algorithm tests..."
+npm run test:mj || echo "⚠️  Tests failed, but continuing build..."
+
+echo "Generating coverage report..."
+npm run test:coverage || echo "⚠️  Coverage generation failed, but continuing build..."
 
 # Build
-( cd "$CLIENT_DIR" && npm run build )
+npm run build || exit 5
 
 echo "Client build finished. Output: $CLIENT_DIR/dist/"

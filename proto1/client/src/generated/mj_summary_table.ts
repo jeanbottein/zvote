@@ -33,8 +33,6 @@ import {
   type SubscriptionEventContextInterface,
 } from "@clockworklabs/spacetimedb-sdk";
 import { MjSummary } from "./mj_summary_type";
-import { Mention as __Mention } from "./mention_type";
-
 import { type EventContext, type Reducer, RemoteReducers, RemoteTables } from ".";
 
 /**

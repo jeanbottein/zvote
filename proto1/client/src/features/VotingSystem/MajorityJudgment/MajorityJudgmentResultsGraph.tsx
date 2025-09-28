@@ -1,26 +1,14 @@
 import React from 'react';
-
-interface JudgmentCounts {
-  ToReject: number;
-  Insufficient: number;
-  OnlyAverage: number;
-  GoodEnough: number;
-  Good: number;
-  VeryGood: number;
-  Excellent: number;
-}
+import { computePureMJAnalysis, type JudgmentCounts } from '../../../utils/majorityJudgment';
 
 interface MajorityJudgmentResultsGraphProps {
   optionLabel: string;
   judgmentCounts: JudgmentCounts;
   totalBallots: number;
   compact?: boolean;
-  majorityTag?: string | null;
-  secondTag?: string | null;
-  isWinner?: boolean;
-  showSecond?: boolean;
   rank?: number;
   isExAequo?: boolean;
+  showSecond?: boolean;
 }
 
 const MajorityJudgmentResultsGraph: React.FC<MajorityJudgmentResultsGraphProps> = ({ 
@@ -28,60 +16,29 @@ const MajorityJudgmentResultsGraph: React.FC<MajorityJudgmentResultsGraphProps> 
   judgmentCounts, 
   totalBallots,
   compact = false,
-  majorityTag,
-  secondTag,
-  isWinner = false,
-  showSecond = false,
   rank,
   isExAequo = false,
 }) => {
   const judgmentLabels = {
-    ToReject: 'To Reject',
-    Insufficient: 'Insufficient',
-    OnlyAverage: 'Only Average',
-    GoodEnough: 'Good Enough',
-    Good: 'Good',
-    VeryGood: 'Very Good',
-    Excellent: 'Excellent'
-  } as const;
-
-  // Correct order for mentions (for computing median)
-  const mentionOrder: Record<keyof JudgmentCounts, number> = {
-    ToReject: 1,
-    Insufficient: 2,
-    OnlyAverage: 3,
-    GoodEnough: 4,
-    Good: 5,
-    VeryGood: 6,
-    Excellent: 7,
+    'ToReject': 'To Reject',
+    'Insufficient': 'Insufficient', 
+    'OnlyAverage': 'Only Average',
+    'GoodEnough': 'Good Enough',
+    'Good': 'Good',
+    'VeryGood': 'Very Good',
+    'Excellent': 'Excellent'
   };
 
-  const computeMajority = (counts: JudgmentCounts, total: number): keyof JudgmentCounts | null => {
-    if (total <= 0) return null;
-    const expanded: Array<keyof JudgmentCounts> = (Object.entries(counts) as Array<[
-      keyof JudgmentCounts,
-      number
-    ]>).flatMap(([m, n]) => Array(n).fill(m));
-    expanded.sort((a, b) => mentionOrder[a] - mentionOrder[b]);
-    const medianIdx = Math.floor(expanded.length / 2);
-    return expanded[medianIdx] || null;
-  };
-
-  const computeSecond = (counts: JudgmentCounts, total: number, majority: keyof JudgmentCounts | null): keyof JudgmentCounts | null => {
-    if (total <= 1 || !majority) return null;
-    const copy: JudgmentCounts = { ...counts } as any;
-    if (copy[majority] > 0) copy[majority] -= 1;
-    return computeMajority(copy, total - 1);
-  };
-
-  // If no votes for this option, the majority is null. Otherwise, use the server's tag or compute.
-  const majorityJudgment = totalBallots > 0
-    ? (majorityTag as keyof JudgmentCounts | null ?? computeMajority(judgmentCounts, totalBallots))
-    : null;
-
-  const secondJudgment = totalBallots > 0 && showSecond
-    ? (secondTag as keyof JudgmentCounts | null ?? computeSecond(judgmentCounts, totalBallots, majorityJudgment))
-    : null;
+  // Use the pure MJ library for all analysis
+  const mjAnalysis = computePureMJAnalysis(judgmentCounts, totalBallots);
+  const majorityJudgment = mjAnalysis.majorityMention;
+  const hasSecondIteration = mjAnalysis.iterations.length > 1;
+  const settlingJudgment = hasSecondIteration ? mjAnalysis.iterations[1].mention : null;
+  const isWinner = rank === 1;
+  
+  // Show settling section when this option required a second iteration
+  // (i.e., first-mention tie within this option's distribution)
+  const showSettlingSection = hasSecondIteration;
 
   // List mentions best-to-worst for visual left-to-right ordering
   const mentionsDesc: Array<keyof JudgmentCounts> = ['Excellent','VeryGood','Good','GoodEnough','OnlyAverage','Insufficient','ToReject'];
@@ -122,30 +79,22 @@ const MajorityJudgmentResultsGraph: React.FC<MajorityJudgmentResultsGraphProps> 
             <div className="mj-results-badge" data-judgment={majorityJudgment || undefined}>
               {majorityJudgment ? judgmentLabels[majorityJudgment as keyof typeof judgmentLabels] : '-'}
             </div>
-            {majorityJudgment && (() => {
-              // Calculate "at least this mention" percentage
-              const majorityIndex = mentionsDesc.indexOf(majorityJudgment);
-              if (majorityIndex === -1) return null;
-              
-              const atLeastCount = mentionsDesc.slice(0, majorityIndex + 1).reduce((sum, mention) => sum + (judgmentCounts[mention] || 0), 0);
-              const atLeastPercentage = totalBallots > 0 ? (atLeastCount / totalBallots) * 100 : 0;
-              const overFifty = atLeastPercentage - 50;
-              
-              if (overFifty > 0) {
-                return (
-                  <div className="mj-majority-strength-badge" data-judgment={majorityJudgment} title={`${atLeastPercentage.toFixed(1)}% rated at least ${judgmentLabels[majorityJudgment as keyof typeof judgmentLabels]}`}>
-                    +{overFifty.toFixed(2)}%
-                  </div>
-                );
-              }
-              return null;
-            })()}
-            {showSecond && (
+            {mjAnalysis.majorityStrengthPercent > 0 && (
+              <div className="mj-majority-strength-badge" data-judgment={majorityJudgment} title={`${mjAnalysis.majorityPercentage.toFixed(1)}% rated at least ${judgmentLabels[majorityJudgment as keyof typeof judgmentLabels]}`}>
+                +{mjAnalysis.majorityStrengthPercent.toFixed(2)}%
+              </div>
+            )}
+            {showSettlingSection && (
               <>
-                <span className="mj-results-hint" style={{ marginLeft: '8px' }}>Second</span>
-                <div className="mj-results-badge" data-variant="second" data-judgment={secondJudgment || undefined} title="Tie-break mention">
-                  {secondJudgment ? judgmentLabels[secondJudgment as keyof typeof judgmentLabels] : '-'}
+                <span className="mj-results-hint" style={{ marginLeft: '8px' }}>Settling</span>
+                <div className="mj-results-badge" data-variant="second" data-judgment={settlingJudgment || undefined} title="Tie-breaking mention">
+                  {hasSecondIteration && settlingJudgment ? judgmentLabels[settlingJudgment as keyof typeof judgmentLabels] : '-'}
                 </div>
+                {hasSecondIteration && mjAnalysis.iterations[1].strengthPercent > 0 && (
+                  <div className="mj-majority-strength-badge" data-judgment={settlingJudgment} title={`${mjAnalysis.iterations[1].percentage.toFixed(1)}% rated at least ${judgmentLabels[settlingJudgment as keyof typeof judgmentLabels]} (after removing majority votes)`}>
+                    +{mjAnalysis.iterations[1].strengthPercent.toFixed(2)}%
+                  </div>
+                )}
               </>
             )}
           </div>
