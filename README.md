@@ -6,6 +6,10 @@ zvote is an open-source, modern voting platform designed to push the limits of w
 
 This repository is a first step — a working prototype focused on core mechanics, correctness, and live reactivity. The vision is much larger (outlined below), but the present goal is to deliver a simple, reliable foundation we can iterate on quickly.
 
+## Screenshots
+<img width="536" height="725" alt="Capture d’écran 2025-09-28 à 23 25 10" src="https://github.com/user-attachments/assets/01dc7199-8a34-4ae0-ab1c-c1e9701e7ba7" />
+
+
 ## Key Features
 
 - **Graduated Majority Judgment (GMJ)**: a single-winner rated voting rule selecting candidates with the highest (graduated) median, enabling nuanced voter judgments with principled tie-breaking.
