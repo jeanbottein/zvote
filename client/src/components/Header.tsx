@@ -4,6 +4,7 @@ import { spacetimeDB } from '../lib/spacetimeClient';
 import { getColorMode, setColorMode as persistColorMode, onColorModeChange } from '../lib/colorMode';
 import { useVoteByToken } from '../hooks/useVoteByToken';
 import { rankOptions } from '../utils/majorityJudgment';
+import ShareModal from './ShareModal';
 
 interface HeaderProps {
   onViewChange?: (view: 'home' | 'create' | 'vote') => void;
@@ -27,6 +28,7 @@ const Header: React.FC<HeaderProps> = ({ onViewChange }) => {
       return 'system';
     }
   });
+  const [shareModalOpen, setShareModalOpen] = useState(false);
 
   useEffect(() => {
     const handleConnectionChange = (isConnected: boolean) => {
@@ -255,6 +257,15 @@ const Header: React.FC<HeaderProps> = ({ onViewChange }) => {
       {/* Right Menu */}
       <div id="header-actions" className="header-actions">
         <button
+          id="share-button"
+          className="share-button"
+          onClick={() => setShareModalOpen(true)}
+          title="Share"
+          aria-label="Share"
+        >
+          ↗
+        </button>
+        <button
           id="menu-toggle"
           className="menu-toggle"
           onClick={() => setMenuOpen(!menuOpen)}
@@ -354,6 +365,12 @@ const Header: React.FC<HeaderProps> = ({ onViewChange }) => {
           </>
         )}
       </div>
+
+      <ShareModal
+        isOpen={shareModalOpen}
+        onClose={() => setShareModalOpen(false)}
+        shareUrl={window.location.href}
+      />
     </header>
   );
 };
