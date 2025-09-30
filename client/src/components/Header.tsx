@@ -164,20 +164,28 @@ const Header: React.FC<HeaderProps> = ({ onViewChange }) => {
 
       // Add system-specific analysis
       if (vote.voting_system?.tag === 'MajorityJudgment') {
-        const rankedOptions = rankOptions(vote.options || []);
-        exportData.majority_judgment_analysis = {
-          ranked_options: rankedOptions.map(option => ({
-            id: option.id,
-            label: option.label,
-            rank: option.mjAnalysis.rank,
-            majority_mention: option.mjAnalysis.majorityMention,
-            majority_percentage: option.mjAnalysis.majorityPercentage,
-            majority_strength_percent: option.mjAnalysis.majorityStrengthPercent,
-            judgment_counts: option.judgment_counts,
-            total_judgments: option.total_judgments,
-          })),
-          winners: rankedOptions.filter(opt => opt.mjAnalysis.rank === 1),
-        };
+        // Filter options that have judgment data
+        const optionsWithJudgments = (vote.options || []).filter(
+          opt => opt.judgment_counts && opt.total_judgments !== undefined
+        );
+        
+        if (optionsWithJudgments.length > 0) {
+          const rankedOptions = rankOptions(optionsWithJudgments as any);
+          exportData.majority_judgment_analysis = {
+            ranked_options: rankedOptions.map(option => ({
+              id: option.id,
+              label: option.label,
+              rank: option.mjAnalysis.rank,
+              majority_mention: option.mjAnalysis.majorityMention,
+              gmd_score: option.mjAnalysis.gmdScore,
+              is_winner: option.mjAnalysis.isWinner,
+              is_ex_aequo: option.mjAnalysis.isExAequo,
+              judgment_counts: option.judgment_counts,
+              total_judgments: option.total_judgments,
+            })),
+            winners: rankedOptions.filter(opt => opt.mjAnalysis.rank === 1),
+          };
+        }
       } else if (vote.voting_system?.tag === 'Approval') {
         const totalVoters = Math.max(...(vote.options || []).map(o => o.approvals_count || 0), 0);
         exportData.approval_analysis = {
