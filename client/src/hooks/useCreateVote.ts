@@ -48,8 +48,7 @@ export const useCreateVote = () => {
 
       // Call create_vote reducer with new API
       // Order: title, options, visibility, votingSystem
-      await spacetimeDB.call(
-        'createVote',
+      spacetimeDB.reducers.createVote(
         params.title.trim(),
         cleanOptions,
         params.visibility,

@@ -28,9 +28,9 @@ const ApprovalBallotInterface: React.FC<ApprovalBallotInterfaceProps> = ({
     setIsSubmitting(true);
     try {
       if (approve) {
-        await spacetimeDB.call('submit_approval_ballot', voteId, optionId);
+        spacetimeDB.reducers.submitApprovalBallot(Number(voteId), Number(optionId));
       } else {
-        await spacetimeDB.call('withdraw_approval_ballot', voteId, optionId);
+        spacetimeDB.reducers.withdrawApprovalBallot(Number(voteId), Number(optionId));
       }
       
       // Notify parent that approval changed
@@ -50,7 +50,7 @@ const ApprovalBallotInterface: React.FC<ApprovalBallotInterfaceProps> = ({
     try {
       // Remove all user's approvals for this vote
       for (const optionId of userApprovals) {
-        await spacetimeDB.call('withdraw_approval_ballot', voteId, optionId);
+        spacetimeDB.reducers.withdrawApprovalBallot(Number(voteId), Number(optionId));
       }
       
       // Notify parent that all approvals were withdrawn

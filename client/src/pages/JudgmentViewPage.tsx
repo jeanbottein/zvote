@@ -4,6 +4,7 @@ import { useVoteByToken } from '../hooks/useVoteByToken';
 import { spacetimeDB } from '../lib/spacetimeClient';
 import MajorityJudgmentGraph from '../components/MajorityJudgmentGraph';
 import { rankOptions } from '../utils/majorityJudgment';
+import DeleteVoteButton from '../components/DeleteVoteButton';
 
 const JudgmentViewPage: React.FC = () => {
   const [params] = useSearchParams();
@@ -53,6 +54,12 @@ const JudgmentViewPage: React.FC = () => {
           />
         ))}
       </div>
+
+      <DeleteVoteButton
+        voteId={vote.id}
+        voteCreator={vote.creator}
+        voteTitle={vote.title}
+      />
     </div>
   );
 };

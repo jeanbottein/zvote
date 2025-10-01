@@ -243,7 +243,11 @@ export function useVoteByToken(token: string | null) {
     // Ensure focused subscriptions for this token
     if (token) {
       // Grant access to unlisted votes via token (no-op for public/private votes)
-      spacetimeDB.call('grant_access_by_token', token).catch(console.error);
+      try {
+        spacetimeDB.reducers.grantAccessByToken(token);
+      } catch (error) {
+        console.error('Error granting access:', error);
+      }
       spacetimeDB.setFocusedVoteByToken(token).catch(() => {});
     }
 

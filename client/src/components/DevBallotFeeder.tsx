@@ -56,8 +56,8 @@ const DevBallotFeeder: React.FC<DevBallotFeederProps> = ({ vote }) => {
         ];
         console.log(`Submitting ballot ${i + 1} for new identity...`);
         for (const option of vote.options || []) {
-          const randomMention = mentions[Math.floor(Math.random() * mentions.length)];
-          await spacetimeDB.call('submit_judgment_ballot', option.id, randomMention);
+          const randomMention = mentions[Math.floor(Math.random() * mentions.length)] as Mention;
+          spacetimeDB.reducers.submitJudgmentBallot(Number(option.id), randomMention);
         }
         // Add a small delay for the reducers to process before the next user
         await sleep(100);

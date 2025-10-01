@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { useVoteByToken } from '../hooks/useVoteByToken';
 import { spacetimeDB } from '../lib/spacetimeClient';
 import ApprovalVotingDisplay from '../components/ApprovalVotingDisplay';
+import DeleteVoteButton from '../components/DeleteVoteButton';
 
 const ApprovalViewPage: React.FC = () => {
   const [params] = useSearchParams();
@@ -44,6 +45,12 @@ const ApprovalViewPage: React.FC = () => {
           />
         ))}
       </div>
+
+      <DeleteVoteButton
+        voteId={vote.id}
+        voteCreator={vote.creator}
+        voteTitle={vote.title}
+      />
     </div>
   );
 };

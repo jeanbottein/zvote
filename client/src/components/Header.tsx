@@ -272,7 +272,11 @@ const Header: React.FC<HeaderProps> = ({ onViewChange }) => {
           title="Menu"
           aria-expanded={menuOpen}
         >
-          <span>⋯</span>
+          <span className="hamburger-icon">
+            <span></span>
+            <span></span>
+            <span></span>
+          </span>
         </button>
 
         {menuOpen && (

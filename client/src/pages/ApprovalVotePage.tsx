@@ -5,6 +5,7 @@ import { spacetimeDB } from '../lib/spacetimeClient';
 import BallotInterface from '../features/BallotInterface/BallotInterface';
 import ApprovalResultsDisplay from '../features/VotingSystem/ApprovalVoting/ApprovalResultsDisplay';
 import { useToast } from '../components/ToastProvider';
+import DeleteVoteButton from '../components/DeleteVoteButton';
 
 const ApprovalVotePage: React.FC = () => {
   const [params] = useSearchParams();
@@ -79,6 +80,12 @@ const ApprovalVotePage: React.FC = () => {
         vote={vote}
         onBallotSubmitted={() => {}} // No success toast
         onError={(msg: string) => showToast({ type: 'error', message: msg })}
+      />
+
+      <DeleteVoteButton
+        voteId={vote.id}
+        voteCreator={vote.creator}
+        voteTitle={vote.title}
       />
     </div>
   );

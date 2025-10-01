@@ -37,7 +37,7 @@ const MajorityJudgmentBallotInterface: React.FC<MajorityJudgmentBallotInterfaceP
 
       // Convert string to Mention tagged union and send to server
       const mentionValue = (Mention as any)[mention] as any;
-      await spacetimeDB.call('submit_judgment_ballot', optionId, mentionValue);
+      spacetimeDB.reducers.submitJudgmentBallot(Number(optionId), mentionValue);
 
       if (isFirstJudgment) {
         // Server automatically set all options to Bad, then updated this specific one
@@ -65,7 +65,7 @@ const MajorityJudgmentBallotInterface: React.FC<MajorityJudgmentBallotInterfaceP
     if (isSubmitting) return;
     setIsSubmitting(true);
     try {
-      await spacetimeDB.call('withdrawJudgments', voteId);
+      spacetimeDB.reducers.withdrawJudgments(Number(voteId));
       
       // Notify parent that all judgments were withdrawn
       if (onJudgmentsWithdrawn) onJudgmentsWithdrawn();

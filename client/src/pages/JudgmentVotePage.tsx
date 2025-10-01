@@ -7,6 +7,7 @@ import MajorityJudgmentResultsGraph from '../features/VotingSystem/MajorityJudgm
 import { useToast } from '../components/ToastProvider';
 import DevBallotFeeder from '../components/DevBallotFeeder';
 import { rankOptions } from '../utils/majorityJudgment';
+import DeleteVoteButton from '../components/DeleteVoteButton';
 
 const JudgmentVotePage: React.FC = () => {
   const [params] = useSearchParams();
@@ -85,6 +86,12 @@ const JudgmentVotePage: React.FC = () => {
         vote={vote}
         onBallotSubmitted={() => {}} // No success toast
         onError={(msg: string) => showToast({ type: 'error', message: msg })}
+      />
+
+      <DeleteVoteButton
+        voteId={vote.id}
+        voteCreator={vote.creator}
+        voteTitle={vote.title}
       />
 
       {/* DEV ONLY: Ballot Feeder Tool. Remove this line to hide it. */}

@@ -40,6 +40,13 @@ export const spacetimeDB = {
     return currentUser;
   },
 
+  get reducers() {
+    if (!connection) {
+      throw new Error('Not connected to SpacetimeDB');
+    }
+    return connection.reducers;
+  },
+
   async setFocusedVoteByToken(token: string | null): Promise<void> {
     if (!connection) {
       console.warn('setFocusedVoteByToken: no connection');
@@ -267,90 +274,12 @@ export const spacetimeDB = {
     }
   },
 
-  async call(reducerName: string, ...args: any[]): Promise<any> {
-    if (!connection) {
-      throw new Error('Not connected to SpacetimeDB');
-    }
-    
-    try {
-      // Use the real SpacetimeDB generated API
-      if (reducerName === 'createVote') {
-        const [title, options, visibility, votingSystem] = args;
-        console.log('Calling createVote reducer:', { title, options, visibility, votingSystem });
-        connection.reducers.createVote(title, options, visibility, votingSystem);
-        return { success: true };
-      }
-      
-      if (reducerName === 'submit_approval_ballot') {
-        const [voteId, optionId] = args;
-        console.log('Calling submit_approval_ballot reducer:', { voteId, optionId });
-        connection.reducers.submitApprovalBallot(Number.parseInt(voteId, 10), Number.parseInt(optionId, 10));
-        return { success: true };
-      }
-      
-      if (reducerName === 'withdraw_approval_ballot') {
-        const [voteId, optionId] = args;
-        console.log('Calling withdraw_approval_ballot reducer:', { voteId, optionId });
-        connection.reducers.withdrawApprovalBallot(Number.parseInt(voteId, 10), Number.parseInt(optionId, 10));
-        return { success: true };
-      }
-      
-      // Legacy aliases for backward compatibility
-      if (reducerName === 'approve') {
-        const [voteId, optionId] = args;
-        console.log('Calling approve reducer (legacy alias):', { voteId, optionId });
-        connection.reducers.submitApprovalBallot(Number.parseInt(voteId, 10), Number.parseInt(optionId, 10));
-        return { success: true };
-      }
-      
-      if (reducerName === 'unapprove') {
-        const [voteId, optionId] = args;
-        console.log('Calling unapprove reducer (legacy alias):', { voteId, optionId });
-        connection.reducers.withdrawApprovalBallot(Number.parseInt(voteId, 10), Number.parseInt(optionId, 10));
-        return { success: true };
-      }
-      
-      if (reducerName === 'submit_judgment_ballot') {
-        const [optionId, mention] = args;
-        console.log('Calling submit_judgment_ballot reducer:', { optionId, mention });
-        connection.reducers.submitJudgmentBallot(parseInt(optionId), mention);
-        return { success: true };
-      }
-      
-      // Legacy alias for backward compatibility
-      if (reducerName === 'castJudgment') {
-        const [optionId, mention] = args;
-        console.log('Calling castJudgment reducer (legacy alias):', { optionId, mention });
-        connection.reducers.submitJudgmentBallot(parseInt(optionId), mention);
-        return { success: true };
-      }
-      
-      if (reducerName === 'withdrawJudgments') {
-        const [voteId] = args;
-        console.log('Calling withdrawJudgments reducer:', { voteId });
-        connection.reducers.withdrawJudgments(Number.parseInt(voteId, 10));
-        return { success: true };
-      }
-      
-      if (reducerName === 'grant_access_by_token') {
-        const [token] = args;
-        console.log('Calling grant_access_by_token reducer:', { token });
-        connection.reducers.grantAccessByToken(token);
-        return { success: true };
-      }
-      
-      // Note: Removed getMyApprovals/getMyJudgments reducers since SpacetimeDB reducers cannot return data.
-      // Instead, we use filtered subscriptions: "SELECT * FROM approval WHERE voter = @caller"
-      
-      throw new Error(`Reducer ${reducerName} not implemented`);
-    } catch (error) {
-      console.error(`Error calling reducer ${reducerName}:`, error);
-      throw error;
-    }
-  },
-
   onConnectionChange(callback: (connected: boolean) => void): void {
     connectionCallbacks.add(callback);
+    // Call the callback immediately if we're already connected
+    if (connection) {
+      callback(true);
+    }
   },
 
   offConnectionChange(callback: (connected: boolean) => void): void {
