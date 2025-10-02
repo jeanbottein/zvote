@@ -47,6 +47,14 @@ body[data-theme="light"] {
   --positive-fg: #ffffff;
   /* More opaque menu in light theme */
   --menu-bg: rgba(255, 255, 255, 0.5);
+  /* Light theme background gradient */
+  background: #70b2cf;
+  background: linear-gradient(42deg, rgba(112, 178, 207, 1) 0%, rgba(104, 204, 146, 1) 50%, rgba(235, 230, 162, 1) 100%);
+  /* Ensure gradient covers viewport and is stable */
+  min-height: 100vh;
+  background-repeat: no-repeat;
+  background-size: cover;
+  background-attachment: fixed;
 }
 
 /* Dark theme explicit (matches :root but allows switching) */
@@ -66,6 +74,14 @@ body[data-theme="dark"] {
   --positive-hover-bg: rgb(40, 80, 180);
   --positive-fg: #ffffff;
   --menu-bg: rgba(16, 24, 21, 0.5);
+  /* Dark theme background gradient (harmonious with light) */
+  background: #0b1210;
+  background: linear-gradient(42deg, rgba(15, 47, 61, 1) 0%, rgba(18, 77, 56, 1) 50%, rgba(58, 54, 20, 1) 100%);
+  /* Ensure gradient covers viewport and is stable */
+  min-height: 100vh;
+  background-repeat: no-repeat;
+  background-size: cover;
+  background-attachment: fixed;
 }
 .hidden { display: none !important; }
 html {
@@ -84,7 +100,8 @@ header {
   align-items: center;
   justify-content: space-between;
   padding: 16px 20px;
-  border-bottom: 1px solid var(--border);
+  border-bottom: none;
+  background: var(--bg);
 }
 h1 { font-size: 20px; margin: 0; font-weight: 600; }
 .status { color: var(--muted); font-size: 14px; }
@@ -264,7 +281,7 @@ footer { padding: 10px 16px; border-top: 1px solid var(--border); color: var(--m
 .vote-btn:hover { background: var(--positive-hover-bg); }
 
 /* Header theming with single-class elements */
-.app-header { display: flex; align-items: center; justify-content: space-between; padding: 1rem 2rem; position: relative; border-bottom: 1px solid var(--border); }
+.app-header { display: flex; align-items: center; justify-content: space-between; padding: 1rem 2rem; position: relative; border-bottom: none; background: var(--bg); }
 .header-left { width: 120px; display: flex; align-items: center; justify-content: flex-start; }
 .theme-toggle {
   background: var(--panel); color: var(--fg); border: 1px solid var(--border);
