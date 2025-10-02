@@ -55,6 +55,8 @@ body[data-theme="light"] {
   background-repeat: no-repeat;
   background-size: cover;
   background-attachment: fixed;
+  /* Light theme MJ results card background */
+  
 }
 
 /* Dark theme explicit (matches :root but allows switching) */
@@ -82,6 +84,8 @@ body[data-theme="dark"] {
   background-repeat: no-repeat;
   background-size: cover;
   background-attachment: fixed;
+  /* Dark theme MJ results card background */
+  
 }
 .hidden { display: none !important; }
 html {
@@ -643,6 +647,13 @@ footer { padding: 10px 16px; border-top: 1px solid var(--border); color: var(--m
 /* ================================== */
 .mj-card { padding: 12px; border: 1px solid var(--border); border-radius: 8px; margin-bottom: 8px; }
 .mj-card[data-compact="true"] { padding: 8px; margin-bottom: 4px; }
+
+/* Themed MJ results card backgrounds */
+body[data-theme="light"] .mj-card,
+body[data-theme="light"] .mj-results-card { background: rgba(255, 255, 255, 0.8); }
+body[data-theme="dark"] .mj-card,
+body[data-theme="dark"] .mj-results-card { background: rgba(0, 0, 0, 0.8); }
+ 
 .mj-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
 .mj-title { font-weight: 500; }
 .mj-badges { display: flex; align-items: center; gap: 6px; }
@@ -790,6 +801,10 @@ body[data-colorblind="true"] .mj-mention[data-mention="Excellent"][data-selected
   border-radius: 8px;
   backdrop-filter: blur(var(--glass-blur));
   box-shadow: var(--glass-shadow);
+  /* Center the ballot panel */
+  max-width: 900px;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 /* Share Button */
