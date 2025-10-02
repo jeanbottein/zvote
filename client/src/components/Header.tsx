@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { spacetimeDB } from '../lib/spacetimeClient';
+import { authService, type AuthUser } from '../lib/authService';
 import { getColorMode, setColorMode as persistColorMode, onColorModeChange } from '../lib/colorMode';
 import { useVoteByToken } from '../hooks/useVoteByToken';
 import { rankOptions } from '../utils/majorityJudgment';
 import ShareModal from './ShareModal';
+import AuthLogin from './AuthLogin';
 
 interface HeaderProps {
   onViewChange?: (view: 'home' | 'create' | 'vote') => void;
@@ -15,6 +17,8 @@ const Header: React.FC<HeaderProps> = ({ onViewChange }) => {
   const location = useLocation();
   const [user, setUser] = useState(spacetimeDB.currentUser);
   const [connected, setConnected] = useState(false);
+  const [authUser, setAuthUser] = useState<AuthUser | null>(authService.getCurrentUser());
+  const [showLoginModal, setShowLoginModal] = useState(false);
   const [colorMode, setColorMode] = useState(getColorMode());
   const [menuOpen, setMenuOpen] = useState(false);
   const [theme, setTheme] = useState<'light' | 'system' | 'dark'>(() => {
@@ -42,9 +46,16 @@ const Header: React.FC<HeaderProps> = ({ onViewChange }) => {
 
     spacetimeDB.onConnectionChange(handleConnectionChange);
     const offColor = onColorModeChange(setColorMode);
+    
+    // Subscribe to auth changes
+    const unsubAuth = authService.onAuthChange((authUser) => {
+      setAuthUser(authUser);
+    });
+    
     return () => {
       spacetimeDB.offConnectionChange(handleConnectionChange);
       offColor?.();
+      unsubAuth();
     };
   }, []);
 
@@ -265,6 +276,18 @@ const Header: React.FC<HeaderProps> = ({ onViewChange }) => {
         >
           ↗
         </button>
+        {/* Login button (visible only when not signed in with a provider) */}
+        {!authUser && (
+          <button
+            id="login-button"
+            className="login-button"
+            onClick={() => setShowLoginModal(true)}
+            title="Login"
+            aria-label="Login"
+          >
+            🔐
+          </button>
+        )}
         <button
           id="menu-toggle"
           className="menu-toggle"
@@ -297,6 +320,11 @@ const Header: React.FC<HeaderProps> = ({ onViewChange }) => {
                       {connected ? 'Connected' : 'Disconnected'}
                     </span>
                   </div>
+                  <div id="menu-auth" className="menu-status">
+                    Auth: <span className={authUser ? 'status-connected' : 'status-disconnected'}>
+                      {authUser ? 'Signed' : 'Anonymous'}
+                    </span>
+                  </div>
                 </div>
 
                 {/* Menu Items */}
@@ -308,6 +336,53 @@ const Header: React.FC<HeaderProps> = ({ onViewChange }) => {
                     disabled={!connected}
                   >
                     📊 Export Results (JSON)
+                  </button>
+                )}
+
+                {/* Authentication Menu */}
+                {authUser ? (
+                  <>
+                    <div className="menu-section">
+                      <div className="menu-section-label">Authentication</div>
+                      <div className="menu-info">
+                        <div>Provider: <strong>{authUser.provider}</strong></div>
+                        {authUser.email && <div>Email: {authUser.email}</div>}
+                        {authUser.name && <div>Name: {authUser.name}</div>}
+                      </div>
+                    </div>
+                    <button
+                      className="menu-item"
+                      onClick={() => {
+                        authService.logout();
+                        setMenuOpen(false);
+                      }}
+                    >
+                      🚪 Logout
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    className="menu-item"
+                    onClick={() => {
+                      setShowLoginModal(true);
+                      setMenuOpen(false);
+                    }}
+                  >
+                    🔐 Login with Provider
+                  </button>
+                )}
+
+                {/* Disconnect (SpacetimeDB) */}
+                {connected && (
+                  <button
+                    id="menu-disconnect"
+                    className="menu-item"
+                    onClick={() => {
+                      spacetimeDB.disconnect();
+                      setMenuOpen(false);
+                    }}
+                  >
+                    🔌 Disconnect
                   </button>
                 )}
 
@@ -375,6 +450,15 @@ const Header: React.FC<HeaderProps> = ({ onViewChange }) => {
         onClose={() => setShareModalOpen(false)}
         shareUrl={window.location.href}
       />
+
+      {showLoginModal && (
+        <AuthLogin
+          onAuthenticated={() => {
+            setShowLoginModal(false);
+          }}
+          onCancel={() => setShowLoginModal(false)}
+        />
+      )}
     </header>
   );
 };

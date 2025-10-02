@@ -1,5 +1,6 @@
 // Real SpacetimeDB client integration - Direct use of generated SDK
 import { DbConnection } from '../generated/index';
+import { authService } from './authService';
 
 let connection: DbConnection | null = null;
 let currentUser: { identity: string; token?: string } | null = null;
@@ -8,8 +9,27 @@ let connectionCallbacks = new Set<(connected: boolean) => void>();
 let focusedVoteId: string | null = null;
 let subscriptionsApplied = false;
 const subscriptionsAppliedCallbacks = new Set<() => void>();
+const authErrorCallbacks = new Set<(message: string) => void>();
+const authValidatedCallbacks = new Set<() => void>();
 
 const AUTH_TOKEN_KEY = 'auth_token';
+
+// Subscribe to auth changes
+authService.onAuthChange((authUser) => {
+  if (authUser) {
+    console.log('Auth user changed, reconnecting with OIDC token...', {
+      provider: authUser.provider,
+      email: authUser.email,
+    });
+    // Reconnect with new token if already connected
+    if (connection) {
+      spacetimeDB.disconnect();
+      setTimeout(() => {
+        spacetimeDB.connect(authUser.token).catch(console.error);
+      }, 100);
+    }
+  }
+});
 
 function getCookie(name: string): string | null {
   if (typeof document === 'undefined') return null;
@@ -119,7 +139,11 @@ export const spacetimeDB = {
         : DEFAULT_SERVER_URI;
       
       const MODULE_NAME = 'zvote-proto1';
-                  const prevToken = token || localStorage.getItem(AUTH_TOKEN_KEY) || getCookie(AUTH_TOKEN_KEY) || '';
+      
+      // Prefer OIDC token from authService, fall back to stored token or provided token
+      const authUser = authService.getCurrentUser();
+      const prevToken = authUser?.token || token || localStorage.getItem(AUTH_TOKEN_KEY) || getCookie(AUTH_TOKEN_KEY) || '';
+      const attemptingWithToken = !!prevToken;
 
       console.log('Connecting to SpacetimeDB:', { SERVER_URI, MODULE_NAME });
 
@@ -163,6 +187,10 @@ export const spacetimeDB = {
         localStorage.setItem(AUTH_TOKEN_KEY, token);
         setCookie(AUTH_TOKEN_KEY, token);
         connectionCallbacks.forEach(cb => cb(true));
+        // If we connected using a token (i.e., token-based attempt, not anonymous retry), emit validated
+        if (attemptingWithToken) {
+          try { authValidatedCallbacks.forEach(cb => cb()); } catch {}
+        }
 
         // Subscriptions: if URL carries a token in query params, scope to that vote; else subscribe wide
         let queryToken: string | null = null;
@@ -200,8 +228,50 @@ export const spacetimeDB = {
         connectionCallbacks.forEach(cb => cb(false));
       };
 
-      const onConnectError = (_ctx: any, err: Error) => {
+      const onConnectError = async (_ctx: any, err: Error) => {
         console.error('Error connecting to SpacetimeDB:', err);
+        const message = String(err?.message || err || '');
+        const hadToken = !!(authUser?.token || prevToken);
+        const looksLikeAuthError = /unauthorized|verify token|invalid token|forbidden/i.test(message);
+
+        // If we attempted with a JWT/token and the server rejected it, fall back to anonymous.
+        if (hadToken && looksLikeAuthError) {
+          console.warn('Token rejected by server. Falling back to anonymous identity.');
+          // Notify listeners so UI can keep the login UI open and show the error
+          try { authErrorCallbacks.forEach(cb => cb(message)); } catch {}
+          try {
+            // Clear stored token (both our storage and cookie)
+            localStorage.removeItem(AUTH_TOKEN_KEY);
+            deleteCookie(AUTH_TOKEN_KEY);
+          } catch {}
+          try {
+            // Inform auth service so UI reflects anonymous state
+            // This clears authUser and prevents endless reconnects with bad token
+            await authService.loginAnonymously();
+          } catch {}
+          // Retry connection once without token
+          try {
+            const onConnectAnonymous = (conn: DbConnection, identity: any, token: string) => {
+              // Do not emit authValidated here; this is an anonymous retry
+              onConnect(conn, identity, token);
+            };
+            const retryBuilder = DbConnection.builder()
+              .withUri(SERVER_URI)
+              .withModuleName(MODULE_NAME)
+              .onConnect(onConnectAnonymous)
+              .onDisconnect(onDisconnect)
+              .onConnectError((ctx, e) => {
+                console.error('Retry (anonymous) connect failed:', e);
+                reject(e);
+              });
+            retryBuilder.build();
+            return; // prevent calling reject twice
+          } catch (e) {
+            return reject(e as Error);
+          }
+        }
+
+        // Otherwise bubble the error
         reject(err);
       };
 
@@ -296,6 +366,21 @@ export const spacetimeDB = {
 
   offSubscriptionsApplied(cb: () => void) {
     subscriptionsAppliedCallbacks.delete(cb);
+  }
+  ,
+  onAuthError(cb: (message: string) => void) {
+    authErrorCallbacks.add(cb);
+    return () => authErrorCallbacks.delete(cb);
+  },
+  offAuthError(cb: (message: string) => void) {
+    authErrorCallbacks.delete(cb);
+  },
+  onAuthValidated(cb: () => void) {
+    authValidatedCallbacks.add(cb);
+    return () => authValidatedCallbacks.delete(cb);
+  },
+  offAuthValidated(cb: () => void) {
+    authValidatedCallbacks.delete(cb);
   }
 };
 
