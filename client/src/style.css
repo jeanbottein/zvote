@@ -47,6 +47,9 @@ body[data-theme="light"] {
   --positive-fg: #ffffff;
   /* More opaque menu in light theme */
   --menu-bg: rgba(255, 255, 255, 0.5);
+  /* Surfaces for overlays/modals/buttons (match light modal ~84% opacity) */
+  --surface: #ffffffd6;          /* ≈84% white */
+  --surface-hover: #ffffffff;    /* solid white */
   /* Light theme background gradient */
   background: #70b2cf;
   background: linear-gradient(42deg, rgba(112, 178, 207, 1) 0%, rgba(104, 204, 146, 1) 50%, rgba(235, 230, 162, 1) 100%);
@@ -76,6 +79,9 @@ body[data-theme="dark"] {
   --positive-hover-bg: rgb(40, 80, 180);
   --positive-fg: #ffffff;
   --menu-bg: rgba(16, 24, 21, 0.5);
+  /* Surfaces for overlays/modals/buttons (match light modal ~84% opacity) */
+  --surface: #000000d6;          /* ≈84% black to match light transparency */
+  --surface-hover: rgba(255, 255, 255, 0.06);
   /* Dark theme background gradient (harmonious with light) */
   background: #0b1210;
   background: linear-gradient(42deg, rgba(15, 47, 61, 1) 0%, rgba(18, 77, 56, 1) 50%, rgba(58, 54, 20, 1) 100%);
