@@ -94,28 +94,32 @@ const MajorityJudgmentBallotFormView: React.FC<MajorityJudgmentBallotFormViewPro
         )}
       </div>
 
-      <div className="mj-ballot-form">
-        {options.map((option) => {
-          const userJudgment = userJudgments[String(option.id)] || 'Bad';
-          return (
-            <div key={option.id} className="mj-form-row">
-              <div className="mj-form-option-label">{option.label}</div>
-              <select
-                value={userJudgment}
-                onChange={(e) => handleJudgmentChange(option.id, e.target.value)}
-                disabled={isSubmitting}
-                className="mj-form-dropdown"
-              >
-                {mentionKeys.map((m) => (
-                  <option key={m} value={m}>
-                    {mentionLabel(m)}
-                  </option>
-                ))}
-              </select>
-            </div>
-          );
-        })}
-      </div>
+      <table className="mj-ballot-form">
+        <tbody>
+          {options.map((option) => {
+            const userJudgment = userJudgments[String(option.id)] || 'Bad';
+            return (
+              <tr key={option.id} className="mj-form-row">
+                <td className="mj-form-option-label">{option.label}</td>
+                <td>
+                  <select
+                    value={userJudgment}
+                    onChange={(e) => handleJudgmentChange(option.id, e.target.value)}
+                    disabled={isSubmitting}
+                    className="mj-form-dropdown"
+                  >
+                    {mentionKeys.map((m) => (
+                      <option key={m} value={m}>
+                        {mentionLabel(m)}
+                      </option>
+                    ))}
+                  </select>
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
     </div>
   );
 };

@@ -367,57 +367,60 @@ body[data-colorblind="true"] .mj-cell-btn[data-mention="Excellent"][data-selecte
 /* Majority Judgment Form View Ballot */
 /* ================================== */
 .mj-ballot-form {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  margin-top: 16px;
+  display: table;
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0 4px;
+  margin-top: 12px;
 }
 
 .mj-form-row {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  padding: 12px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: rgba(255,255,255,0.02);
-  transition: all 0.15s ease;
+  display: table-row;
 }
 
-.mj-form-row:hover {
-  background: rgba(255,255,255,0.04);
-  border-color: var(--border-hover);
+.mj-form-row:hover td {
+  background: rgba(255,255,255,0.03);
 }
 
 .mj-form-option-label {
-  flex: 1;
+  display: table-cell;
   font-weight: 500;
   color: var(--fg);
-  min-width: 200px;
+  font-size: 14px;
+  text-align: left;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 4px 0 0 4px;
+  background: var(--panel);
+  vertical-align: middle;
+  width: 1%;
+  white-space: nowrap;
 }
 
 .mj-form-dropdown {
-  flex: 0 0 auto;
-  min-width: 180px;
-  padding: 8px 12px;
+  display: table-cell;
+  width: 99%;
+  padding: 6px 10px;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-left: none;
+  border-radius: 0 4px 4px 0;
   background: var(--panel);
   color: var(--fg);
-  font-size: 14px;
+  font-size: 13px;
   cursor: pointer;
   transition: all 0.15s ease;
   appearance: none;
   background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
   background-repeat: no-repeat;
-  background-position: right 8px center;
-  background-size: 20px;
-  padding-right: 32px;
+  background-position: right 6px center;
+  background-size: 16px;
+  padding-right: 26px;
+  vertical-align: middle;
 }
 
 .mj-form-dropdown:hover {
   border-color: var(--border-hover);
-  background-color: rgba(255,255,255,0.05);
+  background-color: rgba(255,255,255,0.03);
 }
 
 .mj-form-dropdown:focus {
@@ -434,5 +437,91 @@ body[data-colorblind="true"] .mj-cell-btn[data-mention="Excellent"][data-selecte
 .mj-form-dropdown option {
   background: var(--panel);
   color: var(--fg);
-  padding: 8px;
+  padding: 6px;
+}
+
+/* Dropdown color variants based on selected mention */
+.mj-form-dropdown[value="Excellent"] {
+  background-color: #065f46;
+  color: #fff;
+  border-color: #065f46;
+}
+
+.mj-form-dropdown[value="VeryGood"] {
+  background-color: #15803d;
+  color: #fff;
+  border-color: #15803d;
+}
+
+.mj-form-dropdown[value="Good"] {
+  background-color: #86efac;
+  color: #0b0b0b;
+  border-color: #22c55e;
+}
+
+.mj-form-dropdown[value="Fair"] {
+  background-color: #f9f1c4;
+  color: #0b0b0b;
+  border-color: #e6d875;
+}
+
+.mj-form-dropdown[value="Passable"] {
+  background-color: #fecaca;
+  color: #0b0b0b;
+  border-color: #fca5a5;
+}
+
+.mj-form-dropdown[value="Inadequate"] {
+  background-color: #ef4444;
+  color: #fff;
+  border-color: #ef4444;
+}
+
+.mj-form-dropdown[value="Bad"] {
+  background-color: #7f1d1d;
+  color: #fff;
+  border-color: #7f1d1d;
+}
+
+/* Colorblind variants */
+body[data-colorblind="true"] .mj-form-dropdown[value="Bad"] {
+  background-color: #1f2937;
+  color: #fff;
+  border-color: #1f2937;
+}
+
+body[data-colorblind="true"] .mj-form-dropdown[value="Inadequate"] {
+  background-color: #4b5563;
+  color: #fff;
+  border-color: #4b5563;
+}
+
+body[data-colorblind="true"] .mj-form-dropdown[value="Passable"] {
+  background-color: #9ca3af;
+  color: #0b0b0b;
+  border-color: #9ca3af;
+}
+
+body[data-colorblind="true"] .mj-form-dropdown[value="Fair"] {
+  background-color: #d1d5db;
+  color: #0b0b0b;
+  border-color: #d1d5db;
+}
+
+body[data-colorblind="true"] .mj-form-dropdown[value="Good"] {
+  background-color: #e5e7eb;
+  color: #0b0b0b;
+  border-color: #e5e7eb;
+}
+
+body[data-colorblind="true"] .mj-form-dropdown[value="VeryGood"] {
+  background-color: #e5e7eb;
+  color: #0b0b0b;
+  border-color: #e5e7eb;
+}
+
+body[data-colorblind="true"] .mj-form-dropdown[value="Excellent"] {
+  background-color: #f3f4f6;
+  color: #0b0b0b;
+  border-color: #f3f4f6;
 }
