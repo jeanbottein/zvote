@@ -65,7 +65,7 @@ const MajorityJudgmentBallotFormView: React.FC<MajorityJudgmentBallotFormViewPro
     
     setIsSubmitting(true);
     try {
-      spacetimeDB.reducers.withdrawJudgmentBallot(Number(voteId));
+      spacetimeDB.reducers.withdrawJudgments(Number(voteId));
       if (onJudgmentsWithdrawn) onJudgmentsWithdrawn();
       if (onBallotSubmitted) onBallotSubmitted();
     } catch (error) {
@@ -97,7 +97,7 @@ const MajorityJudgmentBallotFormView: React.FC<MajorityJudgmentBallotFormViewPro
       <table className="mj-ballot-form">
         <tbody>
           {options.map((option) => {
-            const userJudgment = userJudgments[String(option.id)] || 'Bad';
+            const userJudgment = userJudgments[String(option.id)] || '';
             return (
               <tr key={option.id} className="mj-form-row">
                 <td className="mj-form-option-label">{option.label}</td>
@@ -108,6 +108,9 @@ const MajorityJudgmentBallotFormView: React.FC<MajorityJudgmentBallotFormViewPro
                     disabled={isSubmitting}
                     className="mj-form-dropdown"
                   >
+                    <option value="" disabled>
+                      Select a grade...
+                    </option>
                     {mentionKeys.map((m) => (
                       <option key={m} value={m}>
                         {mentionLabel(m)}
