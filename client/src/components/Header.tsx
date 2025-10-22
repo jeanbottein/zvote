@@ -4,6 +4,7 @@ import { spacetimeDB } from '../lib/spacetimeClient';
 import { authService, type AuthUser } from '../lib/authService';
 import { getColorMode, setColorMode as persistColorMode, onColorModeChange } from '../lib/colorMode';
 import { useVoteByToken } from '../hooks/useVoteByToken';
+import { usePreferences } from '../context/PreferencesContext';
 import { rankOptions } from '../utils/majorityJudgment';
 import ShareModal from './ShareModal';
 import AuthLogin from './AuthLogin';
@@ -15,6 +16,7 @@ interface HeaderProps {
 const Header: React.FC<HeaderProps> = ({ onViewChange }) => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { preferences, updatePreferences } = usePreferences();
   const [user, setUser] = useState(spacetimeDB.currentUser);
   const [connected, setConnected] = useState(false);
   const [authUser, setAuthUser] = useState<AuthUser | null>(authService.getCurrentUser());
@@ -439,6 +441,42 @@ const Header: React.FC<HeaderProps> = ({ onViewChange }) => {
                 >
                   {colorMode === 'color' ? '🎨 Colorblind Mode' : '🌈 Color Mode'}
                 </button>
+
+                {/* Preferences Section */}
+                <div id="menu-preferences-section" className="menu-section">
+                  <div id="menu-preferences-label" className="menu-section-label">Preferences</div>
+                  
+                  {/* Majority Judgment Ballot View */}
+                  <div id="menu-mj-ballot-section" className="menu-subsection">
+                    <div className="menu-subsection-label">Majority Judgment Ballot</div>
+                    <div id="mj-ballot-selector" className="theme-selector">
+                      <button
+                        id="mj-ballot-table"
+                        className="theme-btn"
+                        data-selected={preferences.mjBallotView === 'table' ? 'true' : 'false'}
+                        onClick={() => {
+                          updatePreferences({ mjBallotView: 'table' });
+                        }}
+                        title="Table view"
+                        aria-label="Table view"
+                      >
+                        📊
+                      </button>
+                      <button
+                        id="mj-ballot-form"
+                        className="theme-btn theme-btn-middle"
+                        data-selected={preferences.mjBallotView === 'form' ? 'true' : 'false'}
+                        onClick={() => {
+                          updatePreferences({ mjBallotView: 'form' });
+                        }}
+                        title="Form view"
+                        aria-label="Form view"
+                      >
+                        📝
+                      </button>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </>

@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { VoteWithOptions } from '../../hooks/useVotes';
 import { spacetimeDB } from '../../lib/spacetimeClient';
+import { usePreferences } from '../../context/PreferencesContext';
 import ApprovalBallotInterface from '../VotingSystem/ApprovalVoting/ApprovalBallotInterface';
 import MajorityJudgmentBallotInterface from '../VotingSystem/MajorityJudgment/MajorityJudgmentBallotInterface';
+import MajorityJudgmentBallotFormView from '../VotingSystem/MajorityJudgment/MajorityJudgmentBallotFormView';
 
 interface BallotInterfaceProps {
   vote: VoteWithOptions;
@@ -11,6 +13,7 @@ interface BallotInterfaceProps {
 }
 
 const BallotInterface: React.FC<BallotInterfaceProps> = ({ vote, onBallotSubmitted, onError }) => {
+  const { preferences } = usePreferences();
   const [userApprovals, setUserApprovals] = useState<Set<string>>(new Set());
   const [userJudgments, setUserJudgments] = useState<Record<string, string>>({});
 
@@ -176,8 +179,21 @@ const BallotInterface: React.FC<BallotInterfaceProps> = ({ vote, onBallotSubmitt
         />
       )}
 
-      {isMajorityJudgment && (
+      {isMajorityJudgment && preferences.mjBallotView === 'table' && (
         <MajorityJudgmentBallotInterface
+          voteId={vote.id}
+          voteTitle={vote.title}
+          options={vote.options}
+          userJudgments={userJudgments}
+          onBallotSubmitted={handleBallotSubmitted}
+          onJudgmentChanged={handleJudgmentChanged}
+          onJudgmentsWithdrawn={handleJudgmentsWithdrawn}
+          onError={onError}
+        />
+      )}
+
+      {isMajorityJudgment && preferences.mjBallotView === 'form' && (
+        <MajorityJudgmentBallotFormView
           voteId={vote.id}
           voteTitle={vote.title}
           options={vote.options}

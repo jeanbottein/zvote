@@ -362,3 +362,77 @@ body[data-colorblind="true"] .mj-cell-btn[data-mention="Fair"][data-selected="tr
 body[data-colorblind="true"] .mj-cell-btn[data-mention="Good"][data-selected="true"] { border-color: #d1d5db; background: #d1d5db; color: #0b0b0b; }
 body[data-colorblind="true"] .mj-cell-btn[data-mention="VeryGood"][data-selected="true"] { border-color: #e5e7eb; background: #e5e7eb; color: #0b0b0b; }
 body[data-colorblind="true"] .mj-cell-btn[data-mention="Excellent"][data-selected="true"] { border-color: #f3f4f6; background: #f3f4f6; color: #0b0b0b; }
+
+/* ================================== */
+/* Majority Judgment Form View Ballot */
+/* ================================== */
+.mj-ballot-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.mj-form-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: rgba(255,255,255,0.02);
+  transition: all 0.15s ease;
+}
+
+.mj-form-row:hover {
+  background: rgba(255,255,255,0.04);
+  border-color: var(--border-hover);
+}
+
+.mj-form-option-label {
+  flex: 1;
+  font-weight: 500;
+  color: var(--fg);
+  min-width: 200px;
+}
+
+.mj-form-dropdown {
+  flex: 0 0 auto;
+  min-width: 180px;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--panel);
+  color: var(--fg);
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  appearance: none;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  background-size: 20px;
+  padding-right: 32px;
+}
+
+.mj-form-dropdown:hover {
+  border-color: var(--border-hover);
+  background-color: rgba(255,255,255,0.05);
+}
+
+.mj-form-dropdown:focus {
+  outline: none;
+  border-color: var(--accent-solid);
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2);
+}
+
+.mj-form-dropdown:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.mj-form-dropdown option {
+  background: var(--panel);
+  color: var(--fg);
+  padding: 8px;
+}

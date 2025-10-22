@@ -1107,3 +1107,21 @@ body[data-colorblind="true"] .mj-mention[data-mention="Excellent"][data-selected
   opacity: 0.5;
   cursor: not-allowed;
 }
+
+/* Menu Subsection Styling */
+.menu-subsection {
+  padding: 8px 0;
+  border-top: 1px solid var(--border);
+  margin-top: 8px;
+  padding-top: 8px;
+}
+
+.menu-subsection-label {
+  font-size: 12px;
+  color: var(--muted);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 0 12px 8px 12px;
+  display: block;
+}
