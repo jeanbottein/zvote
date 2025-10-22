@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { spacetimeDB } from '../lib/spacetimeClient';
 import { useToast } from './ToastProvider';
-import { deepEqual } from '@clockworklabs/spacetimedb-sdk';
+import { deepEqual } from 'spacetimedb';
 
 interface DeleteVoteButtonProps {
   voteId: string;

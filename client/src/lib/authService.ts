@@ -44,28 +44,28 @@ export interface OIDCConfig {
 // NOTE: You need to create OAuth apps for each provider and configure these
 const OIDC_CONFIGS: Record<Exclude<AuthProvider, 'anonymous'>, Partial<OIDCConfig>> = {
   google: {
-    clientId: process.env.VITE_GOOGLE_CLIENT_ID || 'YOUR_GOOGLE_CLIENT_ID',
+    clientId: import.meta.env.VITE_GOOGLE_CLIENT_ID || 'YOUR_GOOGLE_CLIENT_ID',
     authEndpoint: 'https://accounts.google.com/o/oauth2/v2/auth',
     tokenEndpoint: 'https://oauth2.googleapis.com/token',
     scope: 'openid email profile',
   },
   apple: {
-    clientId: process.env.VITE_APPLE_CLIENT_ID || 'YOUR_APPLE_CLIENT_ID',
+    clientId: import.meta.env.VITE_APPLE_CLIENT_ID || 'YOUR_APPLE_CLIENT_ID',
     authEndpoint: 'https://appleid.apple.com/auth/authorize',
     tokenEndpoint: 'https://appleid.apple.com/auth/token',
     scope: 'openid email name',
   },
   meta: {
-    clientId: process.env.VITE_META_CLIENT_ID || 'YOUR_META_CLIENT_ID',
+    clientId: import.meta.env.VITE_META_CLIENT_ID || 'YOUR_META_CLIENT_ID',
     authEndpoint: 'https://www.facebook.com/v18.0/dialog/oauth',
     tokenEndpoint: 'https://graph.facebook.com/v18.0/oauth/access_token',
     scope: 'openid email public_profile',
   },
   email: {
     // For email-based auth, you'd use a service like Auth0, Supabase, or your own backend
-    clientId: process.env.VITE_EMAIL_CLIENT_ID || 'YOUR_EMAIL_CLIENT_ID',
-    authEndpoint: process.env.VITE_EMAIL_AUTH_ENDPOINT || '',
-    tokenEndpoint: process.env.VITE_EMAIL_TOKEN_ENDPOINT || '',
+    clientId: import.meta.env.VITE_EMAIL_CLIENT_ID || 'YOUR_EMAIL_CLIENT_ID',
+    authEndpoint: import.meta.env.VITE_EMAIL_AUTH_ENDPOINT || '',
+    tokenEndpoint: import.meta.env.VITE_EMAIL_TOKEN_ENDPOINT || '',
     scope: 'openid email',
   },
 };

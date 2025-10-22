@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { deepEqual } from '@clockworklabs/spacetimedb-sdk';
+import { deepEqual } from 'spacetimedb';
 import { spacetimeDB } from '../lib/spacetimeClient';
 import { VotingSystem } from '../generated/voting_system_type';
 

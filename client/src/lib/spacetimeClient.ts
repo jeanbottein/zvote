@@ -132,7 +132,14 @@ export const spacetimeDB = {
       // Configuration de connexion
       const scheme = location.protocol === 'https:' ? 'wss' : 'ws';
       const hostForDefault = location.hostname || 'localhost';
-      const DEFAULT_SERVER_URI = `${scheme}://${hostForDefault === 'localhost' ? '127.0.0.1' : hostForDefault}:3000`;
+      
+      // In development (Vite dev server), connect through proxy on same origin
+      // In production, connect directly to SpacetimeDB server
+      const isDev = import.meta.env.DEV;
+      const DEFAULT_SERVER_URI = isDev
+        ? `${scheme}://${location.host}` // Use dev server host (proxy will forward)
+        : `${scheme}://${hostForDefault === 'localhost' ? '127.0.0.1' : hostForDefault}:3000`;
+      
       const overrideServerText = (typeof localStorage !== 'undefined' ? localStorage.getItem('server_uri_override') || '' : '').trim();
       const SERVER_URI = (overrideServerText && overrideServerText.toLowerCase() !== 'auto')
         ? overrideServerText

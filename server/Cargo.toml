@@ -9,7 +9,7 @@ edition = "2021"
 crate-type = ["cdylib"]
 
 [dependencies]
-spacetimedb = { version = "1.4.0", features = ["unstable"] }
+spacetimedb = { version = "1.6.0", features = ["unstable"] }
 log = "0.4"
-blake3 = "1.5"
-base64 = { version = "0.21", default-features = false, features = ["alloc"] }
+blake3 = "1.8.2"
+base64 = { version = "0.22.1", default-features = false, features = ["alloc"] }

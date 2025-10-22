@@ -28,34 +28,6 @@ import {
   type TableHandle as __TableHandle,
 } from "spacetimedb";
 
-export type EnsureServerInfo = {};
-let _cached_EnsureServerInfo_type_value: __AlgebraicTypeType | null = null;
-
-/**
- * An object for generated helper functions.
- */
-export const EnsureServerInfo = {
-  /**
-  * A function which returns this type represented as an AlgebraicType.
-  * This function is derived from the AlgebraicType used to generate this type.
-  */
-  getTypeScriptAlgebraicType(): __AlgebraicTypeType {
-    if (_cached_EnsureServerInfo_type_value) return _cached_EnsureServerInfo_type_value;
-    _cached_EnsureServerInfo_type_value = __AlgebraicTypeValue.Product({ elements: [] });
-    _cached_EnsureServerInfo_type_value.value.elements.push(
-    );
-    return _cached_EnsureServerInfo_type_value;
-  },
-
-  serialize(writer: __BinaryWriter, value: EnsureServerInfo): void {
-    __AlgebraicTypeValue.serializeValue(writer, EnsureServerInfo.getTypeScriptAlgebraicType(), value);
-  },
-
-  deserialize(reader: __BinaryReader): EnsureServerInfo {
-    return __AlgebraicTypeValue.deserializeValue(reader, EnsureServerInfo.getTypeScriptAlgebraicType());
-  },
-
-}
-
-export default EnsureServerInfo;
+export type Approval = { tag: "Approval" };
+export type MajorityJudgment = { tag: "MajorityJudgment" };
 

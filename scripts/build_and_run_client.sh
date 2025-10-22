@@ -8,6 +8,17 @@ PORT="${PORT:-5173}"
 
 cd "$CLIENT_DIR" || exit 1
 
+# Kill any existing npm/node processes on the port
+echo "Cleaning up any existing npm processes..."
+if lsof -Pi :$PORT -sTCP:LISTEN -t >/dev/null 2>&1; then
+  echo "Killing process on port $PORT..."
+  lsof -ti:$PORT | xargs kill -9 2>/dev/null || true
+fi
+
+# Also kill any stray npm processes
+pkill -f "npm.*dev" 2>/dev/null || true
+pkill -f "npm.*preview" 2>/dev/null || true
+
 if ! command -v node >/dev/null 2>&1; then
   echo "Error: node is not installed. Install from https://nodejs.org/" >&2
   exit 1
