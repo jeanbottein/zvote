@@ -120,7 +120,7 @@ h1 { font-size: 20px; margin: 0; font-weight: 600; }
 .identity code { color: var(--fg); background: #151515; border: 1px solid var(--border); padding: 2px 6px; border-radius: 6px; }
 .server { display: flex; gap: 8px; align-items: center; }
 .server input { width: 200px; }
-main { display: grid; gap: 16px; grid-template-columns: 1fr 1fr; padding: 16px; }
+main { display: grid; gap: 16px; grid-template-columns: 1fr 1fr; padding: 16px; align-items: start; }
 .panel {
   background: var(--panel);
   border: 1px solid var(--border);
@@ -800,7 +800,6 @@ body[data-colorblind="true"] .mj-mention[data-mention="Excellent"][data-selected
 }
 
 .ballot { 
-  margin-top: 24px;
   background: rgba(200, 150, 70, 0.75);
   border: 1px solid var(--border);
   padding: 0px 20px 20px;
@@ -811,6 +810,9 @@ body[data-colorblind="true"] .mj-mention[data-mention="Excellent"][data-selected
   max-width: 900px;
   margin-left: auto;
   margin-right: auto;
+  /* Fit content height, don't stretch */
+  height: auto;
+  min-height: auto;
 }
 
 /* Share Button */

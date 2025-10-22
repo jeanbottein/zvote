@@ -3,6 +3,7 @@ import { spacetimeDB } from '../../../lib/spacetimeClient';
 
 interface ApprovalBallotInterfaceProps {
   voteId: string;
+  voteTitle: string;
   options: Array<{ id: string; label: string }>;
   userApprovals: Set<string>;
   onBallotSubmitted?: () => void;
@@ -13,6 +14,7 @@ interface ApprovalBallotInterfaceProps {
 
 const ApprovalBallotInterface: React.FC<ApprovalBallotInterfaceProps> = ({
   voteId,
+  voteTitle,
   options,
   userApprovals,
   onBallotSubmitted,
@@ -71,7 +73,7 @@ const ApprovalBallotInterface: React.FC<ApprovalBallotInterfaceProps> = ({
   return (
     <div id={`approval-ballot-${voteId}`} className="ballot-interface">
       <div id={`approval-ballot-header-${voteId}`} className="ballot-header">
-        <div id={`approval-ballot-label-${voteId}`} className="ballot-label">Your ballot</div>
+        <div id={`approval-ballot-label-${voteId}`} className="ballot-label">Your ballot for {voteTitle}</div>
         {hasSubmittedBallot && (
           <button
             onClick={handleWithdrawBallot}

@@ -166,6 +166,7 @@ const BallotInterface: React.FC<BallotInterfaceProps> = ({ vote, onBallotSubmitt
       {isApprovalVoting && (
         <ApprovalBallotInterface
           voteId={vote.id}
+          voteTitle={vote.title}
           options={vote.options}
           userApprovals={userApprovals}
           onBallotSubmitted={handleBallotSubmitted}
@@ -178,6 +179,7 @@ const BallotInterface: React.FC<BallotInterfaceProps> = ({ vote, onBallotSubmitt
       {isMajorityJudgment && (
         <MajorityJudgmentBallotInterface
           voteId={vote.id}
+          voteTitle={vote.title}
           options={vote.options}
           userJudgments={userJudgments}
           onBallotSubmitted={handleBallotSubmitted}

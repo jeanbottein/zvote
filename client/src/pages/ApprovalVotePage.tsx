@@ -54,17 +54,23 @@ const ApprovalVotePage: React.FC = () => {
   const totalVoters = Math.max(...(vote.options || []).map(o => o.approvals_count || 0), 0);
 
   return (
-    <div className="panel">
-            <div className="vote-page-header">
-        <h2>{vote.title}</h2>
-        <div className="ballot-count-badge">
-          <span className="ballot-count-number">{totalVoters}</span>
-          <span className="ballot-count-label">{totalVoters === 1 ? 'ballot' : 'ballots'}</span>
+    <>
+      {/* Ballot section - outside panel */}
+      <BallotInterface 
+        vote={vote}
+        onBallotSubmitted={() => {}} // No success toast
+        onError={(msg: string) => showToast({ type: 'error', message: msg })}
+      />
+
+      {/* Results section - in panel */}
+      <div className="panel">
+        <div className="vote-page-header">
+          <h3 style={{ marginBottom: '16px' }}>Results for {vote.title}</h3>
+          <div className="ballot-count-badge">
+            <span className="ballot-count-number">{totalVoters}</span>
+            <span className="ballot-count-label">{totalVoters === 1 ? 'ballot' : 'ballots'}</span>
+          </div>
         </div>
-      </div>
-      
-      {/* Always show results section, even when empty */}
-      <div style={{ marginTop: '16px' }}>
         {(vote.options || []).map((option) => (
           <ApprovalResultsDisplay
             key={option.id}
@@ -74,20 +80,14 @@ const ApprovalVotePage: React.FC = () => {
             compact={false}
           />
         ))}
+
+        <DeleteVoteButton
+          voteId={vote.id}
+          voteCreator={vote.creator}
+          voteTitle={vote.title}
+        />
       </div>
-
-      <BallotInterface 
-        vote={vote}
-        onBallotSubmitted={() => {}} // No success toast
-        onError={(msg: string) => showToast({ type: 'error', message: msg })}
-      />
-
-      <DeleteVoteButton
-        voteId={vote.id}
-        voteCreator={vote.creator}
-        voteTitle={vote.title}
-      />
-    </div>
+    </>
   );
 };
 

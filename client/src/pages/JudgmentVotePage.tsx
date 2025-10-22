@@ -51,16 +51,23 @@ const JudgmentVotePage: React.FC = () => {
   const hasVotes = totalBallots > 0;
 
   return (
-    <div className="panel">
-      <div className="vote-page-header">
-        <h2>{vote.title}</h2>
-        <div className="ballot-count-badge">
-          <span className="ballot-count-number">{totalBallots}</span>
-          <span className="ballot-count-label">{totalBallots === 1 ? 'ballot' : 'ballots'}</span>
+    <>
+      {/* Ballot section - outside panel */}
+      <BallotInterface 
+        vote={vote}
+        onBallotSubmitted={() => {}} // No success toast
+        onError={(msg: string) => showToast({ type: 'error', message: msg })}
+      />
+
+      {/* Results section - in panel */}
+      <div className="panel">
+        <div className="vote-page-header">
+          <h3 style={{ marginBottom: '16px' }}>Results for {vote.title}</h3>
+          <div className="ballot-count-badge">
+            <span className="ballot-count-number">{totalBallots}</span>
+            <span className="ballot-count-label">{totalBallots === 1 ? 'ballot' : 'ballots'}</span>
+          </div>
         </div>
-      </div>
-      
-      <div style={{ marginTop: '16px' }}>
         {rankedOptions.map((option) => (
           <MajorityJudgmentResultsGraph
             key={option.id}
@@ -80,23 +87,17 @@ const JudgmentVotePage: React.FC = () => {
             isExAequo={hasVotes && rankedOptions.filter(opt => opt.mjAnalysis.rank === option.mjAnalysis.rank).length > 1}
           />
         ))}
+
+        <DeleteVoteButton
+          voteId={vote.id}
+          voteCreator={vote.creator}
+          voteTitle={vote.title}
+        />
+
+        {/* DEV ONLY: Ballot Feeder Tool. Remove this line to hide it. */}
+        <DevBallotFeeder vote={vote} />
       </div>
-
-      <BallotInterface 
-        vote={vote}
-        onBallotSubmitted={() => {}} // No success toast
-        onError={(msg: string) => showToast({ type: 'error', message: msg })}
-      />
-
-      <DeleteVoteButton
-        voteId={vote.id}
-        voteCreator={vote.creator}
-        voteTitle={vote.title}
-      />
-
-      {/* DEV ONLY: Ballot Feeder Tool. Remove this line to hide it. */}
-      <DevBallotFeeder vote={vote} />
-    </div>
+    </>
   );
 };
 

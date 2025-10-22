@@ -4,6 +4,7 @@ import { Mention } from '../../../generated/mention_type';
 
 interface MajorityJudgmentBallotInterfaceProps {
   voteId: string;
+  voteTitle: string;
   options: Array<{ id: string; label: string }>;
   userJudgments: Record<string, string>;
   onBallotSubmitted?: () => void;
@@ -14,6 +15,7 @@ interface MajorityJudgmentBallotInterfaceProps {
 
 const MajorityJudgmentBallotInterface: React.FC<MajorityJudgmentBallotInterfaceProps> = ({
   voteId,
+  voteTitle,
   options,
   userJudgments,
   onBallotSubmitted,
@@ -83,7 +85,7 @@ const MajorityJudgmentBallotInterface: React.FC<MajorityJudgmentBallotInterfaceP
   return (
     <div id={`mj-ballot-${voteId}`} className="ballot-interface">
       <div id={`mj-ballot-header-${voteId}`} className="ballot-header">
-        <div id={`mj-ballot-label-${voteId}`} className="ballot-label">Your ballot</div>
+        <div id={`mj-ballot-label-${voteId}`} className="ballot-label">Your ballot for {voteTitle}</div>
         {hasSubmittedBallot && (
           <button
             onClick={handleWithdrawBallot}
