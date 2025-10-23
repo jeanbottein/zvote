@@ -6,6 +6,8 @@ import BallotInterface from '../features/BallotInterface/BallotInterface';
 import ApprovalResultsDisplay from '../features/VotingSystem/ApprovalVoting/ApprovalResultsDisplay';
 import { useToast } from '../components/ToastProvider';
 import DeleteVoteButton from '../components/DeleteVoteButton';
+import DevBallotFeeder from '../components/DevBallotFeeder';
+import { shouldShowBallotFeeder } from '../config';
 
 const ApprovalVotePage: React.FC = () => {
   const [params] = useSearchParams();
@@ -86,6 +88,11 @@ const ApprovalVotePage: React.FC = () => {
           voteCreator={vote.creator}
           voteTitle={vote.title}
         />
+
+        {/* DEV ONLY: Ballot Feeder Tool - Only visible for own votes if enabled in config.ts */}
+        {shouldShowBallotFeeder(vote.creator, spacetimeDB.currentUser) && (
+          <DevBallotFeeder vote={vote} />
+        )}
       </div>
     </>
   );

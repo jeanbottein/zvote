@@ -8,6 +8,7 @@ import { useToast } from '../components/ToastProvider';
 import DevBallotFeeder from '../components/DevBallotFeeder';
 import { rankOptions } from '../utils/majorityJudgment';
 import DeleteVoteButton from '../components/DeleteVoteButton';
+import { shouldShowBallotFeeder } from '../config';
 
 const JudgmentVotePage: React.FC = () => {
   const [params] = useSearchParams();
@@ -94,8 +95,10 @@ const JudgmentVotePage: React.FC = () => {
           voteTitle={vote.title}
         />
 
-        {/* DEV ONLY: Ballot Feeder Tool. Remove this line to hide it. */}
-        <DevBallotFeeder vote={vote} />
+        {/* DEV ONLY: Ballot Feeder Tool - Only visible for own votes if enabled in config.ts */}
+        {shouldShowBallotFeeder(vote.creator, spacetimeDB.currentUser) && (
+          <DevBallotFeeder vote={vote} />
+        )}
       </div>
     </>
   );
