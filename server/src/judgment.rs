@@ -14,6 +14,13 @@ pub enum Mention {
     Excellent,    // Excellent
 }
 
+/// A single judgment entry for batch submission
+#[derive(SpacetimeType, Clone, Debug)]
+pub struct JudgmentEntry {
+    pub option_id: u32,
+    pub mention: Mention,
+}
+
 // Judgments table: represents user's judgment ballots for specific options
 // This stores individual ballot ratings, not aggregated results
 // Public with RLS so each client only sees their own ballot rows
@@ -226,4 +233,85 @@ pub fn withdraw_judgments(ctx: &ReducerContext, vote_id: u32) -> Result<(), Stri
 #[spacetimedb::reducer]
 pub fn submit_judgment_ballot(ctx: &ReducerContext, option_id: u32, mention: Mention) -> Result<(), String> {
     cast_judgment(ctx, option_id, mention)
+}
+
+/// Submit a complete judgment ballot for all options in a vote in one transaction.
+/// This ensures atomicity and validates that all options have been judged.
+/// 
+/// Parameters:
+/// - vote_id: The vote to submit the ballot for
+/// - judgments: Vector of JudgmentEntry, one for each option
+/// 
+/// Returns an error if:
+/// - The vote doesn't exist or isn't a Majority Judgment vote
+/// - The number of judgments doesn't match the number of options
+/// - Any option_id is invalid or doesn't belong to this vote
+#[spacetimedb::reducer]
+pub fn submit_complete_judgment_ballot(
+    ctx: &ReducerContext,
+    vote_id: u32,
+    judgments: Vec<JudgmentEntry>
+) -> Result<(), String> {
+    // 1. Validate the vote exists and is Majority Judgment
+    let Some(vote) = find_vote_by_id(ctx, vote_id) else {
+        return Err("Vote not found".into());
+    };
+    if vote.voting_system != VotingSystem::MajorityJudgment {
+        return Err("This vote does not use majority judgment".into());
+    }
+
+    // 2. Get all options for this vote and validate completeness
+    let options: Vec<_> = get_vote_options(ctx, vote_id).collect();
+    if judgments.len() != options.len() {
+        return Err(format!(
+            "Incomplete ballot: expected {} judgments but received {}",
+            options.len(),
+            judgments.len()
+        ));
+    }
+
+    // 3. Validate all option_ids belong to this vote
+    for entry in &judgments {
+        let valid = options.iter().any(|opt| opt.id == entry.option_id);
+        if !valid {
+            return Err(format!("Option {} does not belong to vote {}", entry.option_id, vote_id));
+        }
+    }
+
+    // 4. Check for duplicate option_ids
+    let mut seen_ids = std::collections::HashSet::new();
+    for entry in &judgments {
+        if !seen_ids.insert(entry.option_id) {
+            return Err(format!("Duplicate judgment for option {}", entry.option_id));
+        }
+    }
+
+    // 5. Delete all existing judgments for this voter on this vote (if any)
+    for opt in &options {
+        let rows: Vec<_> = ctx
+            .db
+            .judgment()
+            .by_option()
+            .filter(opt.id)
+            .filter(|j| j.voter == ctx.sender)
+            .collect();
+        for r in rows {
+            ctx.db.judgment().delete(r);
+        }
+    }
+
+    // 6. Insert all new judgments in one transaction
+    for entry in judgments {
+        ctx.db.judgment().insert(Judgment {
+            id: 0,
+            option_id: entry.option_id,
+            voter: ctx.sender,
+            mention: entry.mention,
+        });
+    }
+
+    // 7. Recompute summaries once for the entire vote
+    recompute_mj_summary_for_vote(ctx, vote_id);
+
+    Ok(())
 }

@@ -1,13 +1,16 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 
 export type MajorityJudgmentBallotView = 'table' | 'form';
+export type BallotSubmissionMode = 'instant' | 'envelope';
 
 interface UserPreferences {
   mjBallotView: MajorityJudgmentBallotView;
+  ballotSubmissionMode: BallotSubmissionMode;
 }
 
 const defaultPreferences: UserPreferences = {
   mjBallotView: 'table',
+  ballotSubmissionMode: 'instant',
 };
 
 interface PreferencesContextType {

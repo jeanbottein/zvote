@@ -476,6 +476,37 @@ const Header: React.FC<HeaderProps> = ({ onViewChange }) => {
                       </button>
                     </div>
                   </div>
+
+                  {/* Ballot Submission Mode */}
+                  <div id="menu-submission-mode-section" className="menu-subsection">
+                    <div className="menu-subsection-label">Ballot Submission</div>
+                    <div id="submission-mode-selector" className="theme-selector">
+                      <button
+                        id="submission-instant"
+                        className="theme-btn"
+                        data-selected={preferences.ballotSubmissionMode === 'instant' ? 'true' : 'false'}
+                        onClick={() => {
+                          updatePreferences({ ballotSubmissionMode: 'instant' });
+                        }}
+                        title="Live Vote - Changes are submitted immediately"
+                        aria-label="Live vote"
+                      >
+                        ⚡
+                      </button>
+                      <button
+                        id="submission-envelope"
+                        className="theme-btn theme-btn-middle"
+                        data-selected={preferences.ballotSubmissionMode === 'envelope' ? 'true' : 'false'}
+                        onClick={() => {
+                          updatePreferences({ ballotSubmissionMode: 'envelope' });
+                        }}
+                        title="Envelope Vote - Review and submit your complete ballot"
+                        aria-label="Envelope vote"
+                      >
+                        ✉️
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>

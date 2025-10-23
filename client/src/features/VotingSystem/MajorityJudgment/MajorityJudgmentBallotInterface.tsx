@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { spacetimeDB } from '../../../lib/spacetimeClient';
 import { Mention } from '../../../generated/mention_type';
+import { JudgmentEntry } from '../../../generated/judgment_entry_type';
+import { usePreferences } from '../../../context/PreferencesContext';
 
 interface MajorityJudgmentBallotInterfaceProps {
   voteId: string;
@@ -23,26 +25,40 @@ const MajorityJudgmentBallotInterface: React.FC<MajorityJudgmentBallotInterfaceP
   onJudgmentsWithdrawn,
   onError
 }) => {
+  const { preferences } = usePreferences();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [pendingChanges, setPendingChanges] = useState<Record<string, string>>({});
+  const [hasChanges, setHasChanges] = useState(false);
+
+  const isEnvelopeMode = preferences.ballotSubmissionMode === 'envelope';
+
+  // Clear pending changes when external userJudgments change (e.g., from server or withdraw)
+  useEffect(() => {
+    setPendingChanges({});
+    setHasChanges(false);
+  }, [userJudgments]);
 
   // 7-level mentions best-to-worst (for UI header left-to-right)
   const mentionKeys = ['Excellent','VeryGood','Good','Fair','Passable','Inadequate','Bad'] as const;
   const mentionLabel = (m: string) => m.replace(/([A-Z])/g, ' $1').trim();
 
   const handleJudgmentSubmit = async (optionId: string, mention: string) => {
+    if (isEnvelopeMode) {
+      // Envelope mode: only record locally
+      setPendingChanges(prev => ({ ...prev, [optionId]: mention }));
+      setHasChanges(true);
+      return;
+    }
+
+    // Live mode: submit immediately
     if (isSubmitting) return;
-    
     setIsSubmitting(true);
     try {
-      // Check if this is the user's first judgment for this vote
       const isFirstJudgment = Object.keys(userJudgments).length === 0;
-
-      // Convert string to Mention tagged union and send to server
       const mentionValue = (Mention as any)[mention] as any;
       spacetimeDB.reducers.submitJudgmentBallot(Number(optionId), mentionValue);
 
       if (isFirstJudgment) {
-        // Server automatically set all options to Bad, then updated this specific one
         for (const option of options) {
           if (option.id === optionId) {
             if (onJudgmentChanged) onJudgmentChanged(option.id, mention);
@@ -53,11 +69,40 @@ const MajorityJudgmentBallotInterface: React.FC<MajorityJudgmentBallotInterfaceP
       } else {
         if (onJudgmentChanged) onJudgmentChanged(optionId, mention);
       }
-      
       if (onBallotSubmitted) onBallotSubmitted();
     } catch (error) {
       console.error('Error submitting judgment:', error);
       if (onError) onError('Failed to submit judgment. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleEnvelopeSubmit = async () => {
+    if (isSubmitting || !hasChanges) return;
+    setIsSubmitting(true);
+    try {
+      // Build complete ballot from pending changes overlaid onto existing judgments (default Bad)
+      const completeBallot: JudgmentEntry[] = options.map(option => {
+        const mention = pendingChanges[option.id] || userJudgments[option.id] || 'Bad';
+        const mentionValue = (Mention as any)[mention] as any;
+        return { optionId: Number(option.id), mention: mentionValue };
+      });
+
+      spacetimeDB.reducers.submitCompleteJudgmentBallot(Number(voteId), completeBallot);
+
+      // Notify parent for all options
+      for (const option of options) {
+        const mention = pendingChanges[option.id] || userJudgments[option.id] || 'Bad';
+        if (onJudgmentChanged) onJudgmentChanged(option.id, mention);
+      }
+      if (onBallotSubmitted) onBallotSubmitted();
+
+      setPendingChanges({});
+      setHasChanges(false);
+    } catch (error) {
+      console.error('Error submitting envelope ballot:', error);
+      if (onError) onError('Failed to submit your ballot. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -109,12 +154,14 @@ const MajorityJudgmentBallotInterface: React.FC<MajorityJudgmentBallotInterfaceP
         </thead>
         <tbody>
           {options.map((option) => {
-            const userJudgment = userJudgments[String(option.id)];
+            const currentJudgment = (isEnvelopeMode && pendingChanges[option.id])
+              ? pendingChanges[option.id]
+              : userJudgments[String(option.id)];
             return (
               <tr key={option.id}>
                 <td className="mj-option-title">{option.label}</td>
                 {mentionKeys.map((m) => {
-                  const selected = userJudgment === (m as string);
+                  const selected = currentJudgment === (m as string);
                   return (
                     <td key={m}>
                       <button
@@ -136,6 +183,17 @@ const MajorityJudgmentBallotInterface: React.FC<MajorityJudgmentBallotInterfaceP
           })}
         </tbody>
       </table>
+
+      {isEnvelopeMode && (
+        <button
+          onClick={handleEnvelopeSubmit}
+          disabled={isSubmitting || !hasChanges}
+          className="btn-submit-ballot"
+          title={hasChanges ? 'Submit your ballot' : 'No changes to submit'}
+        >
+          {isSubmitting ? 'Submitting...' : hasChanges ? 'Submit Your Ballot' : 'No Changes'}
+        </button>
+      )}
     </div>
   );
 };

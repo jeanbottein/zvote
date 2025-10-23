@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { spacetimeDB } from '../../../lib/spacetimeClient';
 import { Mention } from '../../../generated/mention_type';
+import { JudgmentEntry } from '../../../generated/judgment_entry_type';
+import { usePreferences } from '../../../context/PreferencesContext';
 
 interface MajorityJudgmentBallotFormViewProps {
   voteId: string;
@@ -23,38 +25,100 @@ const MajorityJudgmentBallotFormView: React.FC<MajorityJudgmentBallotFormViewPro
   onJudgmentsWithdrawn,
   onError
 }) => {
+  const { preferences } = usePreferences();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [pendingChanges, setPendingChanges] = useState<Record<string, string>>({});
+  const [hasChanges, setHasChanges] = useState(false);
+
+  const isEnvelopeMode = preferences.ballotSubmissionMode === 'envelope';
+
+  // Sync pending changes with user judgments when they change externally
+  useEffect(() => {
+    setPendingChanges({});
+    setHasChanges(false);
+  }, [userJudgments]);
 
   // 7-level mentions best-to-worst
   const mentionKeys = ['Excellent','VeryGood','Good','Fair','Passable','Inadequate','Bad'] as const;
   const mentionLabel = (m: string) => m.replace(/([A-Z])/g, ' $1').trim();
 
   const handleJudgmentChange = async (optionId: string, mention: string) => {
-    if (isSubmitting) return;
-    
+    if (isEnvelopeMode) {
+      // Envelope mode: just track the change locally
+      setPendingChanges(prev => ({ ...prev, [optionId]: mention }));
+      setHasChanges(true);
+    } else {
+      // Live mode: submit immediately
+      if (isSubmitting) return;
+      
+      setIsSubmitting(true);
+      try {
+        const isFirstJudgment = Object.keys(userJudgments).length === 0;
+
+        const mentionValue = (Mention as any)[mention] as any;
+        spacetimeDB.reducers.submitJudgmentBallot(Number(optionId), mentionValue);
+
+        if (isFirstJudgment) {
+          for (const option of options) {
+            if (option.id === optionId) {
+              if (onJudgmentChanged) onJudgmentChanged(option.id, mention);
+            } else {
+              if (onJudgmentChanged) onJudgmentChanged(option.id, 'Bad');
+            }
+          }
+        } else {
+          if (onJudgmentChanged) onJudgmentChanged(optionId, mention);
+        }
+
+        if (onBallotSubmitted) onBallotSubmitted();
+      } catch (error) {
+        console.error('Failed to submit judgment:', error);
+        if (onError) onError('Failed to submit judgment. Please try again.');
+      } finally {
+        setIsSubmitting(false);
+      }
+    }
+  };
+
+  const handleEnvelopeSubmit = async () => {
+    if (isSubmitting || !hasChanges) return;
+
     setIsSubmitting(true);
     try {
-      const isFirstJudgment = Object.keys(userJudgments).length === 0;
+      // Build complete envelope ballot: combine user judgments with pending changes
+      const completeBallot: JudgmentEntry[] = options.map(option => {
+        // Use pending change if available, otherwise use existing judgment, otherwise default to Bad
+        const mention = pendingChanges[option.id] || userJudgments[option.id] || 'Bad';
+        const mentionValue = (Mention as any)[mention] as any;
+        
+        return {
+          optionId: Number(option.id),
+          mention: mentionValue
+        };
+      });
 
-      const mentionValue = (Mention as any)[mention] as any;
-      spacetimeDB.reducers.submitJudgmentBallot(Number(optionId), mentionValue);
+      // Validate all options have been judged
+      if (completeBallot.length !== options.length) {
+        throw new Error('Incomplete ballot: not all options have been judged');
+      }
 
-      if (isFirstJudgment) {
-        for (const option of options) {
-          if (option.id === optionId) {
-            if (onJudgmentChanged) onJudgmentChanged(option.id, mention);
-          } else {
-            if (onJudgmentChanged) onJudgmentChanged(option.id, 'Bad');
-          }
-        }
-      } else {
-        if (onJudgmentChanged) onJudgmentChanged(optionId, mention);
+      // Submit complete ballot in one call
+      spacetimeDB.reducers.submitCompleteJudgmentBallot(Number(voteId), completeBallot);
+
+      // Notify parent of all judgments
+      for (const option of options) {
+        const mention = pendingChanges[option.id] || userJudgments[option.id] || 'Bad';
+        if (onJudgmentChanged) onJudgmentChanged(option.id, mention);
       }
 
       if (onBallotSubmitted) onBallotSubmitted();
+      
+      // Clear pending changes
+      setPendingChanges({});
+      setHasChanges(false);
     } catch (error) {
-      console.error('Failed to submit judgment:', error);
-      if (onError) onError('Failed to submit judgment. Please try again.');
+      console.error('Failed to submit ballot:', error);
+      if (onError) onError('Failed to submit ballot. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -97,13 +161,17 @@ const MajorityJudgmentBallotFormView: React.FC<MajorityJudgmentBallotFormViewPro
       <table className="mj-ballot-form">
         <tbody>
           {options.map((option) => {
-            const userJudgment = userJudgments[String(option.id)] || '';
+            // Show pending change if in envelope mode, otherwise show user judgment
+            const currentValue = isEnvelopeMode && pendingChanges[option.id] 
+              ? pendingChanges[option.id]
+              : userJudgments[String(option.id)] || '';
+            
             return (
               <tr key={option.id} className="mj-form-row">
                 <td className="mj-form-option-label">{option.label}</td>
                 <td>
                   <select
-                    value={userJudgment}
+                    value={currentValue}
                     onChange={(e) => handleJudgmentChange(option.id, e.target.value)}
                     disabled={isSubmitting}
                     className="mj-form-dropdown"
@@ -123,6 +191,18 @@ const MajorityJudgmentBallotFormView: React.FC<MajorityJudgmentBallotFormViewPro
           })}
         </tbody>
       </table>
+
+      {/* Envelope mode submit button */}
+      {isEnvelopeMode && (
+        <button
+          onClick={handleEnvelopeSubmit}
+          disabled={isSubmitting || !hasChanges}
+          className="btn-submit-ballot"
+          title={hasChanges ? "Submit your ballot" : "No changes to submit"}
+        >
+          {isSubmitting ? 'Submitting...' : hasChanges ? 'Submit Your Ballot' : 'No Changes'}
+        </button>
+      )}
     </div>
   );
 };

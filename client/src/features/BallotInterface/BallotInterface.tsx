@@ -82,6 +82,7 @@ const BallotInterface: React.FC<BallotInterfaceProps> = ({ vote, onBallotSubmitt
     }
   }, [userJudgments, vote.id, spacetimeDB.currentUser?.identity]);
 
+
   const handleApprovalChanged = (optionId: string, approved: boolean) => {
     // Update localStorage and local state immediately
     setUserApprovals(prev => {

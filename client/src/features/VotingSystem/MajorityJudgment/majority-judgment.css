@@ -525,3 +525,51 @@ body[data-colorblind="true"] .mj-form-dropdown[value="Excellent"] {
   color: #0b0b0b;
   border-color: #f3f4f6;
 }
+
+/* ================================== */
+/* Envelope Submit Button            */
+/* ================================== */
+.btn-submit-ballot {
+  width: 100%;
+  margin-top: 16px;
+  padding: 12px 24px;
+  font-size: 16px;
+  font-weight: 600;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: white;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+  animation: glow-green 2s ease-in-out infinite;
+}
+
+@keyframes glow-green {
+  0%, 100% {
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4), 0 0 20px rgba(16, 185, 129, 0.2);
+  }
+  50% {
+    box-shadow: 0 4px 16px rgba(16, 185, 129, 0.6), 0 0 30px rgba(16, 185, 129, 0.4);
+  }
+}
+
+.btn-submit-ballot:hover:not(:disabled) {
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(16, 185, 129, 0.5), 0 0 35px rgba(16, 185, 129, 0.5);
+}
+
+.btn-submit-ballot:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.4);
+}
+
+.btn-submit-ballot:disabled {
+  background: #6b7280;
+  color: #9ca3af;
+  cursor: not-allowed;
+  box-shadow: none;
+  animation: none;
+  opacity: 0.6;
+}

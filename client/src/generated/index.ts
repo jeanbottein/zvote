@@ -49,6 +49,8 @@ import { SetApprovals } from "./set_approvals_reducer.ts";
 export { SetApprovals };
 import { SubmitApprovalBallot } from "./submit_approval_ballot_reducer.ts";
 export { SubmitApprovalBallot };
+import { SubmitCompleteJudgmentBallot } from "./submit_complete_judgment_ballot_reducer.ts";
+export { SubmitCompleteJudgmentBallot };
 import { SubmitJudgmentBallot } from "./submit_judgment_ballot_reducer.ts";
 export { SubmitJudgmentBallot };
 import { Unapprove } from "./unapprove_reducer.ts";
@@ -79,6 +81,8 @@ import { Approval } from "./approval_type.ts";
 export { Approval };
 import { Judgment } from "./judgment_type.ts";
 export { Judgment };
+import { JudgmentEntry } from "./judgment_entry_type.ts";
+export { JudgmentEntry };
 import { Mention } from "./mention_type.ts";
 export { Mention };
 import { MjSummary } from "./mj_summary_type.ts";
@@ -192,6 +196,10 @@ const REMOTE_MODULE = {
       reducerName: "submit_approval_ballot",
       argsType: SubmitApprovalBallot.getTypeScriptAlgebraicType(),
     },
+    submit_complete_judgment_ballot: {
+      reducerName: "submit_complete_judgment_ballot",
+      argsType: SubmitCompleteJudgmentBallot.getTypeScriptAlgebraicType(),
+    },
     submit_judgment_ballot: {
       reducerName: "submit_judgment_ballot",
       argsType: SubmitJudgmentBallot.getTypeScriptAlgebraicType(),
@@ -247,6 +255,7 @@ export type Reducer = never
 | { name: "SetApprovalBallot", args: SetApprovalBallot }
 | { name: "SetApprovals", args: SetApprovals }
 | { name: "SubmitApprovalBallot", args: SubmitApprovalBallot }
+| { name: "SubmitCompleteJudgmentBallot", args: SubmitCompleteJudgmentBallot }
 | { name: "SubmitJudgmentBallot", args: SubmitJudgmentBallot }
 | { name: "Unapprove", args: Unapprove }
 | { name: "WithdrawApprovalBallot", args: WithdrawApprovalBallot }
@@ -396,6 +405,22 @@ export class RemoteReducers {
     this.connection.offReducer("submit_approval_ballot", callback);
   }
 
+  submitCompleteJudgmentBallot(voteId: number, judgments: JudgmentEntry[]) {
+    const __args = { voteId, judgments };
+    let __writer = new __BinaryWriter(1024);
+    SubmitCompleteJudgmentBallot.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("submit_complete_judgment_ballot", __argsBuffer, this.setCallReducerFlags.submitCompleteJudgmentBallotFlags);
+  }
+
+  onSubmitCompleteJudgmentBallot(callback: (ctx: ReducerEventContext, voteId: number, judgments: JudgmentEntry[]) => void) {
+    this.connection.onReducer("submit_complete_judgment_ballot", callback);
+  }
+
+  removeOnSubmitCompleteJudgmentBallot(callback: (ctx: ReducerEventContext, voteId: number, judgments: JudgmentEntry[]) => void) {
+    this.connection.offReducer("submit_complete_judgment_ballot", callback);
+  }
+
   submitJudgmentBallot(optionId: number, mention: Mention) {
     const __args = { optionId, mention };
     let __writer = new __BinaryWriter(1024);
@@ -506,6 +531,11 @@ export class SetReducerFlags {
   submitApprovalBallotFlags: __CallReducerFlags = 'FullUpdate';
   submitApprovalBallot(flags: __CallReducerFlags) {
     this.submitApprovalBallotFlags = flags;
+  }
+
+  submitCompleteJudgmentBallotFlags: __CallReducerFlags = 'FullUpdate';
+  submitCompleteJudgmentBallot(flags: __CallReducerFlags) {
+    this.submitCompleteJudgmentBallotFlags = flags;
   }
 
   submitJudgmentBallotFlags: __CallReducerFlags = 'FullUpdate';
