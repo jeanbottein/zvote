@@ -23,6 +23,8 @@ const Header: React.FC<HeaderProps> = ({ onViewChange }) => {
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [colorMode, setColorMode] = useState(getColorMode());
   const [menuOpen, setMenuOpen] = useState(false);
+  const [enableLiveBallot, setEnableLiveBallot] = useState(true);
+  const [enableEnvelopeBallot, setEnableEnvelopeBallot] = useState(true);
   const [theme, setTheme] = useState<'light' | 'system' | 'dark'>(() => {
     try {
       const saved = localStorage.getItem('theme');
@@ -84,6 +86,31 @@ const Header: React.FC<HeaderProps> = ({ onViewChange }) => {
     
     document.body.setAttribute('data-theme', actualTheme);
   }, [theme]);
+
+  // Read server capabilities
+  useEffect(() => {
+    const conn = spacetimeDB.connection as any;
+    if (!conn) return;
+    
+    const db = conn.db as any;
+    if (!db?.server_info) return;
+    
+    const serverInfo = db.server_info.id()?.find(1);
+    if (serverInfo) {
+      const liveEnabled = serverInfo.enableLiveBallot ?? true;
+      const envelopeEnabled = serverInfo.enableEnvelopeBallot ?? true;
+      
+      setEnableLiveBallot(liveEnabled);
+      setEnableEnvelopeBallot(envelopeEnabled);
+      
+      // Update preference to first available option if current isn't available
+      if (preferences.ballotSubmissionMode === 'instant' && !liveEnabled && envelopeEnabled) {
+        updatePreferences({ ballotSubmissionMode: 'envelope' });
+      } else if (preferences.ballotSubmissionMode === 'envelope' && !envelopeEnabled && liveEnabled) {
+        updatePreferences({ ballotSubmissionMode: 'instant' });
+      }
+    }
+  }, [spacetimeDB.connection, preferences.ballotSubmissionMode, updatePreferences]);
 
   // Listen for system theme changes when in system mode
   useEffect(() => {
@@ -478,35 +505,41 @@ const Header: React.FC<HeaderProps> = ({ onViewChange }) => {
                   </div>
 
                   {/* Ballot Submission Mode */}
-                  <div id="menu-submission-mode-section" className="menu-subsection">
-                    <div className="menu-subsection-label">Ballot Submission</div>
-                    <div id="submission-mode-selector" className="theme-selector">
-                      <button
-                        id="submission-instant"
-                        className="theme-btn"
-                        data-selected={preferences.ballotSubmissionMode === 'instant' ? 'true' : 'false'}
-                        onClick={() => {
-                          updatePreferences({ ballotSubmissionMode: 'instant' });
-                        }}
-                        title="Live Vote - Changes are submitted immediately"
-                        aria-label="Live vote"
-                      >
-                        ⚡
-                      </button>
-                      <button
-                        id="submission-envelope"
-                        className="theme-btn theme-btn-middle"
-                        data-selected={preferences.ballotSubmissionMode === 'envelope' ? 'true' : 'false'}
-                        onClick={() => {
-                          updatePreferences({ ballotSubmissionMode: 'envelope' });
-                        }}
-                        title="Envelope Vote - Review and submit your complete ballot"
-                        aria-label="Envelope vote"
-                      >
-                        ✉️
-                      </button>
+                  {(enableLiveBallot || enableEnvelopeBallot) && (
+                    <div id="menu-submission-mode-section" className="menu-subsection">
+                      <div className="menu-subsection-label">Ballot Submission</div>
+                      <div id="submission-mode-selector" className="theme-selector">
+                        {enableLiveBallot && (
+                          <button
+                            id="submission-instant"
+                            className="theme-btn"
+                            data-selected={preferences.ballotSubmissionMode === 'instant' ? 'true' : 'false'}
+                            onClick={() => {
+                              updatePreferences({ ballotSubmissionMode: 'instant' });
+                            }}
+                            title="Live Vote - Changes are submitted immediately"
+                            aria-label="Live vote"
+                          >
+                            ⚡
+                          </button>
+                        )}
+                        {enableEnvelopeBallot && (
+                          <button
+                            id="submission-envelope"
+                            className={`theme-btn ${!enableLiveBallot ? '' : 'theme-btn-middle'}`}
+                            data-selected={preferences.ballotSubmissionMode === 'envelope' ? 'true' : 'false'}
+                            onClick={() => {
+                              updatePreferences({ ballotSubmissionMode: 'envelope' });
+                            }}
+                            title="Envelope Vote - Review and submit your complete ballot"
+                            aria-label="Envelope vote"
+                          >
+                            ✉️
+                          </button>
+                        )}
+                      </div>
                     </div>
-                  </div>
+                  )}
                 </div>
               </div>
             </div>

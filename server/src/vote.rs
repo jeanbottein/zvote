@@ -12,6 +12,23 @@ use crate::judgment::mj_summary as mj_summary_table;
 // Maximum number of options allowed per vote (server-enforced)
 pub const MAX_OPTIONS: usize = 20;
 
+// ============================================
+// FEATURE FLAGS: Server Capabilities
+// ============================================
+
+// Visibility levels
+pub const ENABLE_PUBLIC_VOTES: bool = true;
+pub const ENABLE_UNLISTED_VOTES: bool = false;
+pub const ENABLE_PRIVATE_VOTES: bool = false;
+
+// Voting systems
+pub const ENABLE_APPROVAL_VOTING: bool = true;
+pub const ENABLE_MAJORITY_JUDGMENT: bool = true;
+
+// Ballot submission modes
+pub const ENABLE_LIVE_BALLOT: bool = true;    // Submit changes immediately
+pub const ENABLE_ENVELOPE_BALLOT: bool = true; // Batch submit all at once
+
 #[derive(SpacetimeType, Copy, Clone, Debug, PartialEq, Eq)]
 pub enum VotingSystem {
     Approval,
@@ -131,8 +148,34 @@ pub fn create_vote(
 
     let cleaned = validate_and_clean_options(options)?;
 
-    // Resolve visibility (default to Public)
+    // Resolve visibility (default to Public if enabled, otherwise first available)
     let vis = visibility.unwrap_or(VISIBILITY_PUBLIC);
+    
+    // Validate that requested visibility is enabled
+    match vis {
+        VISIBILITY_PUBLIC if !ENABLE_PUBLIC_VOTES => {
+            return Err("Public votes are not enabled on this server".to_string());
+        }
+        VISIBILITY_UNLISTED if !ENABLE_UNLISTED_VOTES => {
+            return Err("Unlisted votes are not enabled on this server".to_string());
+        }
+        VISIBILITY_PRIVATE if !ENABLE_PRIVATE_VOTES => {
+            return Err("Private votes are not enabled on this server".to_string());
+        }
+        _ => {}
+    }
+    
+    // Validate that requested voting system is enabled
+    let system = voting_system.unwrap_or(VotingSystem::Approval);
+    match system {
+        VotingSystem::Approval if !ENABLE_APPROVAL_VOTING => {
+            return Err("Approval voting is not enabled on this server".to_string());
+        }
+        VotingSystem::MajorityJudgment if !ENABLE_MAJORITY_JUDGMENT => {
+            return Err("Majority Judgment is not enabled on this server".to_string());
+        }
+        _ => {}
+    }
 
     // Pre-generate a unique token before inserting the vote
     let temp_vote_for_token = Vote {
@@ -142,7 +185,7 @@ pub fn create_vote(
         visibility: vis,
         created_at: ctx.timestamp,
         token: String::new(), // Placeholder
-        voting_system: voting_system.unwrap_or(VotingSystem::Approval),
+        voting_system: system,
     };
 
     let mut token = compute_share_token(ctx, &temp_vote_for_token, 0);
@@ -159,7 +202,7 @@ pub fn create_vote(
         visibility: vis,
         created_at: ctx.timestamp,
         token,
-        voting_system: voting_system.unwrap_or(VotingSystem::Approval),
+        voting_system: system,
     });
 
     for (idx, label) in cleaned.into_iter().enumerate() {
@@ -175,19 +218,48 @@ pub fn create_vote(
 }
 
 
-// Public server info table so clients can read max options via subscription
+// Public server info table so clients can read server capabilities via subscription
 #[spacetimedb::table(name = server_info, public)]
 pub struct ServerInfo {
     #[primary_key]
     id: u8, // singleton: id = 1
     max_options: u32,
+    
+    // Visibility levels
+    enable_public_votes: bool,
+    enable_unlisted_votes: bool,
+    enable_private_votes: bool,
+    
+    // Voting systems
+    enable_approval_voting: bool,
+    enable_majority_judgment: bool,
+    
+    // Ballot submission modes
+    enable_live_ballot: bool,
+    enable_envelope_ballot: bool,
 }
 
-/// Ensure the ServerInfo singleton row exists (id=1), seeding max_options.
+/// Ensure the ServerInfo singleton row exists (id=1), seeding server capabilities.
 #[spacetimedb::reducer]
 pub fn ensure_server_info(ctx: &ReducerContext) -> Result<(), String> {
     if ctx.db.server_info().id().find(1).is_none() {
-        ctx.db.server_info().insert(ServerInfo { id: 1, max_options: MAX_OPTIONS as u32 });
+        ctx.db.server_info().insert(ServerInfo { 
+            id: 1, 
+            max_options: MAX_OPTIONS as u32,
+            
+            // Visibility levels
+            enable_public_votes: ENABLE_PUBLIC_VOTES,
+            enable_unlisted_votes: ENABLE_UNLISTED_VOTES,
+            enable_private_votes: ENABLE_PRIVATE_VOTES,
+            
+            // Voting systems
+            enable_approval_voting: ENABLE_APPROVAL_VOTING,
+            enable_majority_judgment: ENABLE_MAJORITY_JUDGMENT,
+            
+            // Ballot submission modes
+            enable_live_ballot: ENABLE_LIVE_BALLOT,
+            enable_envelope_ballot: ENABLE_ENVELOPE_BALLOT,
+        });
     }
     Ok(())
 }
