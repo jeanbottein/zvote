@@ -193,11 +193,11 @@ const MajorityJudgmentBallotInterface: React.FC<MajorityJudgmentBallotInterfaceP
       {isEnvelopeMode && (
         <button
           onClick={handleEnvelopeSubmit}
-          disabled={isSubmitting || !allOptionsFilled}
+          disabled={isSubmitting || !allOptionsFilled || !hasChanges}
           className="btn-submit-ballot"
-          title={allOptionsFilled ? 'Submit your ballot' : 'All options must be filled'}
+          title={!allOptionsFilled ? "All options must be filled" : !hasChanges ? "No changes to submit" : "Submit your ballot"}
         >
-          {isSubmitting ? 'Submitting...' : allOptionsFilled ? 'Submit Your Ballot' : 'Fill All Options'}
+          {isSubmitting ? 'Submitting...' : allOptionsFilled && hasChanges ? 'Submit Your Ballot' : allOptionsFilled ? 'No Changes' : 'Fill All Options'}
         </button>
       )}
     </div>
