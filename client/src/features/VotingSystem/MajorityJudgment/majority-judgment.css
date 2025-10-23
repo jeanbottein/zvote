@@ -367,60 +367,59 @@ body[data-colorblind="true"] .mj-cell-btn[data-mention="Excellent"][data-selecte
 /* Majority Judgment Form View Ballot */
 /* ================================== */
 .mj-ballot-form {
-  display: table;
-  width: 100%;
-  border-collapse: separate;
-  border-spacing: 0 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
   margin-top: 12px;
 }
 
 .mj-form-row {
-  display: table-row;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 8px;
+  border: 2px solid transparent;
+  border-radius: 8px;
+  transition: border-color 0.15s ease;
 }
 
-.mj-form-row:hover td {
-  background: rgba(255,255,255,0.03);
+.mj-form-row:hover {
+  border-color: var(--border-hover);
 }
 
 .mj-form-option-label {
-  display: table-cell;
+  flex: 0 0 150px;
   font-weight: 500;
   color: var(--fg);
   font-size: 14px;
-  text-align: left;
-  padding: 8px 12px;
-  border: 1px solid var(--border);
-  border-radius: 4px 0 0 4px;
-  background: var(--panel);
-  vertical-align: middle;
-  width: 1%;
+  padding: 0;
+  background: transparent;
+  border: none;
+  display: flex;
+  align-items: center;
   white-space: nowrap;
 }
 
 .mj-form-dropdown {
-  display: table-cell;
-  width: 99%;
-  padding: 6px 10px;
+  flex: 1 1 auto;
+  padding: 10px 12px;
   border: 1px solid var(--border);
-  border-left: none;
-  border-radius: 0 4px 4px 0;
+  border-radius: 6px;
   background: var(--panel);
   color: var(--fg);
-  font-size: 13px;
+  font-size: 14px;
   cursor: pointer;
   transition: all 0.15s ease;
   appearance: none;
   background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
   background-repeat: no-repeat;
-  background-position: right 6px center;
-  background-size: 16px;
-  padding-right: 26px;
-  vertical-align: middle;
+  background-position: right 8px center;
+  background-size: 18px;
+  padding-right: 32px;
 }
 
 .mj-form-dropdown:hover {
   border-color: var(--border-hover);
-  background-color: rgba(255,255,255,0.03);
 }
 
 .mj-form-dropdown:focus {
@@ -437,7 +436,7 @@ body[data-colorblind="true"] .mj-cell-btn[data-mention="Excellent"][data-selecte
 .mj-form-dropdown option {
   background: var(--panel);
   color: var(--fg);
-  padding: 6px;
+  padding: 8px;
 }
 
 /* Dropdown color variants based on selected mention */

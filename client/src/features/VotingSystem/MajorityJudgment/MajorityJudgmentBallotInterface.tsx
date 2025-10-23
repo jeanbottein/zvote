@@ -127,6 +127,12 @@ const MajorityJudgmentBallotInterface: React.FC<MajorityJudgmentBallotInterfaceP
 
   const hasSubmittedBallot = Object.keys(userJudgments).length > 0;
 
+  // Check if all options have been filled in envelope mode
+  const allOptionsFilled = options.every(option => {
+    const value = pendingChanges[option.id] || userJudgments[option.id];
+    return value && value !== '';
+  });
+
   return (
     <div id={`mj-ballot-${voteId}`} className="ballot-interface">
       <div id={`mj-ballot-header-${voteId}`} className="ballot-header">
@@ -187,11 +193,11 @@ const MajorityJudgmentBallotInterface: React.FC<MajorityJudgmentBallotInterfaceP
       {isEnvelopeMode && (
         <button
           onClick={handleEnvelopeSubmit}
-          disabled={isSubmitting || !hasChanges}
+          disabled={isSubmitting || !allOptionsFilled}
           className="btn-submit-ballot"
-          title={hasChanges ? 'Submit your ballot' : 'No changes to submit'}
+          title={allOptionsFilled ? 'Submit your ballot' : 'All options must be filled'}
         >
-          {isSubmitting ? 'Submitting...' : hasChanges ? 'Submit Your Ballot' : 'No Changes'}
+          {isSubmitting ? 'Submitting...' : allOptionsFilled ? 'Submit Your Ballot' : 'Fill All Options'}
         </button>
       )}
     </div>

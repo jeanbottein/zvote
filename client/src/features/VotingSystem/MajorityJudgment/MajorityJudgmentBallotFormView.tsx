@@ -142,6 +142,12 @@ const MajorityJudgmentBallotFormView: React.FC<MajorityJudgmentBallotFormViewPro
 
   const hasSubmittedBallot = Object.keys(userJudgments).length > 0;
 
+  // Check if all options have been filled in envelope mode
+  const allOptionsFilled = options.every(option => {
+    const value = pendingChanges[option.id] || userJudgments[option.id];
+    return value && value !== '';
+  });
+
   return (
     <div id={`mj-ballot-form-${voteId}`} className="ballot-interface">
       <div id={`mj-ballot-form-header-${voteId}`} className="ballot-header">
@@ -158,49 +164,45 @@ const MajorityJudgmentBallotFormView: React.FC<MajorityJudgmentBallotFormViewPro
         )}
       </div>
 
-      <table className="mj-ballot-form">
-        <tbody>
-          {options.map((option) => {
-            // Show pending change if in envelope mode, otherwise show user judgment
-            const currentValue = isEnvelopeMode && pendingChanges[option.id] 
-              ? pendingChanges[option.id]
-              : userJudgments[String(option.id)] || '';
-            
-            return (
-              <tr key={option.id} className="mj-form-row">
-                <td className="mj-form-option-label">{option.label}</td>
-                <td>
-                  <select
-                    value={currentValue}
-                    onChange={(e) => handleJudgmentChange(option.id, e.target.value)}
-                    disabled={isSubmitting}
-                    className="mj-form-dropdown"
-                  >
-                    <option value="" disabled>
-                      Select a grade...
-                    </option>
-                    {mentionKeys.map((m) => (
-                      <option key={m} value={m}>
-                        {mentionLabel(m)}
-                      </option>
-                    ))}
-                  </select>
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+      <div className="mj-ballot-form">
+        {options.map((option) => {
+          // Show pending change if in envelope mode, otherwise show user judgment
+          const currentValue = isEnvelopeMode && pendingChanges[option.id] 
+            ? pendingChanges[option.id]
+            : userJudgments[String(option.id)] || '';
+          
+          return (
+            <div key={option.id} className="mj-form-row">
+              <div className="mj-form-option-label">{option.label}</div>
+              <select
+                value={currentValue}
+                onChange={(e) => handleJudgmentChange(option.id, e.target.value)}
+                disabled={isSubmitting}
+                className="mj-form-dropdown"
+              >
+                <option value="" disabled>
+                  Select a grade...
+                </option>
+                {mentionKeys.map((m) => (
+                  <option key={m} value={m}>
+                    {mentionLabel(m)}
+                  </option>
+                ))}
+              </select>
+            </div>
+          );
+        })}
+      </div>
 
       {/* Envelope mode submit button */}
       {isEnvelopeMode && (
         <button
           onClick={handleEnvelopeSubmit}
-          disabled={isSubmitting || !hasChanges}
+          disabled={isSubmitting || !allOptionsFilled}
           className="btn-submit-ballot"
-          title={hasChanges ? "Submit your ballot" : "No changes to submit"}
+          title={allOptionsFilled ? "Submit your ballot" : "All options must be filled"}
         >
-          {isSubmitting ? 'Submitting...' : hasChanges ? 'Submit Your Ballot' : 'No Changes'}
+          {isSubmitting ? 'Submitting...' : allOptionsFilled ? 'Submit Your Ballot' : 'Fill All Options'}
         </button>
       )}
     </div>
