@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { spacetimeDB } from '../../../lib/spacetimeClient';
+import { usePreferences } from '../../../context/PreferencesContext';
 
 interface ApprovalBallotInterfaceProps {
   voteId: string;
@@ -22,11 +23,37 @@ const ApprovalBallotInterface: React.FC<ApprovalBallotInterfaceProps> = ({
   onApprovalsWithdrawn,
   onError
 }) => {
+  const { preferences } = usePreferences();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [pendingApprovals, setPendingApprovals] = useState<Set<string>>(new Set());
+  const [hasChanges, setHasChanges] = useState(false);
+
+  const isEnvelopeMode = preferences.ballotSubmissionMode === 'envelope';
+
+  // Clear pending changes when external userApprovals change (e.g., from server or withdraw)
+  useEffect(() => {
+    setPendingApprovals(new Set());
+    setHasChanges(false);
+  }, [userApprovals]);
 
   const handleApprovalToggle = async (optionId: string, approve: boolean) => {
+    if (isEnvelopeMode) {
+      // Envelope mode: only record locally
+      setPendingApprovals(prev => {
+        const updated = new Set(prev);
+        if (approve) {
+          updated.add(optionId);
+        } else {
+          updated.delete(optionId);
+        }
+        return updated;
+      });
+      setHasChanges(true);
+      return;
+    }
+
+    // Live mode: submit immediately
     if (isSubmitting) return;
-    
     setIsSubmitting(true);
     try {
       if (approve) {
@@ -41,6 +68,51 @@ const ApprovalBallotInterface: React.FC<ApprovalBallotInterfaceProps> = ({
     } catch (error) {
       console.error('Error submitting ballot:', error);
       if (onError) onError('Failed to submit ballot. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleEnvelopeSubmit = async () => {
+    if (isSubmitting || !hasChanges) return;
+    setIsSubmitting(true);
+    try {
+      // Build complete approval ballot from pending changes overlaid onto existing approvals
+      const completeApprovals = new Set(userApprovals);
+      
+      // Apply pending changes
+      for (const optionId of pendingApprovals) {
+        if (!userApprovals.has(optionId)) {
+          completeApprovals.add(optionId);
+        }
+      }
+      
+      // Remove any that were toggled off
+      for (const optionId of userApprovals) {
+        if (pendingApprovals.has(optionId) && userApprovals.has(optionId)) {
+          completeApprovals.delete(optionId);
+        }
+      }
+
+      // Submit complete ballot
+      spacetimeDB.reducers.setApprovalBallot(Number(voteId), Array.from(completeApprovals).map(id => Number(id)));
+
+      // Notify parent for all changes
+      for (const optionId of completeApprovals) {
+        if (onApprovalChanged) onApprovalChanged(optionId, true);
+      }
+      for (const optionId of userApprovals) {
+        if (!completeApprovals.has(optionId) && onApprovalChanged) {
+          onApprovalChanged(optionId, false);
+        }
+      }
+      if (onBallotSubmitted) onBallotSubmitted();
+
+      setPendingApprovals(new Set());
+      setHasChanges(false);
+    } catch (error) {
+      console.error('Error submitting envelope ballot:', error);
+      if (onError) onError('Failed to submit your ballot. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -66,8 +138,13 @@ const ApprovalBallotInterface: React.FC<ApprovalBallotInterfaceProps> = ({
     }
   };
 
-  const approvedOptions = options.filter(opt => userApprovals.has(opt.id));
-  const unapprovedOptions = options.filter(opt => !userApprovals.has(opt.id));
+  // In envelope mode, show pending changes; in live mode, show actual approvals
+  const currentApprovals = isEnvelopeMode 
+    ? new Set([...userApprovals, ...pendingApprovals])
+    : userApprovals;
+  
+  const approvedOptions = options.filter(opt => currentApprovals.has(opt.id));
+  const unapprovedOptions = options.filter(opt => !currentApprovals.has(opt.id));
   const hasSubmittedBallot = userApprovals.size > 0;
 
   return (
@@ -120,6 +197,18 @@ const ApprovalBallotInterface: React.FC<ApprovalBallotInterfaceProps> = ({
           ))}
         </div>
       </div>
+
+      {/* Envelope mode submit button */}
+      {isEnvelopeMode && (
+        <button
+          onClick={handleEnvelopeSubmit}
+          disabled={isSubmitting || !hasChanges}
+          className="btn-submit-ballot"
+          title={hasChanges ? "Submit your ballot" : "No changes to submit"}
+        >
+          {isSubmitting ? 'Submitting...' : hasChanges ? 'Submit Your Ballot' : 'No Changes'}
+        </button>
+      )}
     </div>
   );
 };
