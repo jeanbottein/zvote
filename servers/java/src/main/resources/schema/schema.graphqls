@@ -1,0 +1,100 @@
+scalar Long
+
+type Query {
+    "Get server capabilities and feature flags"
+    serverInfo: ServerInfo!
+    
+    "Get a specific vote by its public ID"
+    vote(id: ID!): Vote
+    
+    "List public votes"
+    publicVotes: [Vote!]!
+    
+    "List votes created by the current user"
+    myVotes: [Vote!]!
+}
+
+type Mutation {
+    "Create a new vote"
+    createVote(input: CreateVoteInput!): CreateVoteResult!
+    
+    "Delete a vote (creator only)"
+    deleteVote(id: ID!): Boolean!
+    
+    # Approval Voting Mutations
+    "Set complete approval ballot (replaces existing approvals)"
+    setApprovals(voteId: ID!, optionIds: [Long!]!): Boolean!
+    
+    "Approve a single option"
+    approve(voteId: ID!, optionId: Long!): Boolean!
+    
+    "Unapprove a single option"
+    unapprove(voteId: ID!, optionId: Long!): Boolean!
+}
+
+type Subscription {
+    "Subscribe to vote changes (real-time updates)"
+    voteUpdated(id: ID!): Vote!
+    
+    "Subscribe to new public votes"
+    publicVoteCreated: Vote!
+}
+
+input CreateVoteInput {
+    title: String!
+    options: [String!]!
+    visibility: Visibility = PUBLIC
+    votingSystem: VotingSystem = MAJORITY_JUDGMENT
+    limitByIp: Boolean = false
+}
+
+type CreateVoteResult {
+    vote: Vote
+    error: String
+}
+
+type Vote {
+    id: ID!
+    creatorId: String!
+    title: String!
+    visibility: Visibility!
+    votingSystem: VotingSystem!
+    limitByIp: Boolean!
+    shareToken: String!
+    createdAt: String!
+    options: [VoteOption!]!
+}
+
+type VoteOption {
+    id: ID!
+    label: String!
+    orderIndex: Int!
+    approvalsCount: Int!
+}
+
+type ServerInfo {
+    maxOptions: Int!
+    features: FeatureFlags!
+}
+
+type FeatureFlags {
+    publicVotes: Boolean!
+    unlistedVotes: Boolean!
+    privateVotes: Boolean!
+    approvalVoting: Boolean!
+    majorityJudgment: Boolean!
+    ipLimiting: Boolean!
+    liveBallot: Boolean!
+    envelopeBallot: Boolean!
+}
+
+enum Visibility {
+    PUBLIC
+    UNLISTED
+    PRIVATE
+}
+
+enum VotingSystem {
+    APPROVAL
+    MAJORITY_JUDGMENT
+}

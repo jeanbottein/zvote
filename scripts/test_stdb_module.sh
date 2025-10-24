@@ -6,7 +6,7 @@ set -euo pipefail
 # so tests link natively. It restores the original Cargo.toml afterwards.
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-MODULE_DIR="${MODULE_DIR:-"$SCRIPT_DIR/../server"}"
+MODULE_DIR="${MODULE_DIR:-"$SCRIPT_DIR/../servers/spacetimedb"}"
 CARGO_TOML="$MODULE_DIR/Cargo.toml"
 BACKUP_TOML="$MODULE_DIR/Cargo.toml.bak.tests"
 

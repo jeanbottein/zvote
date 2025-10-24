@@ -3,7 +3,7 @@ set -euo pipefail
 
 # Build the Vite TypeScript client in proto1/client
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-CLIENT_DIR="${CLIENT_DIR:-"$SCRIPT_DIR/../client"}"
+CLIENT_DIR="${CLIENT_DIR:-"$SCRIPT_DIR/../clients/web"}"
 PORT="${PORT:-5173}"
 
 cd "$CLIENT_DIR" || exit 1

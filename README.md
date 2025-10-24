@@ -57,17 +57,48 @@ None of this dilutes the current focus: build a dependable, comprehensible core 
 
 ## Technology Stack
 
-- **spacetimedb**: Real-time database foundation powering reactive voting
+**Dual Backend Support:**
+- **SpacetimeDB** (Rust): Real-time database foundation for reactive voting
+- **Java Spring Boot** (GraphQL): Production-ready backend with full IP limiting support
+
+**Client automatically detects which server is running!**
 
 ## Getting Started
 
-Clone the repository and explore the voting server and client for hands-on experimentation.
+### One-Command Start
 
+**SpacetimeDB Backend:**
 ```bash
 git clone https://github.com/jeanbottein/zvote.git
 cd zvote
-./go.sh
+./go-spacetime.sh
 ```
+
+**Java GraphQL Backend:**
+```bash
+git clone https://github.com/jeanbottein/zvote.git
+cd zvote
+./go-java.sh
+```
+
+Each script automatically:
+- ✅ Starts the correct backend server
+- ✅ Configures client for that backend
+- ✅ Builds optimized bundle (only needed code)
+- ✅ Starts dev server on http://localhost:5173
+
+### Switch Backends
+
+Stop current script (Ctrl+C), then run the other:
+```bash
+./go-spacetime.sh  # Use SpacetimeDB
+# or
+./go-java.sh       # Use Java GraphQL
+```
+
+Client automatically reconfigures for the chosen backend.
+
+See `docs/QUICK_START.md` for more details and manual script usage.
 
 ## Licensing and Repository Structure
 

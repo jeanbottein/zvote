@@ -4,7 +4,7 @@ set -euo pipefail
 # Build the SpacetimeDB module under proto1/server
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-MODULE_DIR="${MODULE_DIR:-"$SCRIPT_DIR/../server"}"
+MODULE_DIR="${MODULE_DIR:-"$SCRIPT_DIR/../servers/spacetimedb"}"
 
 export PATH="$HOME/.cargo/bin:$PATH"
 
@@ -32,7 +32,7 @@ echo "[build] Building SpacetimeDB module..."
 spacetime build 1>/dev/null || exit 3
 
 echo "[build] Regenerating client SDK..."
-rm -rf ../client/src/generated || exit 4
-spacetime generate --lang typescript --out-dir ../client/src/generated 1>/dev/null || exit 5
+rm -rf ../../clients/web/src/generated || exit 4
+spacetime generate --lang typescript --out-dir ../../clients/web/src/generated 1>/dev/null || exit 5
 
 echo "Build finished."

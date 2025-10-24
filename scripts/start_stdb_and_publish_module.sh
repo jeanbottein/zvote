@@ -8,7 +8,7 @@ set -euo pipefail
 #   ZVOTE_MODULE_NAME - alternate env var to set module name
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-MODULE_DIR="${MODULE_DIR:-"$SCRIPT_DIR/../server"}"
+MODULE_DIR="${MODULE_DIR:-"$SCRIPT_DIR/../servers/spacetimedb"}"
 MODULE_NAME="${MODULE_NAME:-${ZVOTE_MODULE_NAME:-zvote-proto1}}"
 LOG_FILE="$SCRIPT_DIR/.spacetime.log"
 PID_FILE="$SCRIPT_DIR/.spacetime.pid"
@@ -23,6 +23,11 @@ if ! have_spacetime; then
   echo "Error: spacetime CLI not found in PATH. Install: https://spacetimedb.com/install" >&2
   exit 1
 fi
+
+# Kill any stale SpacetimeDB processes
+echo "Cleaning up any stale SpacetimeDB processes..."
+pkill -f "spacetime start" 2>/dev/null || true
+sleep 1
 
 echo "Checking SpacetimeDB server status..."
 if spacetime server ping "$SPACETIME_SERVER" >/dev/null 2>&1; then

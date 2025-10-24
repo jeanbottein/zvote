@@ -1,0 +1,47 @@
+spring:
+  application:
+    name: zvote-server
+  
+  main:
+    allow-bean-definition-overriding: true
+  
+  r2dbc:
+    url: r2dbc:h2:mem:///zvote?options=DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    username: sa
+    password:
+  
+  h2:
+    console:
+      enabled: true
+
+server:
+  port: 8080
+
+logging:
+  level:
+    org.zvote: DEBUG
+    org.springframework.r2dbc: DEBUG
+    com.netflix.graphql.dgs: DEBUG
+
+# GraphQL configuration
+dgs:
+  graphql:
+    path: /graphql
+    graphiql:
+      enabled: true
+    websocket:
+      path: /subscriptions
+
+# Feature flags (mirroring SpacetimeDB approach)
+zvote:
+  features:
+    public-votes: true
+    unlisted-votes: false
+    private-votes: false
+    approval-voting: true
+    majority-judgment: true
+    ip-limiting: true  # We CAN implement this in Java!
+    live-ballot: true
+    envelope-ballot: true
+  limits:
+    max-options: 20
