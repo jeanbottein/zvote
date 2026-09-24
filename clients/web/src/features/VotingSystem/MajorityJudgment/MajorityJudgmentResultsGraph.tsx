@@ -36,8 +36,8 @@ function slicesOf(counts: JudgmentCounts, total: number) {
 
 /**
  * One option's merit profile: how its ballots spread over the seven mentions,
- * best on the left, as one bar. The line at 50% is the majority line: the
- * mention it crosses is the option's majority mention.
+ * best on the left, as one bar over a graduated axis. The mention above the
+ * axis's bold 50% mark is the option's majority mention.
  *
  * Pointing at a mention (or tapping it) dims the worse ones and says how many
  * voters gave that mention or better. Nothing moves.
@@ -109,7 +109,6 @@ export default function MajorityJudgmentResultsGraph({
             />
           ))}
         </div>
-        <div className="mj-results-median" aria-hidden="true" />
         {focus && (
           <div
             className="mj-results-tooltip"

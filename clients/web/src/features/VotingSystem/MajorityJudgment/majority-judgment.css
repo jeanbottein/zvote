@@ -1,7 +1,7 @@
 /* Majority judgment results: one card per option, with its rank, its merit
- * profile (how its ballots spread over the seven mentions, best on the left)
- * crossed by the majority line at 50%, a graduated axis under it, and its
- * majority mention and GMJ score.
+ * profile (how its ballots spread over the seven mentions, best on the left),
+ * a graduated axis under it whose bold 50% mark points at the majority
+ * mention, and its majority mention and GMJ score.
  *
  * Mention colours come from mentions.css, everything else from the page's
  * tokens. Ballot styles live in mj-ballot.css.
@@ -118,13 +118,12 @@
   position: relative;
 }
 
-/* One rounded bar; the slices are clipped to it, so its corners are theirs. */
+/* One square-cornered bar; the slices are clipped to it. */
 .mj-results-bars {
   position: relative;
   display: flex;
   height: 28px;
   overflow: hidden;
-  border-radius: 6px;
   background: var(--border); /* seen only while there are no ballots */
 }
 
@@ -137,7 +136,6 @@
   content: "";
   position: absolute;
   inset: 0;
-  border-radius: inherit;
   box-shadow: inset 0 0 0 1px var(--border);
   pointer-events: none;
 }
@@ -159,21 +157,6 @@
 /* Pointing at a mention dims the worse ones: what is left is "this or better". */
 .mj-results-bar[data-dimmed="true"] {
   opacity: 0.25;
-}
-
-/* The majority line: the mention it crosses is the majority mention. It
-   overhangs the bar and runs on into the 50% tick, so it is found even over
-   slices of its own colour. (No halo: a halo would pass for a slice edge.) */
-.mj-results-median {
-  position: absolute;
-  top: -5px;
-  bottom: -4px;
-  left: 50%;
-  width: 2px;
-  margin-left: -1px;
-  border-radius: 1px;
-  background: var(--fg);
-  pointer-events: none;
 }
 
 /* What the pointed mention means. It moves by as much of its own width as its
@@ -201,11 +184,11 @@
 
 /* ------------------------------------------------------------------ Axis */
 
-/* Under the bar, starting where the majority line ends. */
+/* Right under the bar: the ticks hang from its bottom edge. */
 .mj-results-axis {
   position: relative;
-  height: 22px;
-  margin-top: 4px;
+  height: 17px;
+  margin-top: 1px;
 }
 
 .mj-tick {
@@ -220,7 +203,7 @@
   top: 0;
   left: 0;
   width: 1px;
-  height: 5px;
+  height: 4px;
   background: var(--muted);
   transform: translateX(-50%);
 }
@@ -228,10 +211,10 @@
 /* Every label on one baseline, clear of the longest tick. */
 .mj-tick-label {
   position: absolute;
-  top: 9px;
+  top: 7px;
   left: 0;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 9px;
   line-height: 1;
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
@@ -249,10 +232,10 @@
   transform: translateX(-100%);
 }
 
-/* 50% continues the majority line. */
+/* 50% stands out: the mention above it is the majority mention. */
 .mj-tick[data-major="true"]::before {
   width: 2px;
-  height: 7px;
+  height: 6px;
   background: var(--fg);
 }
 

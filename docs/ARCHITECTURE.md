@@ -200,10 +200,10 @@ into the loaded poll; they carry nothing about the voter, so `isMine` and
 
 `MajorityJudgmentResultsGraph.tsx` draws one card per option, ranked by
 `utils/majorityJudgment.ts`. Its centrepiece is the option's merit profile: one
-rounded bar whose slices are the seven mentions, best on the left, each exactly
-as wide as its share of the ballots. The majority line crosses the bar at 50%:
-the mention it crosses is the majority mention. A graduated axis sits under the
-bar, never on it. Pointing at a slice (or tapping it) dims the worse mentions
+bar whose slices are the seven mentions, best on the left, each exactly as wide
+as its share of the ballots. A graduated axis sits right under the bar, never
+on it; its bold 50% mark points at the majority mention, the one above it.
+Pointing at a slice (or tapping it) dims the worse mentions
 and says how many voters gave that mention or better; nothing moves. The card
 adapts to its own width through container queries, not to the screen's.
 `MajorityJudgmentResults.tsx` converts the API's options to its input.
