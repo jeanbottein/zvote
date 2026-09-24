@@ -131,12 +131,13 @@
   height: 16px;
 }
 
-/* A hairline edge drawn over the slices, so pale mentions keep a shape. */
+/* An opaque edge drawn over the slices, in the graduation's colour, so the
+   bar and its axis read as one piece and pale mentions keep a shape. */
 .mj-results-bars::after {
   content: "";
   position: absolute;
   inset: 0;
-  box-shadow: inset 0 0 0 1px var(--border);
+  box-shadow: inset 0 0 0 1px var(--muted);
   pointer-events: none;
 }
 
@@ -184,11 +185,11 @@
 
 /* ------------------------------------------------------------------ Axis */
 
-/* Right under the bar: the ticks hang from its bottom edge. */
+/* Attached to the bar: the ticks rise inside it from its bottom edge, and
+   the labels sit right under that edge. */
 .mj-results-axis {
   position: relative;
-  height: 17px;
-  margin-top: 1px;
+  height: 13px;
 }
 
 .mj-tick {
@@ -200,18 +201,18 @@
 .mj-tick::before {
   content: "";
   position: absolute;
-  top: 0;
+  top: -5px;
   left: 0;
   width: 1px;
-  height: 4px;
+  height: 5px;
   background: var(--muted);
   transform: translateX(-50%);
 }
 
-/* Every label on one baseline, clear of the longest tick. */
+/* Every label on one baseline, right under the bar. */
 .mj-tick-label {
   position: absolute;
-  top: 7px;
+  top: 3px;
   left: 0;
   color: var(--muted);
   font-size: 9px;
@@ -234,8 +235,9 @@
 
 /* 50% stands out: the mention above it is the majority mention. */
 .mj-tick[data-major="true"]::before {
+  top: -8px;
   width: 2px;
-  height: 6px;
+  height: 8px;
   background: var(--fg);
 }
 
