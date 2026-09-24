@@ -1,0 +1,239 @@
+/* Majority judgment ballots.
+ *
+ * The mention colours repeat the results ramp of majority-judgment.css, so a
+ * mention looks the same on a ballot as in the results.
+ */
+
+.mj-scale-step[data-mention="Excellent"], .mj-dropdown-row select[data-mention="Excellent"] { --mention: #065f46; --mention-fg: #fff; }
+.mj-scale-step[data-mention="VeryGood"], .mj-dropdown-row select[data-mention="VeryGood"] { --mention: #15803d; --mention-fg: #fff; }
+.mj-scale-step[data-mention="Good"], .mj-dropdown-row select[data-mention="Good"] { --mention: #86efac; --mention-fg: #0b0b0b; }
+.mj-scale-step[data-mention="Fair"], .mj-dropdown-row select[data-mention="Fair"] { --mention: #f9f1c4; --mention-fg: #0b0b0b; }
+.mj-scale-step[data-mention="Passable"], .mj-dropdown-row select[data-mention="Passable"] { --mention: #fecaca; --mention-fg: #0b0b0b; }
+.mj-scale-step[data-mention="Inadequate"], .mj-dropdown-row select[data-mention="Inadequate"] { --mention: #ef4444; --mention-fg: #fff; }
+.mj-scale-step[data-mention="Bad"], .mj-dropdown-row select[data-mention="Bad"] { --mention: #7f1d1d; --mention-fg: #fff; }
+
+body[data-colorblind="true"] :is(.mj-scale-step, .mj-dropdown-row select)[data-mention="Excellent"] { --mention: #f3f4f6; --mention-fg: #0b0b0b; }
+body[data-colorblind="true"] :is(.mj-scale-step, .mj-dropdown-row select)[data-mention="VeryGood"] { --mention: #e5e7eb; --mention-fg: #0b0b0b; }
+body[data-colorblind="true"] :is(.mj-scale-step, .mj-dropdown-row select)[data-mention="Good"] { --mention: #e5e7eb; --mention-fg: #0b0b0b; }
+body[data-colorblind="true"] :is(.mj-scale-step, .mj-dropdown-row select)[data-mention="Fair"] { --mention: #d1d5db; --mention-fg: #0b0b0b; }
+body[data-colorblind="true"] :is(.mj-scale-step, .mj-dropdown-row select)[data-mention="Passable"] { --mention: #9ca3af; --mention-fg: #0b0b0b; }
+body[data-colorblind="true"] :is(.mj-scale-step, .mj-dropdown-row select)[data-mention="Inadequate"] { --mention: #4b5563; --mention-fg: #fff; }
+body[data-colorblind="true"] :is(.mj-scale-step, .mj-dropdown-row select)[data-mention="Bad"] { --mention: #1f2937; --mention-fg: #fff; }
+
+/* ------------------------------------------------------------------ */
+/* The colour scale: one row per option, seven steps from Excellent   */
+/* to Bad. On phones the steps are colour only and the chosen mention */
+/* is spelled out next to the option; wider screens name every step.  */
+/* ------------------------------------------------------------------ */
+
+.mj-ballot {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.mj-scale-legend {
+  display: flex;
+  justify-content: space-between;
+  padding: 0 4px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.mj-scale-legend span:first-child::before { content: "← "; }
+.mj-scale-legend span:last-child::after { content: " →"; }
+
+.mj-ballot-row,
+.mj-dropdown-row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  border-radius: 10px;
+  background: var(--panel-solid);
+  color: var(--fg);
+}
+
+.mj-ballot-row-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.mj-ballot-option {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.mj-ballot-chosen {
+  flex: none;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.mj-ballot-chosen[data-mention] {
+  color: var(--fg);
+  font-weight: 600;
+}
+
+.mj-scale {
+  display: flex;
+  gap: 4px;
+  /* Whether the mention names fit depends on the scale's width, not the screen's. */
+  container-type: inline-size;
+}
+
+.mj-scale-step {
+  position: relative;
+  flex: 1;
+  min-height: var(--tap);
+}
+
+.mj-scale-step input {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.mj-scale-step input:disabled {
+  cursor: not-allowed;
+}
+
+.mj-scale-mark {
+  position: absolute;
+  inset: 0;
+  border-radius: 8px;
+  background: var(--mention);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.12);
+  opacity: 0.4;
+  transition: opacity 0.15s ease, box-shadow 0.15s ease;
+}
+
+.mj-scale-step:hover .mj-scale-mark {
+  opacity: 0.7;
+}
+
+.mj-scale-step input:checked + .mj-scale-mark {
+  opacity: 1;
+  box-shadow: 0 0 0 2px var(--panel-solid), 0 0 0 4px var(--fg);
+}
+
+.mj-scale-step input:checked + .mj-scale-mark::after {
+  content: "✓";
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: var(--mention-fg);
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.mj-scale-step input:focus-visible + .mj-scale-mark {
+  outline: 3px solid var(--focus);
+  outline-offset: 4px;
+}
+
+.mj-scale-step input:disabled + .mj-scale-mark {
+  opacity: 0.25;
+}
+
+/* Named for screen readers; shown on wider screens below. */
+.mj-scale-name {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+@media (min-width: 640px) {
+  .mj-ballot-row {
+    display: grid;
+    grid-template-columns: minmax(7rem, 1fr) 4fr;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .mj-ballot-row-head {
+    flex-direction: column;
+    gap: 2px;
+  }
+}
+
+/* Room for every name (about 65px a step): write them on the scale. */
+@container (min-width: 480px) {
+  .mj-scale-step {
+    min-height: 52px;
+  }
+
+  .mj-scale-name {
+    inset: 0;
+    width: auto;
+    height: auto;
+    display: grid;
+    place-items: center;
+    padding: 2px;
+    clip-path: none;
+    white-space: normal;
+    color: var(--fg);
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1.15;
+    text-align: center;
+    pointer-events: none;
+  }
+
+  .mj-scale-step input:checked ~ .mj-scale-name {
+    color: var(--mention-fg);
+  }
+
+  .mj-scale-step input:checked + .mj-scale-mark::after {
+    content: none; /* the name is visible: no check needed */
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* The dropdown alternative: native selects, coloured once chosen.    */
+/* ------------------------------------------------------------------ */
+
+.mj-dropdowns {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.mj-dropdown-row label {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.mj-dropdown-row select[data-mention] {
+  border-color: var(--mention);
+  background-color: var(--mention);
+  color: var(--mention-fg);
+  font-weight: 600;
+}
+
+.mj-dropdown-row select option {
+  background: var(--panel-solid);
+  color: var(--fg);
+}
+
+@media (min-width: 640px) {
+  .mj-dropdown-row {
+    flex-direction: row;
+    align-items: center;
+  }
+
+  .mj-dropdown-row label {
+    flex: 0 0 40%;
+  }
+}

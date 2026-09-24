@@ -1,0 +1,141 @@
+/* Approval voting: a checkbox per option, and results as bars. */
+
+.approval-ballot {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: none;
+}
+
+.approval-choice {
+  position: relative;
+  display: block;
+}
+
+.approval-choice input {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.approval-choice span {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 52px;
+  padding: 10px 14px;
+  border: 2px solid transparent;
+  border-radius: 10px;
+  background: var(--panel-solid);
+  color: var(--fg);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.approval-choice span::before {
+  content: "";
+  flex: none;
+  width: 24px;
+  height: 24px;
+  border: 2px solid var(--muted);
+  border-radius: 6px;
+  background: center / 16px no-repeat;
+}
+
+.approval-choice input:checked + span {
+  border-color: var(--success);
+}
+
+.approval-choice input:checked + span::before {
+  border-color: var(--success);
+  background-color: var(--success);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12l5 5 9-10'/%3E%3C/svg%3E");
+}
+
+.approval-choice input:focus-visible + span {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.approval-choice input:disabled + span {
+  opacity: 0.6;
+}
+
+.approval-results {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.approval-result {
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--card);
+}
+
+.approval-result[data-winner="true"] {
+  border-color: var(--success);
+  box-shadow: inset 0 0 0 1px var(--success);
+}
+
+.approval-result-head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.approval-rank {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.approval-result[data-winner="true"] .approval-rank {
+  background: var(--success);
+  color: var(--success-fg);
+}
+
+.approval-result-label {
+  flex: 1;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.approval-result-count {
+  color: var(--muted);
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+.approval-bar {
+  height: 8px;
+  margin-top: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--border);
+}
+
+.approval-bar-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--success);
+  transition: width 0.3s ease;
+}

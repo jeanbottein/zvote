@@ -1,39 +1,30 @@
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
+import react from '@vitejs/plugin-react';
+import { defineConfig } from 'vitest/config';
 
-// https://vitejs.dev/config/
-const backendType = process.env.VITE_BACKEND_TYPE || 'spacetime';
-const defaultPort = backendType === 'graphql' ? '8080' : '3000';
-const backendPort = process.env.VITE_BACKEND_PORT || defaultPort;
-
-const proxyConfig: Record<string, any> = {};
-
-if (backendType === 'graphql') {
-  // Java GraphQL backend
-  proxyConfig['/graphql'] = {
-    target: `http://127.0.0.1:${backendPort}`,
-    changeOrigin: true,
-  };
-} else {
-  // SpacetimeDB backend
-  proxyConfig['/v1'] = {
-    target: `http://127.0.0.1:${backendPort}`,
-    changeOrigin: true,
-    ws: true,
-  };
-}
+// The client always calls the API on its own origin. In development Vite
+// forwards /api to the Java server, so the voter cookie and the live-results
+// streams work without any CORS setup. Server-sent events are plain HTTP, so
+// the proxy needs no WebSocket support.
+const api = { '/api': 'http://127.0.0.1:8080' };
 
 export default defineConfig({
   plugins: [react()],
   server: {
-    host: true,
     port: 5173,
-    allowedHosts: true,
-    proxy: proxyConfig,
+    host: true, // reachable from a phone on the same network
+    proxy: api,
   },
   preview: {
-    host: true,
     port: 5173,
-    allowedHosts: true,
+    host: true,
+    proxy: api,
   },
-})
+  test: {
+    environment: 'jsdom',
+    // majorityJudgment.test.ts predates Vitest and uses global describe/it/expect.
+    globals: true,
+    setupFiles: ['src/test/setup.ts'],
+    include: ['src/**/*.test.{ts,tsx}'],
+    clearMocks: true,
+  },
+});
