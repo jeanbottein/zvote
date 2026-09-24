@@ -82,6 +82,8 @@ shown to people as is: write it as a sentence for them.
   results rules of `majority-judgment.css`. Adapt around them
   (`MajorityJudgmentResults.tsx`, `style.css`). Changing how results are
   ranked is the owner's call: see "Questions for the owner" in the roadmap.
+  Decided so far: with an even number of ballots the majority mention is the
+  lower of the two middle mentions (more than half the voters, not half).
 - **Ranking stays in the client.** The server sends seven counts per option,
   never a ranking.
 - **Every fetch sends credentials**, and so does `EventSource`: identity is an

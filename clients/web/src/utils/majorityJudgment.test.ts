@@ -205,9 +205,10 @@ describe('Simplified Majority Judgment', () => {
       const analysisA = computeMJAnalysis(optionA);
       const analysisB = computeMJAnalysis(optionB);
 
-      // Both should have same majority mention (Good)
-      expect(analysisA.majorityMention).toBe('Good');
-      expect(analysisB.majorityMention).toBe('Good');
+      // Both have the same majority mention, Fair: only 5 of the 10 voters
+      // say Good or better, which is half, not a majority
+      expect(analysisA.majorityMention).toBe('Fair');
+      expect(analysisB.majorityMention).toBe('Fair');
 
       // Both have same GMJ scores, so they tie
       expect(analysisA.gmdScore).toBe(analysisB.gmdScore);
@@ -295,7 +296,8 @@ describe('Simplified Majority Judgment', () => {
       };
 
       const analysis = computeMJAnalysis(counts);
-      expect(analysis.majorityMention).toBe('Excellent'); // Median position 5 of 10 votes, cumulative from Excellent: 5 >= 5
+      // Half the voters say Excellent, which is not a majority; all of them say Bad or better
+      expect(analysis.majorityMention).toBe('Bad');
       expect(typeof analysis.gmdScore).toBe('number');
     });
 
@@ -317,21 +319,22 @@ describe('Simplified Majority Judgment', () => {
   });
 
   describe('GMJ Score edge cases', () => {
-    it('should handle division by zero when no votes at median', () => {
-      // This is a theoretical edge case where rc = 0
+    it('should keep the GMJ score finite for polarized votes', () => {
+      // The majority mention always has votes, so rc is never 0. The closest
+      // case is half Excellent, half Bad: the majority mention is Bad, rc = 0.5
       const counts: JudgmentCounts = {
         Bad: 5,
         Inadequate: 0,
         Passable: 0,
-        Fair: 0, // Median but no votes here
+        Fair: 0,
         Good: 0,
         VeryGood: 0,
         Excellent: 5
       };
 
       const analysis = computeMJAnalysis(counts);
-      expect(typeof analysis.gmdScore).toBe('number');
       expect(isFinite(analysis.gmdScore)).toBe(true);
+      expect(analysis.gmdScore).toBe(1); // pc = 0.5, qc = 0, rc = 0.5 → (0.5 - 0) / 0.5
     });
 
     it('should compute zero GMJ score when equal votes above and below median', () => {
@@ -339,7 +342,7 @@ describe('Simplified Majority Judgment', () => {
         Bad: 1,
         Inadequate: 1,
         Passable: 1,
-        Fair: 4, // Median - total=10, median position=5, cumulative: Excellent(1) + VeryGood(1) + Good(1) + Fair(4) = 7 >= 5
+        Fair: 4, // Majority mention: Excellent(1) + VeryGood(1) + Good(1) + Fair(4) = 7 of 10 say Fair or better
         Good: 1,
         VeryGood: 1,
         Excellent: 1
@@ -359,7 +362,7 @@ describe('Simplified Majority Judgment', () => {
         Bad: 2,
         Inadequate: 1,
         Passable: 1,
-        Fair: 2, // Median - total=10, median position=5, cumulative from top: Excellent(3) + VeryGood(1) = 4, then Good(0) = 4, then Fair(2) = 6 >= 5
+        Fair: 2, // Majority mention: Excellent(3) + VeryGood(1) + Good(0) + Fair(2) = 6 of 10 say Fair or better
         Good: 0,
         VeryGood: 1,
         Excellent: 3
@@ -394,10 +397,10 @@ describe('Simplified Majority Judgment', () => {
 
     it('should compute negative GMJ score when more votes below median', () => {
       const counts: JudgmentCounts = {
-        Bad: 3,
+        Bad: 2,
         Inadequate: 1,
         Passable: 1,
-        Fair: 2, // Median
+        Fair: 3, // Majority mention: 1 + 1 + 1 + 3 = 6 of 10 say Fair or better
         Good: 1,
         VeryGood: 1,
         Excellent: 1
@@ -405,7 +408,40 @@ describe('Simplified Majority Judgment', () => {
 
       const analysis = computeMJAnalysis(counts);
       expect(analysis.majorityMention).toBe('Fair');
-      expect(analysis.gmdScore).toBeLessThan(0); // More votes below than above
+      expect(analysis.gmdScore).toBeLessThan(0); // 4 votes below Fair, 3 above
+    });
+  });
+
+  describe('Even number of ballots', () => {
+    const none: JudgmentCounts = {
+      Bad: 0, Inadequate: 0, Passable: 0, Fair: 0, Good: 0, VeryGood: 0, Excellent: 0
+    };
+
+    it('should take the lower of the two middle mentions', () => {
+      expect(computeMJAnalysis({ ...none, Excellent: 1, Bad: 1 }).majorityMention).toBe('Bad');
+      expect(computeMJAnalysis({ ...none, Good: 2, Fair: 2 }).majorityMention).toBe('Fair');
+      expect(computeMJAnalysis({ ...none, VeryGood: 3, Passable: 3 }).majorityMention).toBe('Passable');
+    });
+
+    it('should need a majority, not just half, of the voters', () => {
+      // 5 of 10 say VeryGood or better (half); 6 of 10 say Good or better (a majority)
+      const counts = { ...none, Excellent: 2, VeryGood: 3, Good: 1, Fair: 4 };
+
+      expect(computeMJAnalysis(counts).majorityMention).toBe('Good');
+    });
+
+    it('should rank a divisive option below a consensual one', () => {
+      const ranked = rankOptions([
+        { id: 'divisive', label: 'Divisive', judgment_counts: { ...none, Excellent: 5, Bad: 5 }, total_judgments: 10 },
+        { id: 'consensual', label: 'Consensual', judgment_counts: { ...none, Fair: 10 }, total_judgments: 10 }
+      ]);
+
+      expect(ranked.map(option => option.id)).toEqual(['consensual', 'divisive']);
+    });
+
+    it('should not change the majority mention for an odd number of ballots', () => {
+      expect(computeMJAnalysis({ ...none, Excellent: 1, Good: 1, Bad: 1 }).majorityMention).toBe('Good');
+      expect(computeMJAnalysis({ ...none, Excellent: 2, Bad: 1 }).majorityMention).toBe('Excellent');
     });
   });
 

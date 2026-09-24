@@ -24,26 +24,32 @@ export type MJAnalysis = {
 };
 
 /**
- * Calculate median mention from judgment counts
+ * The majority mention: the best mention that a majority of the voters - more
+ * than half - give the option or better.
+ *
+ * With an even number of ballots this is the lower of the two middle mentions,
+ * as majority judgment defines it (Balinski and Laraki): five Excellent and
+ * five Bad make Bad, because only half the voters say Excellent while all of
+ * them say Bad or better.
  */
 function calculateMedian(counts: JudgmentCounts): keyof JudgmentCounts {
   const mentions: (keyof JudgmentCounts)[] = [
     'Excellent', 'VeryGood', 'Good', 'Fair', 'Passable', 'Inadequate', 'Bad'
   ];
-  
+
   const total = Object.values(counts).reduce((sum, count) => sum + count, 0);
   if (total === 0) return 'Bad';
-  
-  const medianPosition = total / 2;
+
+  const half = total / 2;
   let cumulative = 0;
-  
+
   for (const mention of mentions) {
     cumulative += counts[mention];
-    if (cumulative >= medianPosition) {
+    if (cumulative > half) {
       return mention;
     }
   }
-  
+
   return 'Bad';
 }
 

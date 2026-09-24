@@ -79,9 +79,10 @@ it elsewhere. The schema is migrated automatically at startup.
 
 Most voting today asks people for a single choice, which throws away almost
 everything they think. Majority judgment asks voters to grade every option.
-Each option's *majority mention* is its median grade, and the option with the
-best one wins. Graduated majority judgment breaks ties between options with the
-same majority mention using how the other grades lean, above or below it.
+Each option's *majority mention* is the best grade that a majority of voters
+agree it deserves at least, and the option with the best one wins. Graduated
+majority judgment breaks ties between options with the same majority mention
+using how the other grades lean, above or below it.
 
 The result is robust to small changes, hard to game strategically, and
 expressive: voters say what they think of every option, not just their

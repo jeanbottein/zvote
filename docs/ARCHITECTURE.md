@@ -82,7 +82,12 @@ account first and the anonymous token second (see [ROADMAP.md](ROADMAP.md)).
 
 Counts are never stored. One `GROUP BY` per poll derives them from the ballot
 rows, so there is no second source of truth to keep in sync. The server sends
-counts, not rankings: majority judgment is ranked by the client. Missing grades
+counts, not rankings: majority judgment is ranked by the client
+(`utils/majorityJudgment.ts`). An option's majority mention is the best mention
+that more than half of the voters give it or better; with an even number of
+ballots that is the lower of the two middle mentions, as in Balinski and
+Laraki's definition. Ties between equal majority mentions are broken by the
+GMJ score. Missing grades
 on a majority judgment ballot are stored as `Bad`, the method's convention for
 "no opinion", so that every option's median is taken over the same voters.
 

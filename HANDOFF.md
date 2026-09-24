@@ -85,5 +85,6 @@ git commit -m "chore: remove the SpacetimeDB module and the previous client"
 
 ## Open questions for the owner
 
-See the end of `docs/ROADMAP.md`: the even-count median convention, "unrated
-means Bad", the grey palette, results visible before voting.
+See the end of `docs/ROADMAP.md`: "unrated means Bad", the grey palette,
+results visible before voting. Settled since: the majority mention of an even
+number of ballots is the lower middle one (classic majority judgment).
