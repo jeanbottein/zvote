@@ -222,21 +222,22 @@
 }
 
 /* Results ticks below the graph */
+/* Exactly over the bars, so 0% and 100% fall on the chart's inner edges. */
 .mj-results-ticks { 
   position: absolute; 
   top: 0;
-  right: -1px;
+  right: 0;
   bottom: 0;
-  left: 0px;
+  left: 0;
   pointer-events: none; 
 }
 
+/* A zero-width anchor at the tick's value; the line and label centre on it. */
 .mj-tick { 
   position: absolute; 
   bottom: 0; 
   height: 100%; 
   left: var(--left);
-  transform: translateX(-50%);
 }
 
 /* Regular tick lines (10px height) */
@@ -245,6 +246,7 @@
   position: absolute; 
   bottom: 0; 
   left: 0; 
+  transform: translateX(-50%);
   width: 1px; 
   height: 10px; 
   background: var(--border);
