@@ -222,13 +222,15 @@
 }
 
 /* Results ticks below the graph */
-/* Exactly over the bars, so 0% and 100% fall on the chart's inner edges. */
+/* From the middle of the chart's left border to the middle of its right one
+   (it is 1px wide): the 0% and 100% lines then lie exactly on the borders,
+   and 50% stays exactly in the middle of the bars. */
 .mj-results-ticks { 
   position: absolute; 
   top: 0;
-  right: 0;
+  right: -0.5px;
   bottom: 0;
-  left: 0;
+  left: -0.5px;
   pointer-events: none; 
 }
 
