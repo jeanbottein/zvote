@@ -1,47 +1,53 @@
 spring:
   application:
     name: zvote-server
-  
-  main:
-    allow-bean-definition-overriding: true
-  
-  r2dbc:
-    url: r2dbc:h2:mem:///zvote?options=DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+
+  # Blocking code on virtual threads: request handling reads top to bottom,
+  # stack traces point at our own code, and @Transactional means what everyone
+  # thinks it means - while the server still holds many concurrent connections,
+  # including the long-lived live-results streams.
+  threads:
+    virtual:
+      enabled: true
+
+  # H2 in file mode: embedded, so there is no database server, no port and no
+  # credentials. The data is one file under the data directory, which keeps the
+  # repo folder self-contained and portable across machines.
+  #
+  # ./dev.sh exports ZVOTE_DATA_DIR as an absolute path. The fallback uses
+  # ${user.dir} rather than "./data" because H2 rejects implicitly relative paths.
+  #
+  # Deliberately no DATABASE_TO_LOWER and no MODE=PostgreSQL: both break the
+  # identifier-case agreement between the schema and Spring Data (see
+  # V1__init.sql), and MODE=PostgreSQL also makes Spring Data pick the wrong
+  # dialect.
+  datasource:
+    url: jdbc:h2:file:${ZVOTE_DATA_DIR:${user.dir}/data}/zvote;AUTO_SERVER=TRUE
     username: sa
     password:
-  
-  h2:
-    console:
-      enabled: true
 
 server:
   port: 8080
 
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+
 logging:
   level:
     org.zvote: DEBUG
-    org.springframework.r2dbc: DEBUG
-    com.netflix.graphql.dgs: DEBUG
 
-# GraphQL configuration
-dgs:
-  graphql:
-    path: /graphql
-    graphiql:
-      enabled: true
-    websocket:
-      path: /subscriptions
-
-# Feature flags (mirroring SpacetimeDB approach)
+# What this server offers. Advertised at GET /api/server-info so the client can
+# adapt its UI, and enforced when polls are created.
 zvote:
   features:
-    public-votes: true
-    unlisted-votes: false
-    private-votes: false
+    public-polls: true
+    unlisted-polls: true
     approval-voting: true
     majority-judgment: true
-    ip-limiting: true  # We CAN implement this in Java!
-    live-ballot: true
-    envelope-ballot: true
   limits:
     max-options: 20
+    max-title-length: 200
+    max-option-length: 100

@@ -1,0 +1,8 @@
+# Tests run against an in-memory database, migrated by Flyway like the real one.
+spring:
+  datasource:
+    url: jdbc:h2:mem:zvote;DB_CLOSE_DELAY=-1
+
+logging:
+  level:
+    org.zvote: INFO

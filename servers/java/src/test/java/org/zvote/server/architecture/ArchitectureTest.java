@@ -3,104 +3,144 @@ package org.zvote.server.architecture;
 import com.tngtech.archunit.core.domain.JavaClasses;
 import com.tngtech.archunit.core.importer.ClassFileImporter;
 import com.tngtech.archunit.core.importer.ImportOption;
-import com.tngtech.archunit.lang.ArchRule;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
-import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.*;
-import static com.tngtech.archunit.library.Architectures.layeredArchitecture;
+import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes;
+import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 
 /**
- * Architecture validation using ArchUnit
- * Ensures feature-based packaging and clean architecture principles
+ * Executable architecture rules. The shape they enforce is deliberately small:
+ *
+ *   polls    - what is being decided. Knows nothing about voting systems.
+ *   ballots  - one package per voting system, each ignorant of the others.
+ *   api      - the only layer that knows about both, because composing a poll
+ *              with its results is inherently a job for both.
+ *   identity - who is voting.
+ *   live     - pushing changes to watchers; knows nothing about what it pushes.
+ *   common   - configuration and the shared "invalid request" error.
+ *
+ * Anything more elaborate (ports and adapters, an interface per implementation,
+ * a mapper per boundary) would cost more to understand than it buys at this size.
  */
 class ArchitectureTest {
 
-    private static JavaClasses importedClasses;
+    private static JavaClasses classes;
 
     @BeforeAll
-    static void setUp() {
-        importedClasses = new ClassFileImporter()
+    static void importClasses() {
+        classes = new ClassFileImporter()
             .withImportOption(ImportOption.Predefined.DO_NOT_INCLUDE_TESTS)
             .importPackages("org.zvote.server");
     }
 
     @Test
-    void featuresShouldNotDependOnEachOther() {
-        // Vote management should not depend on voting systems and vice versa
-        ArchRule rule = noClasses()
-            .that().resideInAPackage("..votemanagement..")
-            .should().dependOnClassesThat().resideInAPackage("..votingsystems..");
-
-        rule.check(importedClasses);
+    void pollsDoNotKnowAboutVotingSystems() {
+        noClasses()
+            .that().resideInAPackage("..polls..")
+            .should().dependOnClassesThat().resideInAPackage("..ballots..")
+            .because("a poll is the question, not how it is answered")
+            .check(classes);
     }
 
     @Test
-    void repositoriesShouldOnlyBeAccessedByServices() {
-        ArchRule rule = classes()
-            .that().haveNameMatching(".*Repository")
-            .should().onlyBeAccessed().byClassesThat()
-            .haveNameMatching(".*Service.*|.*Configuration.*");
+    void votingSystemsDoNotDependOnEachOther() {
+        noClasses()
+            .that().resideInAPackage("..ballots.approval..")
+            .should().dependOnClassesThat().resideInAPackage("..ballots.judgment..")
+            .because("each voting system must stand alone")
+            .check(classes);
 
-        rule.check(importedClasses);
+        noClasses()
+            .that().resideInAPackage("..ballots.judgment..")
+            .should().dependOnClassesThat().resideInAPackage("..ballots.approval..")
+            .because("each voting system must stand alone")
+            .check(classes);
     }
 
     @Test
-    void servicesShouldNotDependOnGraphQLLayer() {
-        ArchRule rule = noClasses()
-            .that().haveNameMatching(".*Service")
-            .should().dependOnClassesThat().haveNameMatching(".*DataFetcher.*");
-
-        rule.check(importedClasses);
+    void onlyTheApiKnowsAboutHttp() {
+        noClasses()
+            .that().resideInAnyPackage("..polls..", "..ballots..", "..live..", "..identity..", "..common..")
+            .should().dependOnClassesThat().resideInAPackage("..api..")
+            .because("the domain must not know how it is exposed")
+            .check(classes);
     }
 
     @Test
-    void entitiesShouldBeRecords() {
-        ArchRule rule = classes()
-            .that().resideInAPackage("..votemanagement..")
-            .and().haveSimpleNameEndingWith("Vote")
-            .or().haveSimpleNameEndingWith("Option")
-            .or().haveSimpleNameEndingWith("Approval")
-            .or().haveSimpleNameEndingWith("Judgment")
-            .should().beRecords();
-
-        rule.check(importedClasses);
+    void infrastructureKnowsNothingAboutTheDomain() {
+        noClasses()
+            .that().resideInAnyPackage("..live..", "..identity..")
+            .should().dependOnClassesThat().resideInAnyPackage("..polls..", "..ballots..")
+            .because("pushing events and recognising voters work the same whatever is being voted on")
+            .check(classes);
     }
 
     @Test
-    void dtosShouldBeRecords() {
-        ArchRule rule = classes()
-            .that().resideInAPackage("..dto..")
-            .should().beRecords();
-
-        rule.check(importedClasses);
+    void repositoriesAreOnlyUsedByServices() {
+        classes()
+            .that().haveSimpleNameEndingWith("Repository")
+            .should().onlyBeAccessed().byClassesThat().haveSimpleNameEndingWith("Service")
+            .because("the rules live in services; a controller reaching for a repository would walk past them")
+            .check(classes);
     }
 
     @Test
-    void servicesShouldBeAnnotatedWithService() {
-        ArchRule rule = classes()
-            .that().haveSimpleNameEndingWith("Service")
-            .should().beAnnotatedWith(org.springframework.stereotype.Service.class);
-
-        rule.check(importedClasses);
-    }
-
-    @Test
-    void repositoriesShouldBeInterfaces() {
-        ArchRule rule = classes()
+    void repositoriesAreAnnotatedInterfaces() {
+        classes()
             .that().haveSimpleNameEndingWith("Repository")
             .should().beInterfaces()
-            .andShould().beAnnotatedWith(org.springframework.stereotype.Repository.class);
-
-        rule.check(importedClasses);
+            .andShould().beAnnotatedWith(org.springframework.stereotype.Repository.class)
+            .check(classes);
     }
 
     @Test
-    void dataFetchersShouldBeAnnotatedWithDgsComponent() {
-        ArchRule rule = classes()
-            .that().haveSimpleNameEndingWith("DataFetcher")
-            .should().beAnnotatedWith(com.netflix.graphql.dgs.DgsComponent.class);
+    void servicesAreAnnotated() {
+        classes()
+            .that().haveSimpleNameEndingWith("Service")
+            .should().beAnnotatedWith(org.springframework.stereotype.Service.class)
+            .check(classes);
+    }
 
-        rule.check(importedClasses);
+    @Test
+    void controllersAreAnnotated() {
+        classes()
+            .that().haveSimpleNameEndingWith("Controller")
+            .should().beAnnotatedWith(org.springframework.web.bind.annotation.RestController.class)
+            .check(classes);
+    }
+
+    @Test
+    void dataIsImmutable() {
+        classes()
+            .that().resideInAPackage("..dto..")
+            .should().beRecords()
+            .because("request and response shapes are data, not objects with behaviour")
+            .check(classes);
+
+        // Entities carry no @Table annotation (it would make their table name a
+        // quoted identifier), so they are recognised structurally: everything in
+        // the domain that is not a service, repository, exception or enum.
+        classes()
+            .that().resideInAnyPackage("..polls..", "..ballots..")
+            .and().areTopLevelClasses()   // skips synthetic switch-map classes
+            .and().areNotInterfaces()
+            .and().areNotEnums()
+            .and().haveSimpleNameNotEndingWith("Service")
+            .and().haveSimpleNameNotEndingWith("Exception")
+            .should().beRecords()
+            .because("immutable entities are why this project uses Spring Data JDBC, "
+                + "and JPA cannot map records at all")
+            .check(classes);
+    }
+
+    @Test
+    void nothingIsReactive() {
+        noClasses()
+            .that().resideInAPackage("org.zvote.server..")
+            .should().dependOnClassesThat().resideInAnyPackage("reactor..", "org.reactivestreams..")
+            .because("the server is blocking code on virtual threads by design; a stray Mono or Flux "
+                + "brings back the programming model that was removed")
+            .check(classes);
     }
 }
