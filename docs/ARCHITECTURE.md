@@ -1,394 +1,246 @@
-# ZVote Architecture: Dual Backend Design
+# zvote architecture
 
-## 🎯 Design Philosophy
-
-**Low cognitive complexity. High intuition. Zero boilerplate.**
-
-The client detects and adapts to either backend automatically. No configuration unless you want it.
-
-## 🏗️ Architecture Overview
+One Java server and one web client. The server stores polls and ballots and
+counts them; the client shows them, lets people vote, and ranks the results.
+The guiding rule is to keep the design as small as the problem allows: every
+layer below exists because something needed it.
 
 ```
-┌─────────────────────────────────────┐
-│      React Client (Single UI)      │
-│   - Same components everywhere      │
-│   - No backend-specific code        │
-└──────────────┬──────────────────────┘
-               │
-               ↓ useBackend()
-┌─────────────────────────────────────┐
-│      Backend Abstraction Layer      │
-│   - Auto-detects server type        │
-│   - Unified interface                │
-│   - Real-time subscriptions          │
-└──────────────┬──────────────────────┘
-               │
-         ┌─────┴─────┐
-         ↓           ↓
-    ┌─────────┐ ┌──────────┐
-    │Spacetime│ │  GraphQL │
-    │ Backend │ │ Backend  │
-    └─────────┘ └──────────┘
-         ↓           ↓
-    ┌─────────┐ ┌──────────┐
-    │   Rust  │ │   Java   │
-    │SpacetimeDB│ Spring Boot│
-    └─────────┘ └──────────┘
+ phone / desktop browser
+ ┌──────────────────────────────┐
+ │ React client (clients/web)   │  ranks the results (GMJ) and draws them
+ └──────────────┬───────────────┘
+                │ same origin: JSON over HTTP, and one event stream per open poll
+ ┌──────────────┴───────────────┐
+ │ Spring Boot server           │  rules, identity, tallies, live pushes
+ │ (servers/java)               │
+ └──────────────┬───────────────┘
+                │ JDBC
+ ┌──────────────┴───────────────┐
+ │ H2 file (data/zvote.mv.db)   │  PostgreSQL when deployed
+ └──────────────────────────────┘
 ```
 
-## 🧠 Build-Time Selection
+In development the Vite dev server serves the client on `:5173` and forwards
+`/api` to the Java server on `:8080`, so the browser only ever talks to one
+origin: cookies and event streams need no CORS.
 
-### Optimized Bundle (IQ 200)
+## Vocabulary
 
-```typescript
-// Vite build → tree-shakes unused backend
-const BACKEND_TYPE = import.meta.env.VITE_BACKEND_TYPE;
+A **poll** is the question being decided. A **ballot** is one voter's answer to
+it. "Vote" is ambiguous between the two and is not used as a noun in the code.
+A poll's **id** is its share token.
 
-export async function createBackend() {
-  if (BACKEND_TYPE === 'graphql') {
-    const { GraphQLBackend } = await import('./graphql');
-    // SpacetimeDB code NOT in bundle
-    return new GraphQLBackend(url);
-  } else {
-    const { SpacetimeBackend } = await import('./spacetime');
-    // GraphQL code NOT in bundle
-    return new SpacetimeBackend();
-  }
-}
-```
+## Server
 
-**Result:**
-- SpacetimeDB build: ~50kb smaller (no Apollo Client)
-- GraphQL build: ~50kb smaller (no SpacetimeDB SDK)
+Java 21, Spring Boot 4.1: Spring MVC on virtual threads, Spring Data JDBC,
+Flyway, H2 in file mode. About a thousand lines, in six packages under
+`org.zvote.server`:
 
-Set once before build. Deploy optimized.
+| Package | Knows about | Holds |
+|---|---|---|
+| `polls` | nothing else | `Poll`, `PollOption`, `PollService`: every rule about polls |
+| `ballots.approval` | nothing else | approval ballots and their tallies |
+| `ballots.judgment` | nothing else | majority judgment ballots, `Mention`, tallies |
+| `api` | everything | controllers, `PollViewService`, DTOs, error mapping |
+| `identity` | nothing else | the voter cookie and `VoterIdentityFilter` |
+| `live` | nothing else | `PollStream`: server-sent events |
+| `common` | nothing else | `ZVoteProperties`, `InvalidRequestException` |
 
-## 💡 Unified Interface
+`ArchitectureTest` (ArchUnit) fails the build if these boundaries are crossed:
+polls ignore voting systems, the two voting systems ignore each other, only
+`api` knows about HTTP, `live` and `identity` know nothing about the domain,
+repositories are only used by services, data classes are records, and nothing
+imports Reactor.
 
-One interface. Two implementations. Zero conditionals.
+### Casting a ballot, step by step
 
-```typescript
-interface VoteBackend {
-  readonly type: 'spacetime' | 'graphql';
-  readonly connected: boolean;
-  
-  getVote(id: string): Promise<Vote>;
-  createVote(input: CreateVoteInput): Promise<CreateVoteResult>;
-  setApprovalBallot(voteId: string, optionIds: string[]): Promise<void>;
-  
-  onVotesChange(callback: (votes: Vote[]) => void): Unsubscribe;
-}
-```
+1. `VoterIdentityFilter` reads the `zvote_voter` cookie (issuing one if
+   needed) and puts the voter id on the request.
+2. `BallotController` asks `PollService.findOpen(id)` for the poll (404 if it
+   does not exist, 409 if it is closed), checks that the ballot has the right
+   shape and only this poll's option ids, and hands it to the voting system's
+   service.
+3. That service replaces the voter's ballot in one transaction: delete, then
+   insert.
+4. `PollStream.changed(...)` is told the poll moved. The caller gets the fresh
+   `PollView` straight away; watchers get an update a moment later.
 
-### Component Usage
+### Identity
 
-```typescript
-function VoteList() {
-  const backend = useBackend();  // SpacetimeDB or GraphQL
-  const [votes, setVotes] = useState([]);
-  
-  useEffect(() => {
-    backend.getVotes().then(setVotes);
-    return backend.onVotesChange(setVotes);
-  }, [backend]);
-  
-  return votes.map(vote => <VoteCard {...vote} />);
-}
-```
+Anonymous first: a friend who opens a share link can vote at once. The cookie
+holds 256 random bits; the database holds only `base64url(SHA-256(token))`, so
+a copy of the database is not enough to act as a voter. The cookie is
+`HttpOnly` (scripts cannot read it) and `SameSite=Lax` (other sites cannot send
+it with a `POST`, `PUT`, `PATCH` or `DELETE`), and no CORS is enabled, which is
+what protects against cross-site request forgery.
 
-**No backend checks. No conditional logic. Just code.**
+Accounts will plug in at the same place: the filter will resolve a signed-in
+account first and the anonymous token second (see [ROADMAP.md](ROADMAP.md)).
 
-## 🔌 Backend Implementations
+### Tallies
 
-### SpacetimeBackend
+Counts are never stored. One `GROUP BY` per poll derives them from the ballot
+rows, so there is no second source of truth to keep in sync. The server sends
+counts, not rankings: majority judgment is ranked by the client. Missing grades
+on a majority judgment ballot are stored as `Bad`, the method's convention for
+"no opinion", so that every option's median is taken over the same voters.
 
-```typescript
-class SpacetimeBackend implements VoteBackend {
-  async getVotes() {
-    return Vote.all().filter(v => v.visibility === Visibility.PUBLIC);
-  }
-  
-  onVotesChange(callback) {
-    Vote.onInsert(callback);
-    Vote.onUpdate(callback);
-    return () => {
-      Vote.offInsert(callback);
-      Vote.offUpdate(callback);
-    };
-  }
-}
-```
+### Live updates
 
-### GraphQLBackend
+`GET /api/polls/{id}/events` is a server-sent event stream. SSE is one-way,
+which is all a results view needs, needs no handshake protocol, and browsers
+reconnect by themselves. Streams are cheap because request threads are
+virtual.
 
-```typescript
-class GraphQLBackend implements VoteBackend {
-  async getVotes() {
-    const { data } = await this.client.query({
-      query: gql`query { publicVotes { id title } }`
-    });
-    return data.publicVotes;
-  }
-  
-  onVotesChange(callback) {
-    const sub = this.client.subscribe({
-      query: gql`subscription { publicVoteCreated { id title } }`
-    });
-    return () => sub.unsubscribe();
-  }
-}
-```
+`PollStream` keeps the watchers of each poll in memory and:
 
-## 🎨 Clean Component Example
+- **coalesces**: however many ballots arrive in a burst, watchers get one
+  update per 200 ms window, computed once, after the burst, off the voter's
+  request thread;
+- **orders**: every write to a poll's watchers happens under that poll's lock,
+  so a slow flush can never overtake a newer one;
+- **starts with the current state**, so reconnecting clients are correct at
+  once;
+- sends a **heartbeat** every 20 s (the only way to notice that a phone went
+  away, and it keeps proxies from closing quiet streams), and ends streams
+  after 30 minutes so that dead connections cannot pile up;
+- **closes every stream when shutdown begins**. Graceful shutdown waits for
+  open requests, and a stream never finishes on its own: without this, any
+  open results page delayed every restart by 30 seconds.
 
-```typescript
-function CreateVote() {
-  const backend = useBackend();
-  const [creating, setCreating] = useState(false);
-  
-  const handleSubmit = async (input) => {
-    setCreating(true);
-    const result = await backend.createVote(input);
-    setCreating(false);
-    
-    if (result.error) {
-      showError(result.error);
-    } else {
-      navigate(`/vote/${result.vote.id}`);
-    }
-  };
-  
-  return <VoteForm onSubmit={handleSubmit} loading={creating} />;
-}
-```
+This works on one server. A second instance will need a shared channel
+(PostgreSQL `LISTEN/NOTIFY` or Redis) to relay `changed` calls between nodes.
 
-**Backend-agnostic. Intuitive. Zero ceremony.**
+### Persistence
 
-## 🚀 Usage Patterns
+Flyway owns the schema (`src/main/resources/db/migration`). The SQL is portable
+(`GENERATED BY DEFAULT AS IDENTITY`, `TIMESTAMP WITH TIME ZONE`) so that it
+runs unchanged on PostgreSQL. Table names are singular and unquoted and entities
+have no `@Table`: see the note at the top of `V1__init.sql`. Deleting a poll
+deletes its options and ballots (`ON DELETE CASCADE`). `V1` has never been
+released and was rewritten in place; from the first deployment on, only add
+migrations.
 
-### Pattern 1: List Data
+### Errors
 
-```typescript
-const { votes, loading } = useBackendVotes();
+`ApiExceptionHandler` turns domain exceptions into RFC 9457 problem documents
+whose `detail` can be shown to people as is: `InvalidRequestException` → 400,
+`NotPollCreatorException` → 403, `PollNotFoundException` → 404,
+`PollClosedException` and simultaneous ballots → 409. Spring MVC's own errors
+use the same format.
 
-return loading ? <Spinner /> : <VoteList votes={votes} />;
-```
+### Tests
 
-### Pattern 2: Create Data
+- `ArchitectureTest`: the boundaries above.
+- `PollApiTest`: the HTTP contract through MockMvc, on an in-memory H2
+  migrated by Flyway: creation and validation, finding polls, both voting
+  systems, revising and withdrawing, closing, deleting, identity.
+- `PollEventsTest`: the live stream over a real socket: first event,
+  coalescing, closing, deletion, unknown poll.
 
-```typescript
-const { createVote, creating } = useCreateBackendVote();
+## Client
 
-const handleCreate = () => createVote({
-  title: 'Best Framework',
-  options: ['React', 'Vue', 'Svelte']
-});
-```
-
-### Pattern 3: Real-time Updates
-
-```typescript
-useEffect(() => {
-  const unsub = backend.onVoteChange(voteId, (updated) => {
-    setVote(updated);
-  });
-  return unsub;
-}, [voteId]);
-```
-
-## 🎛️ Configuration (Optional)
-
-### Auto (Default)
-
-```bash
-npm run dev
-# Detects running server automatically
-```
-
-### Manual Override
-
-```bash
-# Environment
-VITE_BACKEND_TYPE=graphql npm run dev
-
-# Or create .env
-cp .env.graphql .env
-npm run dev
-
-# Or localStorage
-localStorage.setItem('backend_config', JSON.stringify({
-  type: 'graphql',
-  url: 'http://localhost:8080'
-}));
-```
-
-## 📊 Feature Matrix
-
-| Feature | SpacetimeDB | Java GraphQL |
-|---------|-------------|--------------|
-| Vote CRUD | ✅ | ✅ |
-| Approval Voting | ✅ | ✅ |
-| Majority Judgment | ✅ | 🔄 |
-| Real-time | ✅ WebSocket | ✅ Subscriptions |
-| IP Limiting | ❌ Not possible | ✅ **Works!** |
-| Auth | ⚠️ Experimental | ✅ Spring Security |
-
-## 🔍 Detection Algorithm
-
-```typescript
-async function detectServer(urls: string[]) {
-  for (const url of urls) {
-    // GraphQL check: POST with introspection query
-    const isGraphQL = await fetch(`${url}/graphql`, {
-      method: 'POST',
-      body: JSON.stringify({ query: '{ __schema { types { name } } }' })
-    }).then(r => r.ok);
-    
-    // SpacetimeDB check: WebSocket handshake
-    const isSpacetime = await new Promise(resolve => {
-      const ws = new WebSocket(`${url.replace('http', 'ws')}/database/subscribe/zvote-proto1`);
-      ws.onopen = () => { ws.close(); resolve(true); };
-      ws.onerror = () => resolve(false);
-      setTimeout(() => { ws.close(); resolve(false); }, 2000);
-    });
-    
-    if (isGraphQL) return { type: 'graphql', url };
-    if (isSpacetime) return { type: 'spacetime', url };
-  }
-  
-  return null;
-}
-```
-
-## 🎯 Type Safety
-
-```typescript
-// Unified types across backends
-type Visibility = 'PUBLIC' | 'PRIVATE' | 'UNLISTED';
-type VotingSystem = 'APPROVAL' | 'MAJORITY_JUDGMENT';
-
-interface Vote {
-  id: string;
-  title: string;
-  visibility: Visibility;
-  votingSystem: VotingSystem;
-  options?: VoteOption[];
-}
-
-// Backend implementations map their native types
-class SpacetimeBackend {
-  private mapVote(native: gen.Vote): Vote {
-    return {
-      id: native.id.toString(),
-      visibility: this.mapVisibility(native.visibility),
-      // ...
-    };
-  }
-}
-```
-
-## 🏃‍♂️ Quick Start
-
-**SpacetimeDB:**
-```bash
-# Terminal 1: Server
-cd server && spacetime start
-
-# Terminal 2: Client
-cd client && npm run dev:spacetime
-```
-
-**Java GraphQL:**
-```bash
-# Terminal 1: Server
-cd java-server && mvn spring-boot:run
-
-# Terminal 2: Client
-cd client && npm run dev:graphql
-```
-
-**Switch backends:**
-```bash
-cp .env.spacetime .env  # or .env.graphql
-npm run dev
-```
-
-## 📦 Files Structure
+React 19 and TypeScript, built by Vite, tested with Vitest and Testing Library,
+styled with plain CSS. No state library, no CSS framework: a few hooks and
+tokens do the job.
 
 ```
-client/src/
-├── backend/
-│   ├── types.ts              # Unified types
-│   ├── factory.ts            # Build-time backend factory
-│   ├── spacetime.ts          # SpacetimeDB impl
-│   ├── graphql.ts            # GraphQL impl
-│   ├── BackendProvider.tsx   # React context
-│   └── index.ts              # Exports
-│
-├── hooks/
-│   └── useBackendVotes.ts    # Clean hooks
-│
-└── components/
-    └── BackendStatus.tsx      # Status indicator
+src/
+  index.tsx            entry: applies saved preferences, renders <App>
+  app/                 the shell: routes, header, settings, not-found page
+  api/                 the only code that talks to the server (fetch + EventSource)
+  polls/               the screens (home, new poll, poll) and their hooks
+  features/VotingSystem/
+    MajorityJudgment/  ballots (colour scale, dropdowns), results, mention names
+    Approval/          ballot, results, ranking
+  preferences/         theme, palette, ballot style, live/envelope submission
+  ui/                  small shared pieces: dialog, segmented control, toasts, icons
+  utils/               majorityJudgment.ts: the GMJ ranking math
+  style.css            tokens, layout, shared components
 ```
 
-## 🧪 Testing Both Backends
+The voting-system folders are presentational: they take options and a ballot
+and call back with a new ballot. The `polls` screens connect them to the API,
+the same way `api` composes polls and ballots on the server.
 
-```bash
-# Test SpacetimeDB
-npm run dev:spacetime
+### Routes
 
-# Test Java GraphQL  
-npm run dev:graphql
+| Path | Screen |
+|---|---|
+| `/` | your polls and other people's public polls |
+| `/new` | create a poll |
+| `/p/:id` | a poll: your ballot, the live results, and the creator's controls |
 
-# Same UI, different backends!
-```
+A poll's page address is its share link.
 
-## 💬 Philosophy
+### Data flow on a poll page
 
-> "The best abstraction is the one you don't notice."
+`usePoll(id)` loads the poll, then opens its event stream. Loading first
+guarantees that the stream's first event is at least as recent as what was
+loaded, so an update can neither be missed nor rolled back. Updates are merged
+into the loaded poll; they carry nothing about the voter, so `isMine` and
+`myBallot` survive. After a ballot, the server's answer replaces the poll.
 
-- No `if (backend === 'spacetime')` conditionals
-- No duplicate components for different backends
-- No runtime type checking
-- No configuration unless needed
+`useBallot` holds the ballot being filled in:
 
-**Just write code. It works everywhere.**
+- **Live** (the default): each change is cast at once. Changes made while one
+  is on its way are not all sent: the latest one is cast next, so the server
+  always ends with the voter's last choice. Until the server answers, the page
+  shows what the voter chose; if casting fails it falls back to what the server
+  holds, and a toast explains why.
+- **Envelope**: changes stay on the page until the voter submits them.
 
-## 🎉 Benefits
+### The results visualisation
 
-### For Developers
-- Write once, run anywhere
-- Type-safe across backends
-- Hot-reload works with both
-- Zero mental overhead
-- Easy to switch during development
+`MajorityJudgmentResultsGraph.tsx`, `utils/majorityJudgment.ts` (and its tests)
+and the mention ramp in `majority-judgment.css` are the reference visualisation
+of majority judgment results. They are kept unchanged on purpose. Adapting them
+happens around them: `MajorityJudgmentResults.tsx` converts the API's options to
+their input, and small-screen adjustments live in `style.css`.
 
-### For Users
-- Same UX regardless of backend
-- Faster page loads (optimized bundles)
-- Seamless real-time updates
-- No visible difference
+### Styling
 
-### For Deployment
-- **Optimal bundles** - Only needed code included
-- **Smaller assets** - 50-100kb savings per build
-- **Choose per environment** - Different backends for dev/prod
-- **Fast builds** - Tree-shaking eliminates unused code
+Mobile first: layouts are written for a phone held upright, and wider screens
+get more room. Tap targets are at least 44 px, inputs use 16 px text (smaller
+makes iOS zoom in), nothing depends on hovering, and the header and dialogs
+respect the notch and home-bar safe areas. On phones, dialogs open as sheets
+from the bottom.
 
-## 🚦 Status Indicator
+Colours are CSS custom properties. The dark set applies when the device prefers
+dark, or when the voter picks a theme in Settings (`data-theme` on `<html>`).
+The grey mention palette is `data-colorblind` on `<body>`, where the results
+stylesheet has always looked for it.
 
-Bottom-right corner shows active backend:
+### Tests
 
-```
-🟢 Java GraphQL ●    (connected)
-🔵 SpacetimeDB ●    (connected)
-```
+Vitest runs in jsdom: the GMJ math, the API client (with fake `fetch` and
+`EventSource`), the ballot state machine, the form rules, the ballots, and the
+poll and new-poll screens with the API mocked. The end-to-end behaviour (two
+voters, live updates, phone and desktop layouts) was checked in a real browser;
+automating that in CI with Playwright is on the roadmap.
 
-Unobtrusive. Always visible. Always accurate.
+## Decisions
 
----
+| Decision | Why |
+|---|---|
+| One backend (Java) | SpacetimeDB is under the Business Source License, which forbids the open-source goal; the dual-backend layer went with it. |
+| Spring MVC on virtual threads, not WebFlux | Blocking code that reads top to bottom, with the concurrency of async. `ArchitectureTest` keeps Reactor out. |
+| Spring Data JDBC, not JPA | No lazy loading or dirty checking, and it maps Java records, which JPA cannot. |
+| REST + server-sent events, not GraphQL or WebSockets | Plain HTTP and one-way pushes cover every need, with nothing to negotiate. |
+| H2 in file mode | No database to install or configure; the data file moves between machines. PostgreSQL arrives with deployment. |
+| Tallies derived, never stored | One source of truth. |
+| Ranking in the client | Majority judgment math lives in one tested module, next to the visualisation. |
+| `PUT` for ballots | One ballot per voter per poll; cast, revise and withdraw are one operation, and retries are safe. |
+| Share token as the only id | One identifier, unguessable, that doubles as the unlisted-poll secret. |
+| Hashed voter ids | The database alone cannot be used to act as someone. |
+| Public and unlisted only | "Private" means "only people I choose", which needs accounts. It comes back with them. |
+| No client state library | Two data hooks and one ballot hook are all the state there is. |
 
-**Result:** One UI. Two backends. Optimal bundles.
+## Known limits
 
-**Build-time selection. Tree-shaken. Production-ready.**
+- **Anonymous identity is per browser.** Clearing cookies, or another browser,
+  is another voter. Fine among friends; not for decisions that must resist
+  ballot stuffing, which need accounts.
+- **Live updates are single-node** (see above).
+- **Lists are capped** (50 public polls, 100 of your own) and not paginated.

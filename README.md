@@ -1,120 +1,121 @@
 # zvote
 
-## Overview
+zvote is an open-source voting platform for deciding together: pick a
+restaurant with friends, choose an offsite with a team, run a live poll in
+front of an audience. It implements **majority judgment**, with the graduated
+(GMJ) tie-break, and **approval voting**. Results update live as ballots come
+in, on a phone or a desktop, with nothing to install and no account needed.
 
-zvote is an open-source, modern voting platform designed to push the limits of what voting systems can achieve. It implements advanced voting methods such as Graduated Majority Judgment (GMJ) and Approval Voting, aiming for fast, reactive, and meaningful collective decision-making. Inspired by the dynamic nature of real-time interactions like "Twitch Plays Pokémon," zvote is built for quick consensus and decision agility.
+<p>
+  <img src="docs/images/phone-ballot.png" width="260" alt="Filling in a majority judgment ballot on a phone">
+  <img src="docs/images/phone-results.png" width="260" alt="Live majority judgment results on a phone">
+</p>
 
-This repository is a first step — a working prototype focused on core mechanics, correctness, and live reactivity. The vision is much larger (outlined below), but the present goal is to deliver a simple, reliable foundation we can iterate on quickly.
+## Features
 
-## Screenshots
-<img width="536" height="725" alt="Capture d’écran 2025-09-28 à 23 25 10" src="https://github.com/user-attachments/assets/01dc7199-8a34-4ae0-ab1c-c1e9701e7ba7" />
+- **Majority judgment**: voters give every option a mention, from Excellent to
+  Bad, and the option with the best majority mention wins. Ties are broken
+  with the GMJ score.
+- **Approval voting**: voters tick every option they would accept.
+- **Live results**, pushed to everyone watching the poll.
+- **Revisable ballots**: change or withdraw your ballot until the poll closes.
+  Vote *live* (every tap counts) or *in an envelope* (review, then submit).
+- **Public or unlisted polls**, shared by link, QR code or your phone's share
+  sheet.
+- **For the creator**: close and reopen voting, delete the poll, download the
+  results.
+- **Private by design**: individual ballots are never shown to anyone else,
+  only the totals.
+- **Mobile first**: light and dark themes, and a colour-blind-friendly
+  palette.
 
+## Getting started
 
-## Key Features
+Two commands, no database to install and no credentials to configure:
 
-- **Graduated Majority Judgment (GMJ)**: a single-winner rated voting rule selecting candidates with the highest (graduated) median, enabling nuanced voter judgments with principled tie-breaking.
-- **Approval Voting**: voters approve any number of candidates for simplier ballots and fairer outcomes.
-- **Real-time by design**: built on spacetimedb for low-latency updates and responsive interactions.
-- **Privacy-minded results**: aggregate outcomes are public; individual ballots are private by design.
-- **Simple TypeScript client**: test, learn, and interact quickly with a minimal client.
-- **Prototype-first**: prioritizes correctness and velocity now, with a broader roadmap ahead.
+```bash
+mise install   # provisions the pinned Java 21 and Node 24 (see .tool-versions)
+./dev.sh       # starts the server on :8080 and the web app on :5173
+```
+
+Then open <http://localhost:5173>. To try it on your phone, open the
+"Network" address that Vite prints, from the same Wi-Fi.
+
+Without [mise](https://mise.jdx.dev), any JDK 21+ and Node 20.19+ will do.
+Maven is **not** required: `./dev.sh` uses the committed wrapper.
+
+```bash
+./dev.sh server   # the server only
+./dev.sh client   # the web app only
+./dev.sh test     # every check: server tests, client lint, types and tests
+```
+
+In development, a poll's creator also sees a *ballot feeder* that casts random
+ballots, to watch the results move.
+
+### Your data
+
+The database is embedded (H2 in file mode): everything lives in
+`data/zvote.mv.db`, inside the repo folder. Copy the folder and your polls come
+with it; the file format is the same on macOS, Linux and Windows, Intel and
+ARM. `data/` is not committed. Set `ZVOTE_DATA_DIR` to an absolute path to keep
+it elsewhere. The schema is migrated automatically at startup.
+
+## How it is built
+
+| | |
+|---|---|
+| Server (`servers/java`) | Java 21, Spring Boot 4.1: Spring MVC on virtual threads, Spring Data JDBC, Flyway, H2. A REST API, plus server-sent events for live results. |
+| Web app (`clients/web`) | React 19, TypeScript, Vite; Vitest and Testing Library; plain CSS. |
+
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): how it fits together, and why.
+- [docs/API.md](docs/API.md): the HTTP API.
+- [docs/ROADMAP.md](docs/ROADMAP.md): accounts and social sign-in, installable
+  app, Android, deployment.
+
+<img src="docs/images/desktop-results.png" width="560" alt="Majority judgment results on a desktop, dark theme">
+
+## Why majority judgment
+
+Most voting today asks people for a single choice, which throws away almost
+everything they think. Majority judgment asks voters to grade every option.
+Each option's *majority mention* is its median grade, and the option with the
+best one wins. Graduated majority judgment breaks ties between options with the
+same majority mention using how the other grades lean, above or below it.
+
+The result is robust to small changes, hard to game strategically, and
+expressive: voters say what they think of every option, not just their
+favourite.
+
+Learn more: [Graduated majority judgment](https://en.wikipedia.org/wiki/Graduated_majority_judgment),
+[Majority judgment](https://en.wikipedia.org/wiki/Majority_judgment),
+[Mieux Voter](https://mieuxvoter.fr/en/le-jugement-majoritaire).
 
 ## Vision
 
-I believe many voting systems used today are outdated. zvote aims to empower people everywhere with better, science-backed tools — from everyday choices (picking a restaurant, scheduling) to, longer term, supporting democratic reforms. The name "zvote" is a working title and may evolve with future branding.
+Many of the voting systems in use today are outdated. zvote aims to give
+everyone better, science-backed tools for deciding together: from everyday
+choices (a restaurant, a date) to, in time, community and civic decisions. It
+is also built for live, fast decisions, the "Twitch Plays Pokémon" kind, where
+many people steer something together in real time.
 
-Design values: open-source, science-based methods, dynamic/live voting, minimalist UI with tasteful gradients, and a developer-friendly API surface.
+Design values: open source, science-based methods, live and revisable ballots,
+a minimalist interface with tasteful gradients, and an API others can build on.
 
-## Why Graduated Majority Judgment?
+## Licence and contributing
 
-Graduated Majority Judgment improves upon majority judgment by using a continuous, line-interpolated median score to rank candidates robustly. This method:
+The code is under the [MIT licence](LICENSE). Design and brand assets may later
+live in a separate repository under a different licence.
 
-- Selects candidates based on the majority median score from cardinal ballots.
-- Uses a clear tie-breaking mechanism based on a continuous score calculation.
-- Provides voting outcomes resilient to small vote changes, reducing contention and recount challenges.
-- Enables voters to express nuanced opinions via graded ballots, which reflect more than just ranking.
+This is an early-stage project, and contributions are welcome: bug reports,
+ideas and patches, especially about correctness, usability and live behaviour.
+Before sending code, run `./dev.sh test`.
 
-Learn more about GMJ: [Wikipedia: Graduated Majority Judgment](https://en.wikipedia.org/wiki/Graduated_majority_judgment)
+### References
 
-## Roadmap (Prototype → Future Vision)
-
-This prototype focuses on GMJ and Approval Voting with live updates. The broader vision includes:
-
-- **Live, revisable ballots over time** for more authentic consent.
-- **Simple, intuitive UI** refined for clarity and speed.
-- **Open API** for integrations and extensions.
-- **Privacy and security first** principles in storage and transport.
-- **Scalability to larger contexts** (communities, organizations, eventually civic use).
-
-None of this dilutes the current focus: build a dependable, comprehensible core — then expand.
-
-## Example Use Cases
-
-- Choose restaurants or venues among friends using expressive ballots.
-- Select community representatives with fairer rules (Approval or GMJ).
-- Coordinate interactive experiences (e.g., Twitch Plays Pokémon) using low-latency group control.
-- Explore dynamic, live decision-making where many participants (and AI assistants) collaborate in near real-time.
-
-## Technology Stack
-
-**Dual Backend Support:**
-- **SpacetimeDB** (Rust): Real-time database foundation for reactive voting
-- **Java Spring Boot** (GraphQL): Production-ready backend with full IP limiting support
-
-**Client automatically detects which server is running!**
-
-## Getting Started
-
-### One-Command Start
-
-**SpacetimeDB Backend:**
-```bash
-git clone https://github.com/jeanbottein/zvote.git
-cd zvote
-./go-spacetime.sh
-```
-
-**Java GraphQL Backend:**
-```bash
-git clone https://github.com/jeanbottein/zvote.git
-cd zvote
-./go-java.sh
-```
-
-Each script automatically:
-- ✅ Starts the correct backend server
-- ✅ Configures client for that backend
-- ✅ Builds optimized bundle (only needed code)
-- ✅ Starts dev server on http://localhost:5173
-
-### Switch Backends
-
-Stop current script (Ctrl+C), then run the other:
-```bash
-./go-spacetime.sh  # Use SpacetimeDB
-# or
-./go-java.sh       # Use Java GraphQL
-```
-
-Client automatically reconfigures for the chosen backend.
-
-See `docs/QUICK_START.md` for more details and manual script usage.
-
-## Licensing and Repository Structure
-
-- The core voting logic and application code in this repository will be licensed under a permissive license such as MIT or Apache 2.0 to encourage broad adoption.
-- UI/design/brand assets may live in a separate repository under a different license (e.g., Creative Commons NC/ND or custom) to protect creative work from unauthorized commercial or dataset reuse.
-
-Refer to LICENSE files (when published) for final details.
-
-## Contributing
-
-This is an early-stage prototype, open to contributions. Feedback, bug reports, feature ideas, and patches are welcome — especially around correctness, usability, and real-time behavior. Help shape the future now so we can responsibly grow into the larger vision.
-
-[1](https://en.wikipedia.org/wiki/Graduated_majority_judgment)
-[2](https://en.wikipedia.org/wiki/Majority_judgment)
-[3](https://mieuxvoter.fr/en/le-jugement-majoritaire)
-[4](https://thesis.eur.nl/pub/47746/Thesis.pdf)
-[5](https://crest.science/RePEc/wpstorage/2018-15.pdf)
-[6](https://www.scitepress.org/Papers/2022/113194/113194.pdf)
-
+- [Graduated majority judgment](https://en.wikipedia.org/wiki/Graduated_majority_judgment)
+- [Majority judgment](https://en.wikipedia.org/wiki/Majority_judgment)
+- [Mieux Voter: le jugement majoritaire](https://mieuxvoter.fr/en/le-jugement-majoritaire)
+- [Thesis (Erasmus University)](https://thesis.eur.nl/pub/47746/Thesis.pdf)
+- [CREST working paper 2018-15](https://crest.science/RePEc/wpstorage/2018-15.pdf)
+- [SCITEPRESS 2022 paper](https://www.scitepress.org/Papers/2022/113194/113194.pdf)
