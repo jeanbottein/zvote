@@ -76,6 +76,7 @@ shown to people as is: write it as a sentence for them.
 - **The seven mentions** are spelled `Bad, Inadequate, Passable, Fair, Good,
   VeryGood, Excellent` everywhere: `Mention.wireName()`, the API, the TS types,
   the CSS `data-judgment` / `data-mention` selectors. Rename one, rename all.
+  Their colours (both palettes) are defined once, in `mentions.css`.
 - **Protected files, kept unchanged on purpose**:
   `features/VotingSystem/MajorityJudgment/MajorityJudgmentResultsGraph.tsx`,
   `utils/majorityJudgment.ts`, `utils/majorityJudgment.test.ts`, and the

@@ -214,8 +214,12 @@ from the bottom.
 
 Colours are CSS custom properties. The dark set applies when the device prefers
 dark, or when the voter picks a theme in Settings (`data-theme` on `<html>`).
-The grey mention palette is `data-colorblind` on `<body>`, where the results
-stylesheet has always looked for it.
+The seven mention colours are defined once, in
+`features/VotingSystem/MajorityJudgment/mentions.css`, for the results and the
+ballots alike: anything showing a mention carries `data-judgment` or
+`data-mention` and paints itself with `--mention`. The grey palette
+(`data-colorblind` on `<body>`) is seven greys evenly spaced in perceived
+lightness, lighter is better, readable whatever colours a person can tell apart.
 
 ### Tests
 

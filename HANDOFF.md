@@ -53,11 +53,11 @@ git commit -m "chore: remove the SpacetimeDB module and the previous client"
   and 21 × 409 and a consistent final state; shutdown with a watcher
   connected takes 0.08 s; timestamps survive the database in a non-UTC
   timezone.
-- **Client**: 79 tests pass (`npm test`). Typecheck and lint are clean on the
+- **Client**: 83 tests pass (`npm test`). Typecheck and lint are clean on the
   new code (checked file by file until the old files are deleted). The
   production bundle holds no SpacetimeDB or GraphQL code, and no dev tool.
 - **End to end**, in headless Chrome with two independent voters (phone
-  390 × 844 and desktop 1280 × 900), 25 checks: creating a poll, live ballots,
+  390 × 844 and desktop 1280 × 900), 23 checks: creating a poll, live ballots,
   one voter's ballot reaching the other without a reload, a burst of 40 ballots
   arriving as one update, envelope mode, dropdown ballots, the grey palette,
   settings, sharing, approval voting, unlisted polls kept off the home page,
@@ -85,6 +85,7 @@ git commit -m "chore: remove the SpacetimeDB module and the previous client"
 
 ## Open questions for the owner
 
-See the end of `docs/ROADMAP.md`: "unrated means Bad", the grey palette,
-results visible before voting. Settled since: the majority mention of an even
-number of ballots is the lower middle one (classic majority judgment).
+See the end of `docs/ROADMAP.md`: "unrated means Bad", and results visible
+before voting. Settled since: the majority mention of an even number of
+ballots is the lower middle one (classic majority judgment), and the grey
+palette is an even lightness ramp.

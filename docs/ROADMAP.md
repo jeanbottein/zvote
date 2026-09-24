@@ -90,13 +90,15 @@ Choices that change results or meaning, deliberately left as they are:
 1. **Unrated means Bad.** On a live ballot, rating one option counts every
    unrated option as `Bad` until the voter rates it. That is the method's
    convention, and the ballot says so, but it can surprise.
-2. **The grey palette** gives `Good` and `VeryGood` the same grey, and its
-   darkest greys nearly vanish on the dark theme's cards. The palette lives in
-   the reference stylesheet, so it was left untouched.
-3. **Results before voting.** Results are visible before you vote, which suits
+2. **Results before voting.** Results are visible before you vote, which suits
    live polls but can anchor voters. A per-poll "show results after voting or
    after closing" option would be simple to add.
 
-Decided: with an even number of ballots, the majority mention is the lower of
-the two middle mentions (classic majority judgment), so five `Excellent` and
-five `Bad` make `Bad`.
+Decided:
+
+- With an even number of ballots, the majority mention is the lower of the two
+  middle mentions (classic majority judgment), so five `Excellent` and five
+  `Bad` make `Bad`.
+- The grey palette is seven greys evenly spaced in perceived lightness,
+  lighter is better, defined once (`mentions.css`) for the results and the
+  ballots.

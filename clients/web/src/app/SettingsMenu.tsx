@@ -35,7 +35,7 @@ export default function SettingsMenu() {
               { value: 'grey', label: 'Shades of grey' },
             ]}
             onChange={(palette) => update({ colorblind: palette === 'grey' })}
-            hint="Shades of grey do not rely on telling red from green."
+            hint="Shades of grey read the same whatever colours you see: the lighter, the better."
           />
           <SegmentedControl
             legend="Majority judgment ballot"

@@ -1,24 +1,8 @@
 /* Majority judgment ballots.
  *
- * The mention colours repeat the results ramp of majority-judgment.css, so a
+ * The mention colours come from mentions.css, shared with the results, so a
  * mention looks the same on a ballot as in the results.
  */
-
-.mj-scale-step[data-mention="Excellent"], .mj-dropdown-row select[data-mention="Excellent"] { --mention: #065f46; --mention-fg: #fff; }
-.mj-scale-step[data-mention="VeryGood"], .mj-dropdown-row select[data-mention="VeryGood"] { --mention: #15803d; --mention-fg: #fff; }
-.mj-scale-step[data-mention="Good"], .mj-dropdown-row select[data-mention="Good"] { --mention: #86efac; --mention-fg: #0b0b0b; }
-.mj-scale-step[data-mention="Fair"], .mj-dropdown-row select[data-mention="Fair"] { --mention: #f9f1c4; --mention-fg: #0b0b0b; }
-.mj-scale-step[data-mention="Passable"], .mj-dropdown-row select[data-mention="Passable"] { --mention: #fecaca; --mention-fg: #0b0b0b; }
-.mj-scale-step[data-mention="Inadequate"], .mj-dropdown-row select[data-mention="Inadequate"] { --mention: #ef4444; --mention-fg: #fff; }
-.mj-scale-step[data-mention="Bad"], .mj-dropdown-row select[data-mention="Bad"] { --mention: #7f1d1d; --mention-fg: #fff; }
-
-body[data-colorblind="true"] :is(.mj-scale-step, .mj-dropdown-row select)[data-mention="Excellent"] { --mention: #f3f4f6; --mention-fg: #0b0b0b; }
-body[data-colorblind="true"] :is(.mj-scale-step, .mj-dropdown-row select)[data-mention="VeryGood"] { --mention: #e5e7eb; --mention-fg: #0b0b0b; }
-body[data-colorblind="true"] :is(.mj-scale-step, .mj-dropdown-row select)[data-mention="Good"] { --mention: #e5e7eb; --mention-fg: #0b0b0b; }
-body[data-colorblind="true"] :is(.mj-scale-step, .mj-dropdown-row select)[data-mention="Fair"] { --mention: #d1d5db; --mention-fg: #0b0b0b; }
-body[data-colorblind="true"] :is(.mj-scale-step, .mj-dropdown-row select)[data-mention="Passable"] { --mention: #9ca3af; --mention-fg: #0b0b0b; }
-body[data-colorblind="true"] :is(.mj-scale-step, .mj-dropdown-row select)[data-mention="Inadequate"] { --mention: #4b5563; --mention-fg: #fff; }
-body[data-colorblind="true"] :is(.mj-scale-step, .mj-dropdown-row select)[data-mention="Bad"] { --mention: #1f2937; --mention-fg: #fff; }
 
 /* ------------------------------------------------------------------ */
 /* The colour scale: one row per option, seven steps from Excellent   */

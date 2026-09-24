@@ -1,6 +1,7 @@
 import { useId } from 'react';
 import type { Mention } from '../../../api/types';
 import { MENTION_NAMES, MENTIONS_BEST_FIRST } from './mentions';
+import './mentions.css';
 import './mj-ballot.css';
 
 export interface MajorityJudgmentBallotProps {

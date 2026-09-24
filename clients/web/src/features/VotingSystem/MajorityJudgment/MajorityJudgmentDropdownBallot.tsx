@@ -2,6 +2,7 @@ import { useId } from 'react';
 import type { Mention } from '../../../api/types';
 import type { MajorityJudgmentBallotProps } from './MajorityJudgmentBallot';
 import { MENTION_NAMES, MENTIONS_BEST_FIRST } from './mentions';
+import './mentions.css';
 import './mj-ballot.css';
 
 /** The same ballot as a dropdown per option: compact, and native on phones. */

@@ -1,0 +1,32 @@
+/* The seven mention colours, defined once for the results and the ballots.
+ *
+ * Whatever shows a mention carries data-judgment (the results graph) or
+ * data-mention (the ballots) and paints itself with --mention, writing on it
+ * with --mention-fg.
+ *
+ * Colour palette: dark green for Excellent down to dark red for Bad.
+ *
+ * Grey palette (Settings > Mention colours, <body data-colorblind="true">):
+ * lighter is better. Lightness is seen the same whatever colours a person can
+ * tell apart. The seven greys are evenly spaced in perceived lightness (CIE L*
+ * 85 down to 25, 10 apart), so every mention is as easy to tell from its
+ * neighbours as any other; the ends stop short of white and black so they
+ * still show on light and dark cards; each text colour keeps a contrast of at
+ * least 5:1.
+ */
+
+[data-judgment="Excellent"], [data-mention="Excellent"] { --mention: #065f46; --mention-fg: #fff; }
+[data-judgment="VeryGood"], [data-mention="VeryGood"] { --mention: #15803d; --mention-fg: #fff; }
+[data-judgment="Good"], [data-mention="Good"] { --mention: #86efac; --mention-fg: #0b0b0b; }
+[data-judgment="Fair"], [data-mention="Fair"] { --mention: #f9f1c4; --mention-fg: #0b0b0b; }
+[data-judgment="Passable"], [data-mention="Passable"] { --mention: #fecaca; --mention-fg: #0b0b0b; }
+[data-judgment="Inadequate"], [data-mention="Inadequate"] { --mention: #ef4444; --mention-fg: #fff; }
+[data-judgment="Bad"], [data-mention="Bad"] { --mention: #7f1d1d; --mention-fg: #fff; }
+
+body[data-colorblind="true"] :is([data-judgment="Excellent"], [data-mention="Excellent"]) { --mention: #d4d4d4; --mention-fg: #0b0b0b; }
+body[data-colorblind="true"] :is([data-judgment="VeryGood"], [data-mention="VeryGood"]) { --mention: #b9b9b9; --mention-fg: #0b0b0b; }
+body[data-colorblind="true"] :is([data-judgment="Good"], [data-mention="Good"]) { --mention: #9e9e9e; --mention-fg: #0b0b0b; }
+body[data-colorblind="true"] :is([data-judgment="Fair"], [data-mention="Fair"]) { --mention: #848484; --mention-fg: #0b0b0b; }
+body[data-colorblind="true"] :is([data-judgment="Passable"], [data-mention="Passable"]) { --mention: #6a6a6a; --mention-fg: #fff; }
+body[data-colorblind="true"] :is([data-judgment="Inadequate"], [data-mention="Inadequate"]) { --mention: #525252; --mention-fg: #fff; }
+body[data-colorblind="true"] :is([data-judgment="Bad"], [data-mention="Bad"]) { --mention: #3b3b3b; --mention-fg: #fff; }

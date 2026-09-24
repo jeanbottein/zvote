@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import type { PollOption } from '../../../api/types';
 import { rankOptions, type JudgmentCounts } from '../../../utils/majorityJudgment';
 import MajorityJudgmentResultsGraph from './MajorityJudgmentResultsGraph';
+import './mentions.css';
 import './majority-judgment.css';
 
 const NO_JUDGMENTS: JudgmentCounts = {

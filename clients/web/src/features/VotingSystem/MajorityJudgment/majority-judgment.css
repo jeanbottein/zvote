@@ -272,23 +272,9 @@
   font-weight: 700
 }
 
-/* MJ 7-level colors (best to worst): dark green, green, light green, white, light red, red, dark red */
-.mj-results-bar[data-judgment="Excellent"], .mj-results-badge[data-judgment="Excellent"] { background: #065f46; color: #fff; }
-.mj-results-bar[data-judgment="VeryGood"], .mj-results-badge[data-judgment="VeryGood"] { background: #15803d; color: #fff; }
-.mj-results-bar[data-judgment="Good"], .mj-results-badge[data-judgment="Good"] { background: #86efac; color: #0b0b0b; }
-.mj-results-bar[data-judgment="Fair"], .mj-results-badge[data-judgment="Fair"] { background: #f9f1c4; color: #0b0b0b; }
-.mj-results-bar[data-judgment="Passable"], .mj-results-badge[data-judgment="Passable"] { background: #fecaca; color: #0b0b0b; }
-.mj-results-bar[data-judgment="Inadequate"], .mj-results-badge[data-judgment="Inadequate"] { background: #ef4444; color: #fff; }
-.mj-results-bar[data-judgment="Bad"], .mj-results-badge[data-judgment="Bad"] { background: #7f1d1d; color: #fff; }
-
-/* Colorblind variants */
-body[data-colorblind="true"] .mj-results-bar[data-judgment="Bad"], body[data-colorblind="true"] .mj-results-badge[data-judgment="Bad"] { background: #1f2937; color: #fff; }
-body[data-colorblind="true"] .mj-results-bar[data-judgment="Inadequate"], body[data-colorblind="true"] .mj-results-badge[data-judgment="Inadequate"] { background: #4b5563; color: #fff; }
-body[data-colorblind="true"] .mj-results-bar[data-judgment="Passable"], body[data-colorblind="true"] .mj-results-badge[data-judgment="Passable"] { background: #9ca3af; color: #0b0b0b; }
-body[data-colorblind="true"] .mj-results-bar[data-judgment="Fair"], body[data-colorblind="true"] .mj-results-badge[data-judgment="Fair"] { background: #d1d5db; color: #0b0b0b; }
-body[data-colorblind="true"] .mj-results-bar[data-judgment="Good"], body[data-colorblind="true"] .mj-results-badge[data-judgment="Good"] { background: #e5e7eb; color: #0b0b0b; }
-body[data-colorblind="true"] .mj-results-bar[data-judgment="VeryGood"], body[data-colorblind="true"] .mj-results-badge[data-judgment="VeryGood"] { background: #e5e7eb; color: #0b0b0b; }
-body[data-colorblind="true"] .mj-results-bar[data-judgment="Excellent"], body[data-colorblind="true"] .mj-results-badge[data-judgment="Excellent"] { background: #f3f4f6; color: #0b0b0b; }
+/* MJ 7-level colours, defined once for the results and the ballots in
+   mentions.css: dark green to dark red, or seven even greys. */
+.mj-results-bar[data-judgment], .mj-results-badge[data-judgment] { background: var(--mention); color: var(--mention-fg); }
 
 /* Winner orange-gold shimmer - ultra tight */
 .mj-results-card[data-winner="true"] { animation: goldenShimmer 2.5s ease-in-out infinite; }
