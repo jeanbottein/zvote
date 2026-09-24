@@ -1,3 +1,22 @@
-.spacetime.log
-.spacetime.pid
+# Local database (H2 file mode) — carries your polls; copy it when moving machines
+data/
+
+# Java
+target/
+*.class
+
+# Node
+node_modules/
+dist/
+coverage/
+.vite/
+
+# Editors / OS
 **/.DS_Store
+.idea/
+*.iml
+.vscode/
+
+# Local env
+.env
+.env.local

@@ -1,0 +1,6 @@
+# Pinned toolchain for zvote. With mise (or asdf) installed, run:
+#   mise install
+# Java 21 LTS matches <java.version> in servers/java/pom.xml; Node 24 is the
+# current LTS (the client also runs on Node 20.19 or newer).
+java temurin-21.0.12+8
+nodejs 24.21.0
