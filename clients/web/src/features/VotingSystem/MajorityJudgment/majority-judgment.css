@@ -145,14 +145,7 @@
   flex: none;
   height: 100%;
   background: var(--mention);
-  /* The hairline between two mentions is painted inside the slice, so every
-     width stays exactly its share of the ballots. */
-  box-shadow: inset -1px 0 0 var(--panel-solid);
   transition: opacity 0.15s ease;
-}
-
-.mj-results-bar:last-child {
-  box-shadow: none;
 }
 
 /* Pointing at a mention dims the worse ones: what is left is "this or better". */
@@ -185,11 +178,10 @@
 
 /* ------------------------------------------------------------------ Axis */
 
-/* Attached to the bar: the ticks rise inside it from its bottom edge, and
-   the labels sit right under that edge. */
+/* Attached to the bar: the ticks hang from its bottom edge. */
 .mj-results-axis {
   position: relative;
-  height: 13px;
+  height: 17px;
 }
 
 .mj-tick {
@@ -201,18 +193,18 @@
 .mj-tick::before {
   content: "";
   position: absolute;
-  top: -5px;
+  top: 0;
   left: 0;
   width: 1px;
-  height: 5px;
+  height: 4px;
   background: var(--muted);
   transform: translateX(-50%);
 }
 
-/* Every label on one baseline, right under the bar. */
+/* Every label on one baseline, clear of the longest tick. */
 .mj-tick-label {
   position: absolute;
-  top: 3px;
+  top: 8px;
   left: 0;
   color: var(--muted);
   font-size: 9px;
@@ -235,9 +227,8 @@
 
 /* 50% stands out: the mention above it is the majority mention. */
 .mj-tick[data-major="true"]::before {
-  top: -8px;
   width: 2px;
-  height: 8px;
+  height: 6px;
   background: var(--fg);
 }
 
