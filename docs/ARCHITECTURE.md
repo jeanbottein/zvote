@@ -198,11 +198,15 @@ into the loaded poll; they carry nothing about the voter, so `isMine` and
 
 ### The results visualisation
 
-`MajorityJudgmentResultsGraph.tsx`, `utils/majorityJudgment.ts` (and its tests)
-and the mention ramp in `majority-judgment.css` are the reference visualisation
-of majority judgment results. They are kept unchanged on purpose. Adapting them
-happens around them: `MajorityJudgmentResults.tsx` converts the API's options to
-their input, and small-screen adjustments live in `style.css`.
+`MajorityJudgmentResultsGraph.tsx` draws one card per option, ranked by
+`utils/majorityJudgment.ts`. Its centrepiece is the option's merit profile: one
+rounded bar whose slices are the seven mentions, best on the left, each exactly
+as wide as its share of the ballots. The majority line crosses the bar at 50%:
+the mention it crosses is the majority mention. A graduated axis sits under the
+bar, never on it. Pointing at a slice (or tapping it) dims the worse mentions
+and says how many voters gave that mention or better; nothing moves. The card
+adapts to its own width through container queries, not to the screen's.
+`MajorityJudgmentResults.tsx` converts the API's options to its input.
 
 ### Styling
 

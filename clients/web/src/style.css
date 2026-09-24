@@ -734,38 +734,6 @@ fieldset.field {
   margin-top: 4px;
 }
 
-/* The results graph (majority-judgment.css) themed for this page, and on
-   narrow cards its labels wrap as whole labels rather than word by word. */
-.mj-results-card {
-  background: var(--card);
-  container-type: inline-size;
-}
-
-.mj-results-hint,
-.mj-results-badge,
-.mj-score-badge {
-  white-space: nowrap;
-}
-
-/* A phone-width card: label and value side by side, one pair per row. */
-@container (max-width: 400px) {
-  .mj-results-badges {
-    display: grid;
-    grid-template-columns: auto auto;
-    gap: 4px 8px;
-  }
-
-  .mj-results-badges > .mj-results-hint {
-    justify-self: end;
-    margin-left: 0 !important; /* the graph spaces its second label inline */
-  }
-
-  .mj-results-badges > .mj-results-badge,
-  .mj-results-badges > .mj-score-badge {
-    justify-self: start;
-  }
-}
-
 .owner-actions .confirm {
   display: flex;
   flex-direction: column;

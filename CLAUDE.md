@@ -77,14 +77,14 @@ shown to people as is: write it as a sentence for them.
   VeryGood, Excellent` everywhere: `Mention.wireName()`, the API, the TS types,
   the CSS `data-judgment` / `data-mention` selectors. Rename one, rename all.
   Their colours (both palettes) are defined once, in `mentions.css`.
-- **Protected files, kept unchanged on purpose**:
-  `features/VotingSystem/MajorityJudgment/MajorityJudgmentResultsGraph.tsx`,
-  `utils/majorityJudgment.ts`, `utils/majorityJudgment.test.ts`, and the
-  results rules of `majority-judgment.css`. Adapt around them
-  (`MajorityJudgmentResults.tsx`, `style.css`). Changing how results are
-  ranked is the owner's call: see "Questions for the owner" in the roadmap.
-  Decided so far: with an even number of ballots the majority mention is the
-  lower of the two middle mentions (more than half the voters, not half).
+- **The results graph and the ranking math are the owner's reference**:
+  `features/VotingSystem/MajorityJudgment/MajorityJudgmentResultsGraph.tsx`
+  with `majority-judgment.css`, and `utils/majorityJudgment.ts` with its tests.
+  Change them only when the owner asks (both were revised at his request on
+  2026-09-24). How results are ranked is his call: see "Questions for the
+  owner" in the roadmap. Decided so far: with an even number of ballots the
+  majority mention is the lower of the two middle mentions (more than half the
+  voters, not half).
 - **Ranking stays in the client.** The server sends seven counts per option,
   never a ranking.
 - **Every fetch sends credentials**, and so does `EventSource`: identity is an

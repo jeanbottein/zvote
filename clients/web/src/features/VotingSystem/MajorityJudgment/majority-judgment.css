@@ -1,67 +1,70 @@
-/* ================================== */
-/* Majority Judgment Results Display  */
-/* ================================== */
-/* The reference visualisation of the results: the seven-mention ramp, the  */
-/* 50% line, the medals. Ballot styles live in mj-ballot.css.               */
-.mj-results-card { padding: 3px 15px; border: 1px solid var(--border); border-radius: 8px; margin-bottom: 15px; position: relative; }
-.mj-results-card[data-compact="true"] { padding: 8px; margin-bottom: 4px; }
+/* Majority judgment results: one card per option, with its rank, its merit
+ * profile (how its ballots spread over the seven mentions, best on the left)
+ * crossed by the majority line at 50%, a graduated axis under it, and its
+ * majority mention and GMJ score.
+ *
+ * Mention colours come from mentions.css, everything else from the page's
+ * tokens. Ballot styles live in mj-ballot.css.
+ */
+
+.mj-results-card {
+  container-type: inline-size;
+  position: relative;
+  margin-bottom: 12px;
+  padding: 12px 14px 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--card);
+}
+
+.mj-results-card[data-compact="true"] {
+  margin-bottom: 6px;
+  padding: 8px 10px;
+}
+
+/* ---------------------------------------------------------------- Header */
+
 .mj-results-header {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  height: 30px;
-  margin: 5px 0px;
+  min-height: 28px;
+  margin-bottom: 10px;
 }
 
 .mj-results-title-section {
   display: flex;
   align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.mj-results-title {
+  font-weight: 600;
+  overflow-wrap: anywhere;
 }
 
 .mj-rank-container {
   display: flex;
+  flex: none;
   align-items: center;
   gap: 8px;
-  margin-right: 12px;
 }
 
 .mj-rank-badge {
-  background: rgba(0, 0, 0, 0.8);
-  color: white;
-  border-radius: 50%;
-  width: 25px;
-  height: 25px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 16px;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.8);
+  color: white;
+  font-size: 15px;
   font-weight: bold;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
-.mj-ex-aequo {
-  font-style: italic;
-  font-size: 12px;
-  color: #065f46;
-  background: #fce7f3;
-  padding: 2px 6px;
-  border-radius: 4px;
-  white-space: nowrap;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
-}
-
-/* Medal badges with metallic gradient look */
-.mj-rank-badge[data-medal="true"] {
-  width: 25px;
-  height: 25px;
-  font-size: 14px;
-  font-weight: bold;
-  border: 2px solid;
-  position: relative;
-  overflow: hidden;
-}
-
-/* Gold medal (1st place) */
+/* Medals, with a metallic gradient */
 .mj-rank-badge[data-medal="gold"] {
   background: linear-gradient(135deg, #ffd700 0%, #ffed4e 25%, #ffd700 50%, #b8860b 75%, #ffd700 100%);
   border: 2px solid #8b6914;
@@ -70,7 +73,6 @@
   text-shadow: 0 1px 2px rgba(139, 105, 20, 0.8);
 }
 
-/* Silver medal (2nd place) */
 .mj-rank-badge[data-medal="silver"] {
   background: linear-gradient(135deg, #c0c0c0 0%, #e8e8e8 25%, #c0c0c0 50%, #a0a0a0 75%, #c0c0c0 100%);
   border: 2px solid #606060;
@@ -79,7 +81,6 @@
   text-shadow: 0 1px 2px rgba(96, 96, 96, 0.8);
 }
 
-/* Bronze medal (3rd place) */
 .mj-rank-badge[data-medal="bronze"] {
   background: linear-gradient(135deg, #cd7f32 0%, #daa520 25%, #cd7f32 50%, #8b4513 75%, #cd7f32 100%);
   border: 2px solid #654321;
@@ -87,201 +88,23 @@
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.2);
   text-shadow: 0 1px 2px rgba(101, 67, 33, 0.8);
 }
-.mj-results-title { font-weight: 500; }
-.mj-results-badges { display: flex; align-items: center; gap: 6px; }
-.mj-results-badges-below { 
-  padding: 7px 0px;
-  display: flex;
-  justify-content: flex-end;
-}
-.mj-results-hint { font-size: 12px; color: var(--muted); font-style: italic; }
-.mj-results-badge { font-size: 12px; padding: 2px 6px; border-radius: 4px; }
-.mj-results-badge[data-variant="second"] { border: 1px dashed var(--border); }
 
-/* score badge */
-.mj-score-badge { 
-  font-size: 12px; 
-  padding: 2px 6px; 
+.mj-ex-aequo {
+  padding: 2px 6px;
   border-radius: 4px;
-  background: #a6a6a6;
-  color: #000000;
-  font-weight: 500;
-}
-
-/* Chart container */
-.mj-results-chart { 
-  position: relative; 
-  height: 32px; 
-  background: var(--panel); 
-  border: 1px solid var(--border); 
-  border-radius: 4px; 
-  overflow: visible;
-  display: flex;
-  margin-bottom: 20px;
-}
-.mj-results-card[data-compact="true"] .mj-results-chart { height: 16px; }
-
-/* Results bars */
-.mj-results-bar { 
-  height: 100%; 
-  transition: width 0.3s ease, box-shadow 0.2s ease, transform 0.2s ease; 
-  opacity: 0.9;
-  border-right: 1px solid rgba(255,255,255,0.1);
-  flex-shrink: 0;
-  cursor: pointer;
-}
-.mj-results-bar:last-child { border-right: none; }
-.mj-results-bar[data-has="false"] { opacity: 0.1; }
-
-/* Default hover effect for individual bars */
-.mj-results-bar:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-  z-index: 10;
-  position: relative;
-}
-
-/* When chart is in hovering state, dim all bars by default */
-.mj-chart-hovering .mj-results-bar {
-  opacity: 0.3;
-  transition: all 0.2s ease;
-}
-
-/* Highlight the hovered bar and all bars to its left (lower or equal index) */
-.mj-chart-hovering[data-hover-index="0"] .mj-results-bar[data-index="0"],
-.mj-chart-hovering[data-hover-index="1"] .mj-results-bar[data-index="0"],
-.mj-chart-hovering[data-hover-index="1"] .mj-results-bar[data-index="1"],
-.mj-chart-hovering[data-hover-index="2"] .mj-results-bar[data-index="0"],
-.mj-chart-hovering[data-hover-index="2"] .mj-results-bar[data-index="1"],
-.mj-chart-hovering[data-hover-index="2"] .mj-results-bar[data-index="2"],
-.mj-chart-hovering[data-hover-index="3"] .mj-results-bar[data-index="0"],
-.mj-chart-hovering[data-hover-index="3"] .mj-results-bar[data-index="1"],
-.mj-chart-hovering[data-hover-index="3"] .mj-results-bar[data-index="2"],
-.mj-chart-hovering[data-hover-index="3"] .mj-results-bar[data-index="3"],
-.mj-chart-hovering[data-hover-index="4"] .mj-results-bar[data-index="0"],
-.mj-chart-hovering[data-hover-index="4"] .mj-results-bar[data-index="1"],
-.mj-chart-hovering[data-hover-index="4"] .mj-results-bar[data-index="2"],
-.mj-chart-hovering[data-hover-index="4"] .mj-results-bar[data-index="3"],
-.mj-chart-hovering[data-hover-index="4"] .mj-results-bar[data-index="4"],
-.mj-chart-hovering[data-hover-index="5"] .mj-results-bar[data-index="0"],
-.mj-chart-hovering[data-hover-index="5"] .mj-results-bar[data-index="1"],
-.mj-chart-hovering[data-hover-index="5"] .mj-results-bar[data-index="2"],
-.mj-chart-hovering[data-hover-index="5"] .mj-results-bar[data-index="3"],
-.mj-chart-hovering[data-hover-index="5"] .mj-results-bar[data-index="4"],
-.mj-chart-hovering[data-hover-index="5"] .mj-results-bar[data-index="5"],
-.mj-chart-hovering[data-hover-index="6"] .mj-results-bar[data-index="0"],
-.mj-chart-hovering[data-hover-index="6"] .mj-results-bar[data-index="1"],
-.mj-chart-hovering[data-hover-index="6"] .mj-results-bar[data-index="2"],
-.mj-chart-hovering[data-hover-index="6"] .mj-results-bar[data-index="3"],
-.mj-chart-hovering[data-hover-index="6"] .mj-results-bar[data-index="4"],
-.mj-chart-hovering[data-hover-index="6"] .mj-results-bar[data-index="5"],
-.mj-chart-hovering[data-hover-index="6"] .mj-results-bar[data-index="6"] {
-  opacity: 1;
-  transform: translateY(-1px);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-  z-index: 9;
-  position: relative;
-}
-
-/* The currently hovered bar gets the strongest effect */
-.mj-chart-hovering .mj-results-bar:hover {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-  z-index: 10;
-}
-
-/* Instant tooltip appearance */
-.mj-results-bar[title]:hover::after {
-  content: attr(title);
-  position: absolute;
-  bottom: 100%;
-  left: 50%;
-  transform: translateX(-50%);
-  background: rgba(0, 0, 0, 0.9);
-  color: white;
-  padding: 6px 10px;
-  border-radius: 4px;
+  background: #fce7f3;
+  color: #065f46;
   font-size: 12px;
+  font-style: italic;
   white-space: nowrap;
-  z-index: 20;
-  margin-bottom: 5px;
-  pointer-events: none;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
 }
 
-/* Tooltip arrow */
-.mj-results-bar[title]:hover::before {
-  content: '';
-  position: absolute;
-  bottom: 100%;
-  left: 50%;
-  transform: translateX(-50%);
-  border: 4px solid transparent;
-  border-top-color: rgba(0, 0, 0, 0.9);
-  z-index: 20;
-  margin-bottom: 1px;
-  pointer-events: none;
+/* The winner glows */
+.mj-results-card[data-winner="true"] {
+  animation: goldenShimmer 2.5s ease-in-out infinite;
 }
 
-/* Results ticks below the graph */
-/* From the middle of the chart's left border to the middle of its right one
-   (it is 1px wide): the 0% and 100% lines then lie exactly on the borders,
-   and 50% stays exactly in the middle of the bars. */
-.mj-results-ticks { 
-  position: absolute; 
-  top: 0;
-  right: -0.5px;
-  bottom: 0;
-  left: -0.5px;
-  pointer-events: none; 
-}
-
-/* A zero-width anchor at the tick's value; the line and label centre on it. */
-.mj-tick { 
-  position: absolute; 
-  bottom: 0; 
-  height: 100%; 
-  left: var(--left);
-}
-
-/* Regular tick lines (10px height) */
-.mj-tick::after { 
-  content: ''; 
-  position: absolute; 
-  bottom: 0; 
-  left: 0; 
-  transform: translateX(-50%);
-  width: 1px; 
-  height: 10px; 
-  background: var(--border);
-}
-
-/* Major 50% tick (31px height) */
-.mj-tick[data-major="true"]::after { 
-  width: 2px; 
-  height: 30px; 
-}
-
-/* Tick labels below the chart */
-.mj-tick-label { 
-  position: absolute; 
-  bottom: -16px; 
-  left: 0;
-  font-size: 10px; 
-  color: var(--muted); 
-  transform: translateX(-50%); 
-  white-space: nowrap;
-  font-weight: 70;
-}
-
-.mj-tick[data-major="true"] .mj-tick-label { 
-  font-weight: 700
-}
-
-/* MJ 7-level colours, defined once for the results and the ballots in
-   mentions.css: dark green to dark red, or seven even greys. */
-.mj-results-bar[data-judgment], .mj-results-badge[data-judgment] { background: var(--mention); color: var(--mention-fg); }
-
-/* Winner orange-gold shimmer - ultra tight */
-.mj-results-card[data-winner="true"] { animation: goldenShimmer 2.5s ease-in-out infinite; }
 @keyframes goldenShimmer {
   0% { box-shadow: 0 0 10px rgba(255, 165, 0, 0.7), 0 0 20px rgba(255, 140, 0, 0.4); }
   33% { box-shadow: 1px 0 10px rgba(255, 165, 0, 0.9), 1px 0 20px rgba(255, 140, 0, 0.5); }
@@ -289,7 +112,224 @@
   100% { box-shadow: 0 0 10px rgba(255, 165, 0, 0.7), 0 0 20px rgba(255, 140, 0, 0.4); }
 }
 
-/* Narrow screens: label 0, 20, 40, 50, 60, 80 and 100% only, so labels never touch. */
-@media (max-width: 420px) {
-  .mj-tick:not([data-major="true"]):nth-child(even) .mj-tick-label { visibility: hidden; }
+/* --------------------------------------------------------- Merit profile */
+
+.mj-results-chart {
+  position: relative;
+}
+
+/* One rounded bar; the slices are clipped to it, so its corners are theirs. */
+.mj-results-bars {
+  position: relative;
+  display: flex;
+  height: 28px;
+  overflow: hidden;
+  border-radius: 6px;
+  background: var(--border); /* seen only while there are no ballots */
+}
+
+.mj-results-card[data-compact="true"] .mj-results-bars {
+  height: 16px;
+}
+
+/* A hairline edge drawn over the slices, so pale mentions keep a shape. */
+.mj-results-bars::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: inset 0 0 0 1px var(--border);
+  pointer-events: none;
+}
+
+.mj-results-bar {
+  flex: none;
+  height: 100%;
+  background: var(--mention);
+  /* The hairline between two mentions is painted inside the slice, so every
+     width stays exactly its share of the ballots. */
+  box-shadow: inset -1px 0 0 var(--panel-solid);
+  transition: opacity 0.15s ease;
+}
+
+.mj-results-bar:last-child {
+  box-shadow: none;
+}
+
+/* Pointing at a mention dims the worse ones: what is left is "this or better". */
+.mj-results-bar[data-dimmed="true"] {
+  opacity: 0.25;
+}
+
+/* The majority line: the mention it crosses is the majority mention. It
+   overhangs the bar and runs on into the 50% tick, so it is found even over
+   slices of its own colour. (No halo: a halo would pass for a slice edge.) */
+.mj-results-median {
+  position: absolute;
+  top: -5px;
+  bottom: -4px;
+  left: 50%;
+  width: 2px;
+  margin-left: -1px;
+  border-radius: 1px;
+  background: var(--fg);
+  pointer-events: none;
+}
+
+/* What the pointed mention means. It moves by as much of its own width as its
+   anchor lies along the bar - left-aligned at 0%, centred at 50%, right-aligned
+   at 100% - so it never leaves the bar's width, whatever it says. */
+.mj-results-tooltip {
+  position: absolute;
+  bottom: calc(100% + 10px);
+  left: var(--at);
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 5px 9px;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.88);
+  color: #fff;
+  font-size: 12px;
+  line-height: 1.3;
+  white-space: nowrap;
+  transform: translateX(calc(-1 * var(--at)));
+  pointer-events: none;
+}
+
+/* ------------------------------------------------------------------ Axis */
+
+/* Under the bar, starting where the majority line ends. */
+.mj-results-axis {
+  position: relative;
+  height: 22px;
+  margin-top: 4px;
+}
+
+.mj-tick {
+  position: absolute;
+  top: 0;
+  left: var(--left);
+}
+
+.mj-tick::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1px;
+  height: 5px;
+  background: var(--muted);
+  transform: translateX(-50%);
+}
+
+/* Every label on one baseline, clear of the longest tick. */
+.mj-tick-label {
+  position: absolute;
+  top: 9px;
+  left: 0;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  transform: translateX(-50%);
+}
+
+/* The ends of the axis line up with the ends of the bar. */
+.mj-tick:first-child::before,
+.mj-tick:first-child .mj-tick-label {
+  transform: none;
+}
+
+.mj-tick:last-child::before,
+.mj-tick:last-child .mj-tick-label {
+  transform: translateX(-100%);
+}
+
+/* 50% continues the majority line. */
+.mj-tick[data-major="true"]::before {
+  width: 2px;
+  height: 7px;
+  background: var(--fg);
+}
+
+.mj-tick[data-major="true"] .mj-tick-label {
+  color: var(--fg);
+  font-weight: 700;
+}
+
+/* A narrow card labels 0, 20, 40, 50, 60, 80 and 100% only. */
+@container (max-width: 360px) {
+  .mj-tick:not([data-major="true"]):nth-child(even) .mj-tick-label {
+    visibility: hidden;
+  }
+}
+
+/* ---------------------------------------------- Majority mention, score */
+
+.mj-results-badges-below {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 6px;
+}
+
+.mj-results-badges {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px 6px;
+}
+
+.mj-results-hint {
+  color: var(--muted);
+  font-size: 12px;
+  font-style: italic;
+  white-space: nowrap;
+}
+
+.mj-results-badge + .mj-results-hint {
+  margin-left: 10px;
+}
+
+.mj-results-badge,
+.mj-score-badge {
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.mj-results-badge {
+  background: var(--mention);
+  color: var(--mention-fg);
+}
+
+.mj-score-badge {
+  background: #a6a6a6;
+  color: #000000;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+/* A phone-width card: label and value side by side, one pair per row. */
+@container (max-width: 400px) {
+  .mj-results-badges {
+    display: grid;
+    grid-template-columns: auto auto;
+    gap: 4px 8px;
+  }
+
+  .mj-results-badges > .mj-results-hint {
+    justify-self: end;
+    margin-left: 0;
+  }
+
+  .mj-results-badges > .mj-results-badge,
+  .mj-results-badges > .mj-score-badge {
+    justify-self: start;
+  }
 }

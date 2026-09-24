@@ -13,10 +13,4 @@ export default defineConfig([
       globals: globals.browser,
     },
   },
-  {
-    // The reference results visualisation is kept unchanged on purpose (see
-    // CLAUDE.md). Its one `as any` sets a CSS custom property through `style`.
-    files: ['src/features/VotingSystem/MajorityJudgment/MajorityJudgmentResultsGraph.tsx'],
-    rules: { '@typescript-eslint/no-explicit-any': 'off' },
-  },
 ]);
