@@ -15,35 +15,11 @@ The work is committed on the branch `feat/java-server-mobile-web` (not merged,
 not pushed), in logical steps: server, web client, dev tooling, docs, then the
 fixes the owner asked for.
 
-## One step left for the owner: delete the obsolete files
+## Obsolete files: removed
 
-The tooling that built this refused to delete files in bulk, so the obsolete
-ones are still on disk, untouched: the SpacetimeDB module and scripts, the
-stale docs, and the old client code (GraphQL/SpacetimeDB backends, generated
-bindings, old pages and components). They are all tracked in git (170 files)
-and nothing references them. Until they are gone, `npm run typecheck`, `npm run
-lint` and `npm run build` in `clients/web` fail on them. `npm test` and
-`npx vite build` already work.
-
-From the repo root, on the branch:
-
-```bash
-git rm -r -q \
-  servers/spacetimedb servers/java/QUICKSTART.md go-java.sh go-spacetime.sh scripts \
-  docs/AUTH_README.md docs/AUTH_SETUP_GUIDE.md docs/AUTHENTICATION.md \
-  docs/DUAL_BACKEND_STRATEGY.md docs/QUICK_START.md docs/SCRIPTS_OVERVIEW.md docs/client docs/server \
-  clients/web/CONFIG.md clients/web/config.ts clients/web/jest.config.js clients/web/tailwind.config.js \
-  clients/web/.env.example clients/web/scripts \
-  clients/web/src/App.tsx clients/web/src/AppRouter.tsx clients/web/src/config.ts clients/web/src/main.tsx \
-  clients/web/src/setupTests.ts clients/web/src/components clients/web/src/context clients/web/src/generated \
-  clients/web/src/hooks clients/web/src/lib clients/web/src/pages clients/web/src/styles clients/web/src/types \
-  clients/web/src/features/BallotInterface clients/web/src/features/VotingSystem/ApprovalVoting \
-  clients/web/src/features/VotingSystem/MajorityJudgment/MajorityJudgmentBallotInterface.tsx \
-  clients/web/src/features/VotingSystem/MajorityJudgment/MajorityJudgmentBallotFormView.tsx \
-  clients/web/src/features/VotingSystem/MajorityJudgment/index.ts
-./dev.sh test    # everything should pass
-git commit -m "chore: remove the SpacetimeDB module and the previous client"
-```
+The SpacetimeDB module and scripts, the stale docs and the previous client
+code (170 files) were removed on 2026-09-25. `./dev.sh test` passes on the
+whole repo: server tests, and client lint, types and tests.
 
 ## Verified
 
@@ -53,8 +29,7 @@ git commit -m "chore: remove the SpacetimeDB module and the previous client"
   and 21 × 409 and a consistent final state; shutdown with a watcher
   connected takes 0.08 s; timestamps survive the database in a non-UTC
   timezone.
-- **Client**: 83 tests pass (`npm test`). Typecheck and lint are clean on the
-  new code (checked file by file until the old files are deleted). The
+- **Client**: 92 tests pass (`npm test`); typecheck and lint are clean. The
   production bundle holds no SpacetimeDB or GraphQL code, and no dev tool.
 - **End to end**, in headless Chrome with two independent voters (phone
   390 × 844 and desktop 1280 × 900), 23 checks: creating a poll, live ballots,
