@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, type ReactNode } from 'react';
+import { useId, useLayoutEffect, useRef, type ReactNode } from 'react';
 import { CloseIcon } from './icons';
 
 interface DialogProps {
@@ -11,12 +11,16 @@ interface DialogProps {
 /**
  * A modal dialog on the native <dialog> element, which brings focus trapping,
  * Escape to close and the backdrop. Clicking the backdrop closes it too.
+ *
+ * Its content exists only while it is open: a page that updates live does not
+ * re-render what nobody sees. It opens and closes before the browser paints,
+ * so it never shows empty.
  */
 export default function Dialog({ open, onClose, title, children }: DialogProps) {
   const ref = useRef<HTMLDialogElement>(null);
   const titleId = useId();
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const dialog = ref.current;
     if (open && !dialog?.open) {
       dialog?.showModal();
@@ -37,15 +41,17 @@ export default function Dialog({ open, onClose, title, children }: DialogProps) 
         }
       }}
     >
-      <div className="dialog-body">
-        <div className="dialog-header">
-          <h2 id={titleId}>{title}</h2>
-          <button type="button" className="icon-button" aria-label="Close" onClick={onClose}>
-            <CloseIcon />
-          </button>
+      {open && (
+        <div className="dialog-body">
+          <div className="dialog-header">
+            <h2 id={titleId}>{title}</h2>
+            <button type="button" className="icon-button" aria-label="Close" onClick={onClose}>
+              <CloseIcon />
+            </button>
+          </div>
+          {children}
         </div>
-        {children}
-      </div>
+      )}
     </dialog>
   );
 }

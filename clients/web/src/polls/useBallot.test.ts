@@ -118,9 +118,24 @@ describe('withdrawing', () => {
     const { result } = renderBallot('envelope', cast, 'Ramen');
 
     act(() => result.current.change('Tacos'));
-    await act(() => result.current.withdraw('nothing'));
+    await act(async () => result.current.withdraw('nothing'));
 
     expect(cast).toHaveBeenCalledWith('nothing');
     expect(result.current.hasChanges).toBe(false);
+  });
+
+  it('waits for the ballot on its way, so that it cannot be overtaken', async () => {
+    const server = slowServer();
+    const { result } = renderBallot('live', server.cast);
+
+    act(() => result.current.change('Ramen'));
+    act(() => result.current.withdraw('nothing'));
+
+    expect(result.current.ballot).toBe('nothing');
+    expect(server.received).toEqual(['Ramen']);
+
+    await server.answerNext();
+
+    expect(server.received).toEqual(['Ramen', 'nothing']);
   });
 });

@@ -1,27 +1,29 @@
 import { useState } from 'react';
+import { castBallotAsNewVoter, errorMessage } from '../api/client';
 import type { BallotRequest, Poll } from '../api/types';
 import { MENTIONS_BEST_FIRST } from '../features/VotingSystem/MajorityJudgment/mentions';
+import { useToast } from '../ui/Toasts';
 
 /**
  * Development only (the poll page renders it when import.meta.env.DEV): casts
- * random ballots to watch the results move. Each ballot is sent without the
- * voter cookie, so the server counts it as a new, anonymous voter.
+ * random ballots to watch the results move, each from a new anonymous voter.
  */
 export default function DevBallotFeeder({ poll }: { poll: Poll }) {
+  const showToast = useToast();
   const [count, setCount] = useState(20);
   const [cast, setCast] = useState<number | null>(null);
 
   async function feed() {
-    for (let i = 1; i <= count; i++) {
-      setCast(i);
-      await fetch(`/api/polls/${encodeURIComponent(poll.id)}/ballot`, {
-        method: 'PUT',
-        credentials: 'omit',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(randomBallot(poll)),
-      });
+    try {
+      for (let i = 1; i <= count; i++) {
+        setCast(i);
+        await castBallotAsNewVoter(poll.id, randomBallot(poll));
+      }
+    } catch (error) {
+      showToast(errorMessage(error), 'error');
+    } finally {
+      setCast(null);
     }
-    setCast(null);
   }
 
   return (

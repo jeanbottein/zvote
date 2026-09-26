@@ -26,5 +26,9 @@ export default defineConfig({
     setupFiles: ['src/test/setup.ts'],
     include: ['src/**/*.test.{ts,tsx}'],
     clearMocks: true,
+    coverage: {
+      include: ['src/**'],
+      exclude: ['src/**/*.test.{ts,tsx}', 'src/test/**'],
+    },
   },
 });

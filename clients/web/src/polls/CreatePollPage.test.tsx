@@ -51,6 +51,29 @@ describe('creating a poll', () => {
     expect(screen.getByLabelText('Option 3')).toHaveValue('');
   });
 
+  it('moves to the next row on Enter rather than sending a half-written poll', async () => {
+    openForm();
+
+    await userEvent.type(screen.getByLabelText('Question'), 'Lunch?{Enter}');
+    expect(screen.getByLabelText('Option 1')).toHaveFocus();
+    await userEvent.type(screen.getByLabelText('Option 1'), 'Ramen{Enter}');
+
+    expect(screen.getByLabelText('Option 2')).toHaveFocus();
+    expect(createPoll).not.toHaveBeenCalled();
+  });
+
+  it('removes an option', async () => {
+    openForm();
+
+    await userEvent.type(screen.getByLabelText('Option 1'), 'Ramen');
+    await userEvent.type(screen.getByLabelText('Option 2'), 'Tacos');
+    await userEvent.type(screen.getByLabelText('Option 3'), 'Pizza');
+    await userEvent.click(screen.getByRole('button', { name: 'Remove Tacos' }));
+
+    const rows = screen.getAllByRole('textbox', { name: /^Option/ });
+    expect(rows.map((row) => (row as HTMLInputElement).value)).toEqual(['Ramen', 'Pizza', '']);
+  });
+
   it('explains what is missing rather than sending it', async () => {
     openForm();
 

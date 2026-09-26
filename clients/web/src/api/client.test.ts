@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { ApiError, castBallot, createPoll, deletePoll, getPoll, watchPoll } from './client';
+import { ApiError, castBallot, castBallotAsNewVoter, createPoll, deletePoll, getPoll, watchPoll } from './client';
 
 describe('the API client', () => {
   const fetchMock = vi.fn<typeof fetch>();
@@ -34,6 +34,17 @@ describe('the API client', () => {
     expect(JSON.parse(init?.body as string)).toEqual({
       title: 'Lunch?', options: ['Ramen', 'Tacos'], votingSystem: 'APPROVAL', visibility: 'PUBLIC',
     });
+  });
+
+  it('leaves the cookie out of ballots from the ballot feeder, so each comes from a new voter', async () => {
+    fetchMock.mockResolvedValue(Response.json({}));
+
+    await castBallotAsNewVoter('abc', { approvedOptionIds: ['1'] });
+
+    expect(fetchMock).toHaveBeenCalledWith('/api/polls/abc/ballot', expect.objectContaining({
+      method: 'PUT',
+      credentials: 'omit',
+    }));
   });
 
   it('encodes poll ids into paths', async () => {
@@ -77,7 +88,9 @@ describe('the API client', () => {
 
 describe('watching a poll', () => {
   class FakeEventSource extends EventTarget {
+    static readonly CLOSED = 2;
     static last: FakeEventSource;
+    readyState = 0;
     closed = false;
 
     constructor(readonly url: string, readonly init?: EventSourceInit) {
@@ -94,7 +107,7 @@ describe('watching a poll', () => {
     }
   }
 
-  const watcher = { onUpdate: vi.fn(), onDeleted: vi.fn(), onConnectionChange: vi.fn() };
+  const watcher = { onUpdate: vi.fn(), onDeleted: vi.fn(), onConnectionChange: vi.fn(), onLost: vi.fn() };
 
   beforeEach(() => {
     vi.stubGlobal('EventSource', FakeEventSource);
@@ -136,6 +149,17 @@ describe('watching a poll', () => {
     FakeEventSource.last.dispatchEvent(new Event('error'));
 
     expect(watcher.onConnectionChange.mock.calls).toEqual([[true], [false]]);
+    expect(watcher.onLost).not.toHaveBeenCalled(); // the browser is reconnecting
+  });
+
+  it('says when the browser gives up reconnecting', () => {
+    watchPoll('abc', watcher);
+
+    FakeEventSource.last.readyState = FakeEventSource.CLOSED; // what an error answer does
+    FakeEventSource.last.dispatchEvent(new Event('error'));
+
+    expect(watcher.onConnectionChange).toHaveBeenCalledWith(false);
+    expect(watcher.onLost).toHaveBeenCalled();
   });
 
   it('closes the stream when asked', () => {

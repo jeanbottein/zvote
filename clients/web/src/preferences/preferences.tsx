@@ -33,7 +33,7 @@ export function applyPreferences({ theme, colorblind }: Preferences) {
   } else {
     root.dataset.theme = theme;
   }
-  // The mention colour ramp (majority-judgment.css) reads this attribute from <body>.
+  // The grey mention palette (mentions.css) reads this attribute from <body>.
   if (colorblind) {
     document.body.dataset.colorblind = 'true';
   } else {

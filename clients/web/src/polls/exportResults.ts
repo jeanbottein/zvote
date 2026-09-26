@@ -38,5 +38,6 @@ export function downloadResults(poll: Poll) {
   link.href = url;
   link.download = `zvote-results-${poll.id}.json`;
   link.click();
-  URL.revokeObjectURL(url);
+  // Not at once: a browser may read the file after click() returns, Safari on iOS notably.
+  window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
 }

@@ -25,12 +25,17 @@ export function errorMessage(error: unknown): string {
   return error instanceof ApiError ? error.message : 'Something went wrong. Please try again.';
 }
 
-async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
+async function request<T>(
+  method: string,
+  path: string,
+  body?: unknown,
+  credentials: RequestCredentials = 'include',
+): Promise<T> {
   let response: Response;
   try {
     response = await fetch(BASE_URL + path, {
       method,
-      credentials: 'include',
+      credentials,
       headers: body === undefined ? undefined : { 'Content-Type': 'application/json' },
       body: body === undefined ? undefined : JSON.stringify(body),
     });
@@ -76,17 +81,24 @@ export const setPollClosed = (id: string, closed: boolean) =>
 
 export const deletePoll = (id: string) => request<void>('DELETE', pollPath(id));
 
+/** Development only (the ballot feeder): a ballot without the cookie, so from a brand new voter. */
+export const castBallotAsNewVoter = (id: string, ballot: BallotRequest) =>
+  request<Poll>('PUT', `${pollPath(id)}/ballot`, ballot, 'omit');
+
 export interface PollWatcher {
   onUpdate(update: PollUpdate): void;
   onDeleted(): void;
   onConnectionChange(live: boolean): void;
+  /** The browser stopped reconnecting, as it does when the server answers with an error. */
+  onLost(): void;
 }
 
 /**
  * Follows a poll live, over server-sent events. The first update is the poll's
  * current state. After a network hiccup the browser reconnects by itself, and
- * the new connection starts with the current state again. Returns a function
- * that stops watching.
+ * the new connection starts with the current state again; but an error from
+ * the server, while it restarts for instance, ends the stream for good.
+ * Returns a function that stops watching.
  */
 export function watchPoll(id: string, watcher: PollWatcher): () => void {
   const source = new EventSource(`${BASE_URL}${pollPath(id)}/events`, { withCredentials: true });
@@ -98,6 +110,11 @@ export function watchPoll(id: string, watcher: PollWatcher): () => void {
     watcher.onDeleted();
   });
   source.addEventListener('open', () => watcher.onConnectionChange(true));
-  source.addEventListener('error', () => watcher.onConnectionChange(false));
+  source.addEventListener('error', () => {
+    watcher.onConnectionChange(false);
+    if (source.readyState === EventSource.CLOSED) {
+      watcher.onLost();
+    }
+  });
   return () => source.close();
 }

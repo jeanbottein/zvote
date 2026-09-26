@@ -1,15 +1,15 @@
 import { render } from '@testing-library/react';
 import type { ReactNode } from 'react';
-import { MemoryRouter, Route, Routes, useParams } from 'react-router';
+import { MemoryRouter, Route, Routes, useParams, type InitialEntry } from 'react-router';
 import { PreferencesProvider } from '../preferences/preferences';
 import { ToastProvider } from '../ui/Toasts';
 
-/** Renders a page at a path, inside the providers the app gives it. */
-export function renderAt(path: string, routes: { path: string; element: ReactNode }[]) {
+/** Renders a page at a path (and state), inside the providers the app gives it. */
+export function renderAt(entry: InitialEntry, routes: { path: string; element: ReactNode }[]) {
   return render(
     <PreferencesProvider>
       <ToastProvider>
-        <MemoryRouter initialEntries={[path]}>
+        <MemoryRouter initialEntries={[entry]}>
           <Routes>
             {routes.map((route) => <Route key={route.path} path={route.path} element={route.element} />)}
             <Route path="/p/:id" element={<ShownPoll />} />
