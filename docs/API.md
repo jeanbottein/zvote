@@ -165,6 +165,9 @@ data:{}
 
 - The first event is always the current state, so a client that reconnects
   (browsers do it by themselves) is up to date at once.
+- Browsers reconnect by themselves after a network error, but not after an
+  error answer: a `404`, or a proxy's `502` while the server restarts. Load the
+  poll again, then watch it again: that is what the web client does.
 - A burst of ballots becomes one `update`, about 200 ms after it starts.
 - Closing and reopening the poll send an `update` (see `closedAt`).
 - `deleted` ends the stream.
@@ -173,9 +176,11 @@ data:{}
 
 ## Errors
 
-Every error is an [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) problem
-document, `Content-Type: application/problem+json`. Its `detail` is written for
-the person using the app and can be shown as is.
+Every error the server anticipates is an
+[RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) problem document,
+`Content-Type: application/problem+json`. Its `detail` is written for the
+person using the app and can be shown as is. An unexpected failure (`500`, a
+bug or the database being unavailable) has Spring Boot's default error body.
 
 ```json
 { "title": "Conflict", "status": 409,

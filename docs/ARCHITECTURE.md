@@ -33,25 +33,28 @@ A poll's **id** is its share token.
 
 ## Server
 
-Java 21, Spring Boot 4.1: Spring MVC on virtual threads, Spring Data JDBC,
-Flyway, H2 in file mode. About a thousand lines, in six packages under
-`org.zvote.server`:
+Java 25, Spring Boot 4.1: Spring MVC on virtual threads, Spring Data JDBC,
+Flyway, H2 in file mode, Spring Modulith. About a thousand lines, in seven
+modules, one per package under `org.zvote.server`:
 
-| Package | Knows about | Holds |
+| Module | Uses | Holds |
 |---|---|---|
-| `polls` | nothing else | `Poll`, `PollOption`, `PollService`: every rule about polls |
-| `ballots.approval` | nothing else | approval ballots and their tallies |
-| `ballots.judgment` | nothing else | majority judgment ballots, `Mention`, tallies |
+| `polls` | `common` | `Poll`, `PollOption`, `PollService`: every rule about polls |
+| `approval` | nothing | approval ballots and their tallies |
+| `judgment` | nothing | majority judgment ballots, `Mention`, tallies |
 | `api` | everything | controllers, `PollViewService`, DTOs, error mapping |
-| `identity` | nothing else | the voter cookie and `VoterIdentityFilter` |
-| `live` | nothing else | `PollStream`: server-sent events |
-| `common` | nothing else | `ZVoteProperties`, `InvalidRequestException` |
+| `identity` | nothing | the voter cookie and `VoterIdentityFilter` |
+| `live` | nothing | `PollStream`: server-sent events |
+| `common` | nothing | `ZVoteProperties`, `InvalidRequestException` |
 
-`ArchitectureTest` (ArchUnit) fails the build if these boundaries are crossed:
-polls ignore voting systems, the two voting systems ignore each other, only
-`api` knows about HTTP, `live` and `identity` know nothing about the domain,
-repositories are only used by services, data classes are records, and nothing
-imports Reactor.
+Each module says what it is, and which modules it may use, in its
+`package-info.java` (`@ApplicationModule`). Its API is its root package; its
+sub-packages (`api.dto`) are its own. `ArchitectureTest` has Spring Modulith
+verify it all: polls ignore voting systems, the two voting systems ignore each
+other, nothing depends on `api`, `live` and `identity` know nothing about the
+domain, and there are no cycles. ArchUnit adds what a module declaration
+cannot say: repositories are package-private (so only the service beside one
+can use it), data classes are records, and nothing imports Reactor.
 
 ### Casting a ballot, step by step
 
@@ -81,7 +84,9 @@ account first and the anonymous token second (see [ROADMAP.md](ROADMAP.md)).
 ### Tallies
 
 Counts are never stored. One `GROUP BY` per poll derives them from the ballot
-rows, so there is no second source of truth to keep in sync. The server sends
+rows, so there is no second source of truth to keep in sync. A view's queries
+share one snapshot (a read-only, repeatable-read transaction), so its tallies
+and its ballot count always agree. The server sends
 counts, not rankings: majority judgment is ranked by the client
 (`utils/majorityJudgment.ts`). An option's majority mention is the best mention
 that more than half of the voters give it or better; with an even number of
@@ -106,7 +111,8 @@ virtual.
 - **orders**: every write to a poll's watchers happens under that poll's lock,
   so a slow flush can never overtake a newer one;
 - **starts with the current state**, so reconnecting clients are correct at
-  once;
+  once. It is computed after the watcher has joined, under the poll's lock, so
+  a ballot landing meanwhile reaches the watcher too;
 - sends a **heartbeat** every 20 s (the only way to notice that a phone went
   away, and it keeps proxies from closing quiet streams), and ends streams
   after 30 minutes so that dead connections cannot pile up;
@@ -140,9 +146,18 @@ use the same format.
 - `ArchitectureTest`: the boundaries above.
 - `PollApiTest`: the HTTP contract through MockMvc, on an in-memory H2
   migrated by Flyway: creation and validation, finding polls, both voting
-  systems, revising and withdrawing, closing, deleting, identity.
+  systems, revising and withdrawing, simultaneous ballots, closing, deleting,
+  identity, error documents.
+- `ServerFeaturesTest`: a server configured to offer less says so and refuses
+  the rest.
+- `PollStreamTest`: the stream's rules without a server: who receives what, in
+  which order (the joining race, coalescing, dropped watchers, deletion,
+  heartbeat, shutdown).
 - `PollEventsTest`: the live stream over a real socket: first event,
   coalescing, closing, deletion, unknown poll.
+
+`./mvnw test -Pcoverage` adds a JaCoCo report. Tests log warnings only, so a
+green run prints nothing.
 
 ## Client
 
@@ -187,6 +202,12 @@ loaded, so an update can neither be missed nor rolled back. Updates are merged
 into the loaded poll; they carry nothing about the voter, so `isMine` and
 `myBallot` survive. After a ballot, the server's answer replaces the poll.
 
+Browsers reconnect a dropped stream by themselves, but only after a network
+error: when the server answers with an error (a proxy does while the server
+restarts), `EventSource` gives up for good. `usePoll` then loads the poll and
+watches it again every few seconds, until that works or the poll turns out to
+have been deleted.
+
 `useBallot` holds the ballot being filled in:
 
 - **Live** (the default): each change is cast at once. Changes made while one
@@ -194,7 +215,11 @@ into the loaded poll; they carry nothing about the voter, so `isMine` and
   always ends with the voter's last choice. Until the server answers, the page
   shows what the voter chose; if casting fails it falls back to what the server
   holds, and a toast explains why.
-- **Envelope**: changes stay on the page until the voter submits them.
+- **Envelope**: changes stay on the page until the voter submits them, and
+  stay there if submitting fails.
+
+Withdrawing, in either mode, goes through the live queue: it cannot overtake a
+ballot that is still on its way.
 
 ### The results visualisation
 
@@ -228,17 +253,21 @@ lightness, lighter is better, readable whatever colours a person can tell apart.
 ### Tests
 
 Vitest runs in jsdom: the GMJ math, the API client (with fake `fetch` and
-`EventSource`), the ballot state machine, the form rules, the ballots, and the
-poll and new-poll screens with the API mocked. The end-to-end behaviour (two
-voters, live updates, phone and desktop layouts) was checked in a real browser;
-automating that in CI with Playwright is on the roadmap.
+`EventSource`), the ballot state machine, the form rules, the ballots and
+results, the preferences, the toasts, and every screen with the API mocked,
+including a lost stream and its recovery. `npm run coverage` measures them. The
+end-to-end behaviour (two voters, live updates, a server restart, phone and
+desktop layouts) was checked in a real browser; automating that in CI with
+Playwright is on the roadmap.
 
 ## Decisions
 
 | Decision | Why |
 |---|---|
 | One backend (Java) | SpacetimeDB is under the Business Source License, which forbids the open-source goal; the dual-backend layer went with it. |
+| Java 25 | The current LTS. Since Java 24, a virtual thread blocked in `synchronized` code, as H2 and JDBC are, no longer holds on to its carrier thread. |
 | Spring MVC on virtual threads, not WebFlux | Blocking code that reads top to bottom, with the concurrency of async. `ArchitectureTest` keeps Reactor out. |
+| Spring Modulith for the boundaries | Each package declares the modules it may use, beside its code, and one test verifies them all. Only the annotations ship. |
 | Spring Data JDBC, not JPA | No lazy loading or dirty checking, and it maps Java records, which JPA cannot. |
 | REST + server-sent events, not GraphQL or WebSockets | Plain HTTP and one-way pushes cover every need, with nothing to negotiate. |
 | H2 in file mode | No database to install or configure; the data file moves between machines. PostgreSQL arrives with deployment. |

@@ -6,9 +6,9 @@ set -euo pipefail
 #   ./dev.sh            start the server (:8080) and the web client (:5173)
 #   ./dev.sh server     start only the Java server
 #   ./dev.sh client     start only the web client
-#   ./dev.sh test       run every check: server tests, client lint, types and tests
+#   ./dev.sh test       run every check: server tests, client lint, build (with types) and tests
 #
-# Requires a JDK (21+) and Node (20.19+). Versions are pinned in .tool-versions:
+# Requires a JDK (25+) and Node (20.19+). Versions are pinned in .tool-versions:
 # with mise or asdf installed, `mise install` provisions both. Maven is NOT
 # required: the committed wrapper (servers/java/mvnw) is used instead.
 #
@@ -48,6 +48,17 @@ require() {
   }
 }
 
+require_java() {
+  local java="${JAVA_HOME:+$JAVA_HOME/bin/}java"
+  require "$java"
+  local version
+  version=$("$java" -XshowSettings:properties -version 2>&1 | awk -F'= ' '/java.specification.version/ {print $2}')
+  if [ "${version%%.*}" -lt 25 ]; then
+    echo "Error: Java $version is too old; the server needs 25 or newer: run 'mise install' for the pinned version, or install any JDK 25." >&2
+    exit 1
+  fi
+}
+
 require_node() {
   require node
   require npm
@@ -63,7 +74,7 @@ require_node() {
 }
 
 start_server() {
-  require java
+  require_java
   mkdir -p "$ZVOTE_DATA_DIR"
   echo "Starting the server on :8080 (data in $ZVOTE_DATA_DIR)"
   (cd "$SERVER_DIR" && ./mvnw -q spring-boot:run) &
@@ -98,12 +109,12 @@ start_client() {
 }
 
 run_checks() {
-  require java
+  require_java
   require_node
   echo "== Server: architecture, API and live-stream tests"
   (cd "$SERVER_DIR" && ./mvnw -q test)
-  echo "== Client: lint, types, tests"
-  (cd "$CLIENT_DIR" && npm run lint && npm run typecheck && npm test)
+  echo "== Client: lint, production build (with types), tests"
+  (cd "$CLIENT_DIR" && npm run lint && npm run build && npm test)
   echo "All checks passed."
 }
 

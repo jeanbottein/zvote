@@ -72,7 +72,9 @@ Still to do:
 
 - **PostgreSQL** (add `org.flywaydb:flyway-database-postgresql`), with a
   Testcontainers PostgreSQL profile in CI. Locally H2 stays, so nothing needs
-  installing.
+  installing. PostgreSQL does not index foreign keys by itself, as H2 does:
+  index `approval.option_id` and `judgment.option_id`, or deleting a poll scans
+  both tables once per option.
 - **GraalVM native image**, together with PostgreSQL (H2 resists native image).
 - **One origin.** The server serves the built client, which keeps cookies
   first-party and enables the Open Graph pages above.
@@ -93,6 +95,13 @@ Choices that change results or meaning, deliberately left as they are:
 2. **Results before voting.** Results are visible before you vote, which suits
    live polls but can anchor voters. A per-poll "show results after voting or
    after closing" option would be simple to add.
+3. **Exact ties in the GMJ score.** `utils/majorityJudgment.ts` computes the
+   score from proportions, `(pc - qc) / rc`, and rounding can split two scores
+   that are exactly equal. Among 20 voters, 9 above, 4 at and 7 below the
+   majority mention, and 8, 8 and 4, both score 1/2, but compute as
+   0.5000000000000001 and 0.5: one option ranks above the other instead of both
+   being ex aequo. `(above - below) / at`, from the counts, is the same score
+   and exact for ties. Left as is: the ranking math is the owner's reference.
 
 Decided:
 

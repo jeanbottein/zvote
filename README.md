@@ -34,20 +34,20 @@ in, on a phone or a desktop, with nothing to install and no account needed.
 Two commands, no database to install and no credentials to configure:
 
 ```bash
-mise install   # provisions the pinned Java 21 and Node 24 (see .tool-versions)
+mise install   # provisions the pinned Java 25 and Node 24 (see .tool-versions)
 ./dev.sh       # starts the server on :8080 and the web app on :5173
 ```
 
 Then open <http://localhost:5173>. To try it on your phone, open the
 "Network" address that Vite prints, from the same Wi-Fi.
 
-Without [mise](https://mise.jdx.dev), any JDK 21+ and Node 20.19+ will do.
+Without [mise](https://mise.jdx.dev), any JDK 25+ and Node 20.19+ will do.
 Maven is **not** required: `./dev.sh` uses the committed wrapper.
 
 ```bash
 ./dev.sh server   # the server only
 ./dev.sh client   # the web app only
-./dev.sh test     # every check: server tests, client lint, types and tests
+./dev.sh test     # every check: server tests, client lint, build and tests
 ```
 
 In development, a poll's creator also sees a *ballot feeder* that casts random
@@ -65,7 +65,7 @@ it elsewhere. The schema is migrated automatically at startup.
 
 | | |
 |---|---|
-| Server (`servers/java`) | Java 21, Spring Boot 4.1: Spring MVC on virtual threads, Spring Data JDBC, Flyway, H2. A REST API, plus server-sent events for live results. |
+| Server (`servers/java`) | Java 25, Spring Boot 4.1: Spring MVC on virtual threads, Spring Data JDBC, Spring Modulith, Flyway, H2. A REST API, plus server-sent events for live results. |
 | Web app (`clients/web`) | React 19, TypeScript, Vite; Vitest and Testing Library; plain CSS. |
 
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): how it fits together, and why.
