@@ -95,13 +95,6 @@ Choices that change results or meaning, deliberately left as they are:
 2. **Results before voting.** Results are visible before you vote, which suits
    live polls but can anchor voters. A per-poll "show results after voting or
    after closing" option would be simple to add.
-3. **Exact ties in the GMJ score.** `utils/majorityJudgment.ts` computes the
-   score from proportions, `(pc - qc) / rc`, and rounding can split two scores
-   that are exactly equal. Among 20 voters, 9 above, 4 at and 7 below the
-   majority mention, and 8, 8 and 4, both score 1/2, but compute as
-   0.5000000000000001 and 0.5: one option ranks above the other instead of both
-   being ex aequo. `(above - below) / at`, from the counts, is the same score
-   and exact for ties. Left as is: the ranking math is the owner's reference.
 
 Decided:
 
@@ -111,3 +104,13 @@ Decided:
 - The grey palette is seven greys evenly spaced in perceived lightness,
   lighter is better, defined once (`mentions.css`) for the results and the
   ballots.
+- Ties (2026-09-26): options with the same majority mention are ranked by the
+  GMJ "usual judgment" score (Fabre, *Social Choice and Welfare*, 2021), and
+  nothing else. The score is computed exactly, from the counts, so equal
+  scores are equal numbers. Options still tied are shown ex aequo, with the
+  same rank: no hidden second rule, and the order in which the options were
+  listed never decides a rank (tied options only keep it on screen). Other
+  tie-breaks (Balinski and Laraki's majority value, typical or central
+  judgment) favour different parts of the distribution and can disagree. If
+  single-winner polls come, break the tie in the open: a runoff between the
+  tied options, or a public draw.

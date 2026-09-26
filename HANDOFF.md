@@ -130,7 +130,7 @@ concurrency by hand, shutdown with a watcher connected in 0.08 s.
 
 ## Open questions for the owner
 
-See the end of `docs/ROADMAP.md`: "unrated means Bad", results visible before
-voting, and exact ties in the GMJ score (a rounding bug in the ranking math,
-with a one-line fix, left for the owner to accept since that file is his
-reference).
+See the end of `docs/ROADMAP.md`: "unrated means Bad", and results visible
+before voting. Settled on 2026-09-26: exact GMJ ties. The score is now computed
+from the counts, so rounding no longer splits options that are tied
+(9/4/7 and 8/8/4 above/at/below both score 1/2), and tied options show ex aequo.

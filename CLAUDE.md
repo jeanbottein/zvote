@@ -89,7 +89,9 @@ shown to people as is: write it as a sentence for them.
   2026-09-24). How results are ranked is his call: see "Questions for the
   owner" in the roadmap. Decided so far: with an even number of ballots the
   majority mention is the lower of the two middle mentions (more than half the
-  voters, not half).
+  voters, not half); ties on the majority mention are broken by the GMJ score
+  alone, computed from the counts so that equal scores stay equal, and what is
+  still tied shows ex aequo.
 - **Ranking stays in the client.** The server sends seven counts per option,
   never a ranking.
 - **Every fetch sends credentials**, and so does `EventSource`: identity is an

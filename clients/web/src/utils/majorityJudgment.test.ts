@@ -445,6 +445,34 @@ describe('Simplified Majority Judgment', () => {
     });
   });
 
+  describe('Exact ties', () => {
+    const none: JudgmentCounts = {
+      Bad: 0, Inadequate: 0, Passable: 0, Fair: 0, Good: 0, VeryGood: 0, Excellent: 0
+    };
+    // 20 voters. Both have Good as majority mention, and the same GMJ score,
+    // (above - below) / at: (9 - 7) / 4 = (8 - 4) / 8 = 1/2. Computed from
+    // proportions, rounding made them 0.5000000000000001 and 0.5.
+    const a: JudgmentCounts = { ...none, Excellent: 9, Good: 4, Bad: 7 };
+    const b: JudgmentCounts = { ...none, Excellent: 8, Good: 8, Bad: 4 };
+
+    it('should give equal scores to options that are exactly tied', () => {
+      expect(computeMJAnalysis(a).gmdScore).toBe(0.5);
+      expect(computeMJAnalysis(b).gmdScore).toBe(0.5);
+    });
+
+    it('should rank exactly tied options ex aequo, whatever their order in the poll', () => {
+      for (const [first, second] of [[a, b], [b, a]]) {
+        const ranked = rankOptions([
+          { id: 'first', label: 'First', judgment_counts: first, total_judgments: 20 },
+          { id: 'second', label: 'Second', judgment_counts: second, total_judgments: 20 }
+        ]);
+
+        expect(ranked.map(option => option.mjAnalysis.rank)).toEqual([1, 1]);
+        expect(ranked.every(option => option.mjAnalysis.isExAequo)).toBe(true);
+      }
+    });
+  });
+
   describe('Complex ranking scenarios', () => {
     it('should handle all options tied at same rank', () => {
       const options = [

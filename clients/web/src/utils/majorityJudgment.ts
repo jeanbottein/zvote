@@ -55,6 +55,11 @@ function calculateMedian(counts: JudgmentCounts): keyof JudgmentCounts {
 
 /**
  * Calculate GMJ's Usual score: (pc - qc) / rc
+ *
+ * The proportions share the same denominator, so the score is computed from
+ * the counts, (above - below) / at: one division of whole numbers. Two options
+ * whose scores are equal then get exactly equal numbers, and stay ex aequo;
+ * dividing proportions let rounding separate them (0.5000000000000001 vs 0.5).
  */
 function calculateGMJScore(counts: JudgmentCounts): number {
   const mentions: (keyof JudgmentCounts)[] = [
@@ -73,24 +78,22 @@ function calculateGMJScore(counts: JudgmentCounts): number {
   for (let i = 0; i < medianIndex; i++) {
     aboveCount += counts[mentions[i]];
   }
-  const pc = aboveCount / total;
   
   // qc: proportion strictly below median (worse mentions)
   let belowCount = 0;
   for (let i = medianIndex + 1; i < mentions.length; i++) {
     belowCount += counts[mentions[i]];
   }
-  const qc = belowCount / total;
   
   // rc: proportion exactly at median
-  const rc = counts[median] / total;
+  const atCount = counts[median];
   
-  // Handle division by zero when rc = 0
-  if (rc === 0) {
-    return pc - qc;
+  // Handle division by zero when rc = 0: pc - qc
+  if (atCount === 0) {
+    return (aboveCount - belowCount) / total;
   }
   
-  return (pc - qc) / rc;
+  return (aboveCount - belowCount) / atCount;
 }
 
 /**
