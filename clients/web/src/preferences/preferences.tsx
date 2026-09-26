@@ -33,6 +33,11 @@ export function applyPreferences({ theme, colorblind }: Preferences) {
   } else {
     root.dataset.theme = theme;
   }
+  // The browser's own bars (index.html's theme-color tags) follow a chosen theme too.
+  for (const meta of document.querySelectorAll<HTMLMetaElement>('meta[name="theme-color"][data-scheme]')) {
+    const scheme = meta.dataset.scheme;
+    meta.media = theme === 'system' ? `(prefers-color-scheme: ${scheme})` : theme === scheme ? 'all' : 'not all';
+  }
   // The grey mention palette (mentions.css) reads this attribute from <body>.
   if (colorblind) {
     document.body.dataset.colorblind = 'true';

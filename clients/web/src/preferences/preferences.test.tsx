@@ -43,6 +43,28 @@ describe('applying the preferences', () => {
   });
 });
 
+describe("the browser's own bars", () => {
+  it('take the colour of a chosen theme, and follow the device otherwise', () => {
+    // As in index.html.
+    document.head.insertAdjacentHTML('beforeend', `
+      <meta name="theme-color" content="#68cc92" media="(prefers-color-scheme: light)" data-scheme="light">
+      <meta name="theme-color" content="#124d38" media="(prefers-color-scheme: dark)" data-scheme="dark">`);
+    const media = () => [...document.querySelectorAll<HTMLMetaElement>('meta[name="theme-color"]')]
+      .map((meta) => meta.media);
+
+    applyPreferences({ theme: 'dark', colorblind: false, mjBallot: 'scale', submission: 'live' });
+    expect(media()).toEqual(['not all', 'all']);
+
+    applyPreferences({ theme: 'light', colorblind: false, mjBallot: 'scale', submission: 'live' });
+    expect(media()).toEqual(['all', 'not all']);
+
+    applyPreferences({ theme: 'system', colorblind: false, mjBallot: 'scale', submission: 'live' });
+    expect(media()).toEqual(['(prefers-color-scheme: light)', '(prefers-color-scheme: dark)']);
+
+    document.head.querySelectorAll('meta[name="theme-color"]').forEach((meta) => meta.remove());
+  });
+});
+
 describe('changing a preference', () => {
   const wrapper = ({ children }: { children: ReactNode }) => <PreferencesProvider>{children}</PreferencesProvider>;
 
