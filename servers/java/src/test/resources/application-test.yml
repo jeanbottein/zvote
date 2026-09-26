@@ -2,7 +2,11 @@
 spring:
   datasource:
     url: jdbc:h2:mem:zvote;DB_CLOSE_DELAY=-1
+  main:
+    banner-mode: off
 
+# Warnings and errors only (see logback-test.xml), minus the expected ones.
 logging:
   level:
-    org.zvote: INFO
+    org.flywaydb.core.internal.database.base.Database: ERROR # "H2 is newer than Flyway verified"
+    org.springframework.web.servlet.PageNotFound: ERROR # the tests send wrong requests on purpose

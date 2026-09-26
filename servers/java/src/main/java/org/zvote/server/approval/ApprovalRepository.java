@@ -1,14 +1,12 @@
-package org.zvote.server.ballots.approval;
+package org.zvote.server.approval;
 
 import org.springframework.data.jdbc.repository.query.Modifying;
 import org.springframework.data.jdbc.repository.query.Query;
 import org.springframework.data.repository.ListCrudRepository;
-import org.springframework.stereotype.Repository;
 
 import java.util.List;
 
-@Repository
-public interface ApprovalRepository extends ListCrudRepository<Approval, Long> {
+interface ApprovalRepository extends ListCrudRepository<Approval, Long> {
 
     List<Approval> findByPollIdAndVoterId(Long pollId, String voterId);
 

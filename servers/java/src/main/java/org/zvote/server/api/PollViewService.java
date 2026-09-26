@@ -1,14 +1,16 @@
 package org.zvote.server.api;
 
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
+import org.springframework.transaction.annotation.Transactional;
 import org.zvote.server.api.dto.MyBallotView;
 import org.zvote.server.api.dto.OptionView;
 import org.zvote.server.api.dto.PollSummary;
 import org.zvote.server.api.dto.PollUpdate;
 import org.zvote.server.api.dto.PollView;
-import org.zvote.server.ballots.approval.ApprovalBallotService;
-import org.zvote.server.ballots.judgment.JudgmentBallotService;
-import org.zvote.server.ballots.judgment.Mention;
+import org.zvote.server.approval.ApprovalBallotService;
+import org.zvote.server.judgment.JudgmentBallotService;
+import org.zvote.server.judgment.Mention;
 import org.zvote.server.polls.Poll;
 import org.zvote.server.polls.PollOption;
 import org.zvote.server.polls.PollService;
@@ -23,6 +25,10 @@ import java.util.Map;
  * This is the one place that knows about polls and every voting system at
  * once, which is why it lives in the api package: polls stay ignorant of how
  * they are voted on, and each voting system stays ignorant of the others.
+ *
+ * A composition takes several queries, all read from one snapshot (a
+ * repeatable read): at the default isolation, a ballot landing between the
+ * tallies and the ballot count would make them disagree.
  */
 @Service
 public class PollViewService {
@@ -37,6 +43,7 @@ public class PollViewService {
         this.judgments = judgments;
     }
 
+    @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
     public PollView view(Poll poll, String voterId) {
         var options = polls.optionsOf(poll);
         var results = results(poll, options);
@@ -53,14 +60,11 @@ public class PollViewService {
             myBallot(poll, options, voterId));
     }
 
-    /** What the poll's watchers receive. */
-    public PollUpdate update(Poll poll) {
-        return results(poll, polls.optionsOf(poll));
-    }
-
-    /** The same, reading the poll afresh: for updates computed after the fact. */
+    /** What the poll's watchers receive, read afresh: updates are computed after the fact. */
+    @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
     public PollUpdate update(Long pollId) {
-        return update(polls.get(pollId));
+        var poll = polls.get(pollId);
+        return results(poll, polls.optionsOf(poll));
     }
 
     public PollSummary summary(Poll poll, String voterId) {

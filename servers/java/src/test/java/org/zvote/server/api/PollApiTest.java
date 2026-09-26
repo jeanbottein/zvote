@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
@@ -25,6 +26,7 @@ import java.security.SecureRandom;
 import java.util.Arrays;
 import java.util.Base64;
 import java.util.List;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
@@ -169,6 +171,27 @@ class PollApiTest {
             assertThat(result).hasContentType(MediaType.APPLICATION_PROBLEM_JSON);
             assertThat(result).bodyJson().extractingPath("$.detail").asString().contains("does not exist");
         }
+
+        @Test
+        void nothingCanBeDoneToAnUnknownPoll() {
+            assertThat(put(alice, "/api/polls/no-such-poll/ballot", "{\"judgments\": {}}")).hasStatus(HttpStatus.NOT_FOUND);
+            assertThat(patch(alice, "/api/polls/no-such-poll", "{\"closed\": true}")).hasStatus(HttpStatus.NOT_FOUND);
+            assertThat(delete(alice, "/api/polls/no-such-poll")).hasStatus(HttpStatus.NOT_FOUND);
+        }
+
+        @Test
+        void aPollReadsBackExactlyAsItWasAnswered() {
+            var created = post(alice, "/api/polls", """
+                {"title": "Lunch?", "votingSystem": "APPROVAL", "visibility": "PUBLIC", "options": ["Ramen", "Tacos"]}
+                """);
+            var poll = JsonPath.<String>read(body(created), "$.id");
+            var closed = patch(alice, "/api/polls/" + poll, "{\"closed\": true}");
+
+            var read = body(get(bob, "/api/polls/" + poll));
+
+            assertThat(JsonPath.<String>read(read, "$.createdAt")).isEqualTo(JsonPath.read(body(created), "$.createdAt"));
+            assertThat(JsonPath.<String>read(read, "$.closedAt")).isEqualTo(JsonPath.read(body(closed), "$.closedAt"));
+        }
     }
 
     @Nested
@@ -264,6 +287,21 @@ class PollApiTest {
         }
 
         @Test
+        void simultaneousBallotsFromOneVoterLeaveOneBallot() throws InterruptedException {
+            var statuses = new ConcurrentLinkedQueue<Integer>();
+            var voters = IntStream.range(0, 20)
+                .mapToObj(i -> Thread.ofVirtual().start(
+                    () -> statuses.add(castJudgments(alice, "Good", "Fair").getResponse().getStatus())))
+                .toList();
+            for (var voter : voters) {
+                voter.join();
+            }
+
+            assertThat(statuses).hasSize(20).containsOnly(200, 409).contains(200);
+            assertThat(get(bob, "/api/polls/" + poll)).bodyJson().extractingPath("$.totalBallots").isEqualTo(1);
+        }
+
+        @Test
         void rejectsAnApprovalBallot() {
             var result = put(alice, "/api/polls/" + poll + "/ballot", """
                 {"approvedOptionIds": ["%s"]}
@@ -312,6 +350,17 @@ class PollApiTest {
 
             assertThat(result).bodyJson().extractingPath("$.totalBallots").isEqualTo(0);
             assertThat(result).bodyJson().extractingPath("$.myBallot").isNull();
+        }
+
+        @ParameterizedTest(name = "\"{0}\"")
+        @ValueSource(strings = {"Ramen", "", "-1", "99999999999999999999"})
+        void rejectsWhatIsNotAnOptionOfThisPoll(String optionId) {
+            var result = approve(alice, ramen, optionId);
+
+            assertThat(result).hasStatus(HttpStatus.BAD_REQUEST);
+            assertThat(result).bodyJson().extractingPath("$.detail").asString()
+                .isEqualTo("\"" + optionId + "\" is not an option of this poll.");
+            assertThat(get(alice, "/api/polls/" + poll)).bodyJson().extractingPath("$.myBallot").isNull();
         }
 
         @Test
@@ -453,6 +502,17 @@ class PollApiTest {
             entry("approvalVoting", true), entry("majorityJudgment", true));
         assertThat(result).bodyJson().extractingPath("$.limits").asMap().containsOnly(
             entry("maxOptions", 20), entry("maxTitleLength", 200), entry("maxOptionLength", 100));
+    }
+
+    @Test
+    void springsOwnErrorsAreProblemDocumentsToo() {
+        var wrongMethod = delete(alice, "/api/polls");
+        var nothingThere = get(alice, "/api/nothing-here");
+
+        assertThat(wrongMethod).hasStatus(HttpStatus.METHOD_NOT_ALLOWED);
+        assertThat(wrongMethod).hasContentType(MediaType.APPLICATION_PROBLEM_JSON);
+        assertThat(nothingThere).hasStatus(HttpStatus.NOT_FOUND);
+        assertThat(nothingThere).hasContentType(MediaType.APPLICATION_PROBLEM_JSON);
     }
 
     // --- helpers --------------------------------------------------------------

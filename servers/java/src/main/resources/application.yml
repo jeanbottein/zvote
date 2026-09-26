@@ -26,19 +26,6 @@ spring:
     username: sa
     password:
 
-server:
-  port: 8080
-
-management:
-  endpoints:
-    web:
-      exposure:
-        include: health
-
-logging:
-  level:
-    org.zvote: DEBUG
-
 # What this server offers. Advertised at GET /api/server-info so the client can
 # adapt its UI, and enforced when polls are created.
 zvote:

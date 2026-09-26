@@ -1,4 +1,4 @@
-package org.zvote.server.ballots.approval;
+package org.zvote.server.approval;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;

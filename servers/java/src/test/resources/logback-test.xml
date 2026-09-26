@@ -1,0 +1,9 @@
+<!-- Tests log warnings and errors only, from the very start: this file applies
+     before Spring Boot configures logging, application-test.yml after. -->
+<configuration>
+    <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
+    <include resource="org/springframework/boot/logging/logback/console-appender.xml"/>
+    <root level="WARN">
+        <appender-ref ref="CONSOLE"/>
+    </root>
+</configuration>

@@ -1,4 +1,4 @@
-package org.zvote.server.ballots.judgment;
+package org.zvote.server.judgment;
 
 import java.util.Arrays;
 import java.util.Optional;

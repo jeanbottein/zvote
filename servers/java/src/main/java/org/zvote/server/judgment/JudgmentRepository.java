@@ -1,14 +1,12 @@
-package org.zvote.server.ballots.judgment;
+package org.zvote.server.judgment;
 
 import org.springframework.data.jdbc.repository.query.Modifying;
 import org.springframework.data.jdbc.repository.query.Query;
 import org.springframework.data.repository.ListCrudRepository;
-import org.springframework.stereotype.Repository;
 
 import java.util.List;
 
-@Repository
-public interface JudgmentRepository extends ListCrudRepository<Judgment, Long> {
+interface JudgmentRepository extends ListCrudRepository<Judgment, Long> {
 
     List<Judgment> findByPollIdAndVoterId(Long pollId, String voterId);
 

@@ -109,7 +109,9 @@ class PollEventsTest {
 
     @Test
     void aPollThatDoesNotExistCannotBeWatched() throws Exception {
-        var response = http.send(HttpRequest.newBuilder(uri("/api/polls/nope/events")).build(),
+        var response = http.send(HttpRequest.newBuilder(uri("/api/polls/nope/events"))
+                .header("Accept", "text/event-stream") // as browsers send it
+                .build(),
             HttpResponse.BodyHandlers.ofString());
 
         assertThat(response.statusCode()).isEqualTo(404);

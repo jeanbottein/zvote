@@ -1,11 +1,11 @@
-package org.zvote.server.ballots.judgment;
+package org.zvote.server.judgment;
 
 import org.springframework.data.annotation.Id;
 
 import java.time.Instant;
 
 /** The mention one voter gave one option. */
-public record Judgment(
+record Judgment(
     @Id Long id,
     Long pollId,
     Long optionId,

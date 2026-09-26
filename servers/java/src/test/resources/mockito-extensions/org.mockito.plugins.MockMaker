@@ -1,0 +1,4 @@
+# No test mocks anything, but Spring's test listeners still start Mockito. Its
+# defaults attach a Java agent at run time, which the JDK warns about and will
+# refuse in a future release. This plugin and MemberAccessor need no agent.
+mock-maker-subclass

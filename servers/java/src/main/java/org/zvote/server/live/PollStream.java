@@ -4,18 +4,19 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.event.ContextClosedEvent;
 import org.springframework.context.event.EventListener;
+import org.springframework.scheduling.TaskScheduler;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.io.IOException;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Supplier;
@@ -33,7 +34,8 @@ import java.util.function.Supplier;
  * watcher, per window - not per ballot.
  *
  * Every write to a poll's watchers happens under that poll's lock, so updates
- * arrive in order and never interleave with heartbeats.
+ * arrive in order and never interleave with heartbeats. Flushes and heartbeats
+ * run on Spring Boot's task scheduler, on virtual threads.
  *
  * Watchers live in this process's memory. A second server instance will need a
  * shared channel (PostgreSQL LISTEN/NOTIFY, Redis) to relay changes.
@@ -43,9 +45,6 @@ public class PollStream {
 
     static final Duration COALESCING_WINDOW = Duration.ofMillis(200);
 
-    /** Writing regularly is the only way to notice that a watcher went away. */
-    private static final Duration HEARTBEAT_INTERVAL = Duration.ofSeconds(20);
-
     /** Streams end after this and browsers reconnect, so dead ones cannot pile up. */
     private static final Duration STREAM_LIFETIME = Duration.ofMinutes(30);
 
@@ -53,29 +52,43 @@ public class PollStream {
 
     private final Map<Long, Audience> audiences = new ConcurrentHashMap<>();
     private final Map<Long, Supplier<?>> pending = new ConcurrentHashMap<>();
-    private final ScheduledExecutorService timer = Executors.newSingleThreadScheduledExecutor(
-        Thread.ofPlatform().daemon().name("poll-stream-timer").factory());
+    private final TaskScheduler scheduler;
 
-    public PollStream() {
-        var interval = HEARTBEAT_INTERVAL.toMillis();
-        timer.scheduleAtFixedRate(() -> Thread.startVirtualThread(this::heartbeat),
-            interval, interval, TimeUnit.MILLISECONDS);
+    public PollStream(TaskScheduler scheduler) {
+        this.scheduler = scheduler;
     }
 
-    /** Starts watching a poll. The first event is {@code current}, sent straight away. */
-    public SseEmitter watch(Long pollId, Object current) {
+    /** Starts watching a poll. The first event is what {@code current} computes, straight away. */
+    public SseEmitter watch(Long pollId, Supplier<?> current) {
         var emitter = new SseEmitter(STREAM_LIFETIME.toMillis());
         emitter.onTimeout(emitter::complete);
         emitter.onCompletion(() -> leave(pollId, emitter));
         emitter.onError(error -> leave(pollId, emitter));
+        join(pollId, emitter, current);
+        return emitter;
+    }
 
+    /**
+     * The current state is computed after the watcher joins, under the lock:
+     * a change made while it is computed is flushed to the watcher next,
+     * rather than lost because the watcher was not listening yet.
+     */
+    void join(Long pollId, SseEmitter emitter, Supplier<?> current) {
         var audience = audiences.compute(pollId, (id, existing) -> {
             var joined = existing != null ? existing : new Audience();
             joined.emitters.add(emitter);
             return joined;
         });
-        audience.write(List.of(emitter), () -> update(current));
-        return emitter;
+        audience.lock.lock();
+        try {
+            var state = current.get();
+            audience.write(List.of(emitter), () -> update(state));
+        } catch (RuntimeException e) {
+            leave(pollId, emitter); // the poll went away meanwhile: no stream
+            throw e;
+        } finally {
+            audience.lock.unlock();
+        }
     }
 
     /**
@@ -84,8 +97,7 @@ public class PollStream {
      */
     public void changed(Long pollId, Supplier<?> latest) {
         if (audiences.containsKey(pollId) && pending.put(pollId, latest) == null) {
-            timer.schedule(() -> Thread.startVirtualThread(() -> flush(pollId)),
-                COALESCING_WINDOW.toMillis(), TimeUnit.MILLISECONDS);
+            scheduler.schedule(() -> flush(pollId), Instant.now().plus(COALESCING_WINDOW));
         }
     }
 
@@ -105,7 +117,6 @@ public class PollStream {
      */
     @EventListener(ContextClosedEvent.class)
     public void close() {
-        timer.shutdownNow();
         pending.clear();
         audiences.values().forEach(audience -> audience.emitters.forEach(SseEmitter::complete));
         audiences.clear();
@@ -134,7 +145,9 @@ public class PollStream {
         }
     }
 
-    private void heartbeat() {
+    /** Writing regularly is the only way to notice that a watcher went away. */
+    @Scheduled(fixedRate = 20, timeUnit = TimeUnit.SECONDS)
+    void heartbeat() {
         audiences.values().forEach(audience ->
             audience.write(audience.emitters, () -> SseEmitter.event().comment("heartbeat")));
     }

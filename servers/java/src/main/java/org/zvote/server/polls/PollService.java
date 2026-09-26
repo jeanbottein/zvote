@@ -4,10 +4,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.zvote.server.common.InvalidRequestException;
 import org.zvote.server.common.ZVoteProperties;
-import org.zvote.server.polls.dto.CreatePollRequest;
 
 import java.security.SecureRandom;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.HashSet;
@@ -16,8 +16,8 @@ import java.util.Locale;
 
 /**
  * Every rule about polls lives here: what a valid poll is, who can find it and
- * who can change it. Nothing else touches the poll repositories (ArchitectureTest
- * enforces that), so these rules cannot be walked around.
+ * who can change it. Nothing else can touch the poll repositories (they are
+ * package-private), so these rules cannot be walked around.
  */
 @Service
 public class PollService {
@@ -45,7 +45,7 @@ public class PollService {
             title,
             offered(request.votingSystem()),
             offered(request.visibility()),
-            Instant.now(),
+            now(),
             null));
 
         var rows = new ArrayList<PollOption>(labels.size());
@@ -97,7 +97,7 @@ public class PollService {
         if (poll.isClosed() == closed) {
             return poll;
         }
-        return polls.save(poll.withClosedAt(closed ? Instant.now() : null));
+        return polls.save(poll.withClosedAt(closed ? now() : null));
     }
 
     /** The options and ballots go with it (ON DELETE CASCADE). */
@@ -176,6 +176,14 @@ public class PollService {
             throw new InvalidRequestException("Choose a visibility this server offers.");
         }
         return visibility;
+    }
+
+    /**
+     * The database keeps microseconds. Rounding here too means the poll this
+     * service returns reads exactly as it will when read back later.
+     */
+    private static Instant now() {
+        return Instant.now().truncatedTo(ChronoUnit.MICROS);
     }
 
     /** 128 random bits: unguessable, so an unlisted poll stays unlisted. */

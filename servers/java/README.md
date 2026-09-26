@@ -1,15 +1,16 @@
 # zvote server
 
-Java 21, Spring Boot 4.1. Spring MVC on virtual threads, Spring Data JDBC,
-Flyway, H2 in file mode. It serves the REST API and the live-results streams
+Java 25, Spring Boot 4.1. Spring MVC on virtual threads, Spring Data JDBC,
+Flyway, H2 in file mode, Spring Modulith. It serves the REST API and the live-results streams
 described in [docs/API.md](../../docs/API.md).
 
 ## Run and test
 
 ```bash
 ./mvnw spring-boot:run                   # http://localhost:8080
-./mvnw test                              # architecture, API and live-stream tests (~10 s)
+./mvnw test                              # architecture, API and live-stream tests (~15 s, silent when green)
 ./mvnw test -Dtest=PollApiTest           # one class
+./mvnw test -Pcoverage                   # + coverage report: target/site/jacoco/index.html
 ./mvnw package && java -jar target/zvote-server-0.1.0-SNAPSHOT.jar
 ```
 
@@ -36,17 +37,17 @@ a poll is created.
 ```
 org.zvote.server
 ├── polls/      the question: Poll, PollOption, PollService (every poll rule)
-├── ballots/
-│   ├── approval/   approval ballots and tallies
-│   └── judgment/   majority judgment ballots, Mention, tallies
+├── approval/   approval ballots and tallies
+├── judgment/   majority judgment ballots, Mention, tallies
 ├── api/        controllers, PollViewService (composes polls and ballots), DTOs, errors
 ├── identity/   the voter cookie
 ├── live/       PollStream: server-sent events
 └── common/     ZVoteProperties, InvalidRequestException
 ```
 
-`ArchitectureTest` enforces the boundaries; [docs/ARCHITECTURE.md](../../docs/ARCHITECTURE.md)
-explains them.
+Each package is a Spring Modulith module: its `package-info.java` says which
+modules it may use, and `ArchitectureTest` verifies it.
+[docs/ARCHITECTURE.md](../../docs/ARCHITECTURE.md) explains the boundaries.
 
 ## Schema changes
 

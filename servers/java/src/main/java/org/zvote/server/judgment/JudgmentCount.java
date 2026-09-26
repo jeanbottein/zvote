@@ -1,4 +1,4 @@
-package org.zvote.server.ballots.judgment;
+package org.zvote.server.judgment;
 
 /** How many voters gave one option one mention. */
-public record JudgmentCount(Long optionId, Mention mention, long total) {}
+record JudgmentCount(Long optionId, Mention mention, long total) {}

@@ -1,6 +1,4 @@
-package org.zvote.server.polls.dto;
-
-import org.zvote.server.polls.Poll;
+package org.zvote.server.polls;
 
 import java.util.List;
 

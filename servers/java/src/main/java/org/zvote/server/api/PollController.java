@@ -21,7 +21,7 @@ import org.zvote.server.common.InvalidRequestException;
 import org.zvote.server.identity.VoterIdentity;
 import org.zvote.server.live.PollStream;
 import org.zvote.server.polls.PollService;
-import org.zvote.server.polls.dto.CreatePollRequest;
+import org.zvote.server.polls.CreatePollRequest;
 
 import java.net.URI;
 import java.util.List;
@@ -92,6 +92,6 @@ public class PollController {
         var poll = polls.find(id);
         response.setHeader(HttpHeaders.CACHE_CONTROL, "no-store");
         response.setHeader("X-Accel-Buffering", "no"); // reverse proxies: stream, do not buffer
-        return stream.watch(poll.id(), views.update(poll));
+        return stream.watch(poll.id(), () -> views.update(poll.id()));
     }
 }
