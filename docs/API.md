@@ -142,9 +142,11 @@ the same operation, so retrying is always safe.
   every option.
 - The shape must match the poll's voting system, every id must be an option of
   this poll, and every mention one of the seven, or the answer is `400`.
-- A closed poll answers `409`.
-- Two ballots sent by the same voter at the same instant: one is kept, the
-  other gets `409`. Send it again.
+- A closed poll answers `409`. A ballot sent while the poll is being closed
+  or deleted waits for that change, then answers `409` or `404`: a ballot is
+  never counted after closing.
+- Two ballots sent by the same voter at the same instant are applied one after
+  the other, or one of them gets `409`. Send it again.
 
 ## Live updates
 
@@ -176,11 +178,9 @@ data:{}
 
 ## Errors
 
-Every error the server anticipates is an
-[RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) problem document,
-`Content-Type: application/problem+json`. Its `detail` is written for the
-person using the app and can be shown as is. An unexpected failure (`500`, a
-bug or the database being unavailable) has Spring Boot's default error body.
+Every error is an [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) problem
+document, `Content-Type: application/problem+json`. Its `detail` is written for
+the person using the app and can be shown as is.
 
 ```json
 { "title": "Conflict", "status": 409,
@@ -195,7 +195,8 @@ bug or the database being unavailable) has Spring Boot's default error body.
 | `400` | The request breaks a rule (the `detail` says which), or its JSON cannot be read |
 | `403` | Only the poll's creator can do that |
 | `404` | No poll has that id (or it was deleted) |
-| `409` | The poll is closed, or the same voter sent two ballots at once |
+| `409` | The poll is closed, or the change collided with another made at the same moment (send it again) |
+| `500` | Something unexpected failed on the server; the `detail` says so and nothing more |
 
 ## Trying it with curl
 

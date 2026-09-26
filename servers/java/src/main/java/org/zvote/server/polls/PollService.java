@@ -1,6 +1,7 @@
 package org.zvote.server.polls;
 
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.zvote.server.common.InvalidRequestException;
 import org.zvote.server.common.ZVoteProperties;
@@ -64,9 +65,15 @@ public class PollService {
         return polls.findByShareToken(shareToken).orElseThrow(PollNotFoundException::new);
     }
 
-    /** Like {@link #find}, for a poll that must still accept ballots. */
+    /**
+     * Like {@link #find}, for a poll that must still accept ballots. The poll
+     * stays locked until the caller's transaction ends: closing or deleting it
+     * waits for the ballot being cast, or the ballot waits, then finds the poll
+     * closed or gone.
+     */
+    @Transactional(propagation = Propagation.MANDATORY)
     public Poll findOpen(String shareToken) {
-        var poll = find(shareToken);
+        var poll = polls.findLockedByShareToken(shareToken).orElseThrow(PollNotFoundException::new);
         if (poll.isClosed()) {
             throw new PollClosedException();
         }

@@ -18,7 +18,9 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.assertj.MockMvcTester;
 import org.springframework.test.web.servlet.assertj.MvcTestResult;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.zvote.server.identity.VoterIdentity;
+import org.zvote.server.polls.PollService;
 
 import java.io.UnsupportedEncodingException;
 import java.nio.charset.StandardCharsets;
@@ -27,6 +29,7 @@ import java.util.Arrays;
 import java.util.Base64;
 import java.util.List;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.CountDownLatch;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
@@ -297,7 +300,7 @@ class PollApiTest {
                 voter.join();
             }
 
-            assertThat(statuses).hasSize(20).containsOnly(200, 409).contains(200);
+            assertThat(statuses).hasSize(20).isSubsetOf(200, 409).contains(200);
             assertThat(get(bob, "/api/polls/" + poll)).bodyJson().extractingPath("$.totalBallots").isEqualTo(1);
         }
 
@@ -436,6 +439,74 @@ class PollApiTest {
             var poll = createPoll(alice, "MAJORITY_JUDGMENT", "PUBLIC");
 
             assertThat(patch(alice, "/api/polls/" + poll, "{}")).hasStatus(HttpStatus.BAD_REQUEST);
+        }
+    }
+
+    /** A ballot cast while its poll is being closed or deleted waits for that change, then obeys it. */
+    @Nested
+    class ChangesAtTheSameMoment {
+
+        @Autowired
+        PollService pollService;
+
+        @Autowired
+        TransactionTemplate transactions;
+
+        @Test
+        void aBallotCastWhileThePollClosesIsRefused() throws InterruptedException {
+            var poll = createPoll(alice, "APPROVAL", "PUBLIC");
+
+            var ballot = castWhile(poll, 300, () -> pollService.setClosed(poll, voterIdOf(alice), true));
+
+            assertThat(ballot).hasStatus(HttpStatus.CONFLICT);
+            assertThat(ballot).bodyJson().extractingPath("$.detail").asString().contains("closed");
+            assertThat(get(bob, "/api/polls/" + poll)).bodyJson().extractingPath("$.totalBallots").isEqualTo(0);
+        }
+
+        @Test
+        void aBallotCastWhileThePollIsDeletedFindsItGone() throws InterruptedException {
+            var poll = createPoll(alice, "APPROVAL", "PUBLIC");
+
+            var ballot = castWhile(poll, 300, () -> pollService.delete(poll, voterIdOf(alice)));
+
+            assertThat(ballot).hasStatus(HttpStatus.NOT_FOUND);
+        }
+
+        @Test
+        void aBallotKeptWaitingTooLongIsToldToTryAgain() throws InterruptedException {
+            var poll = createPoll(alice, "APPROVAL", "PUBLIC");
+
+            var ballot = castWhile(poll, 2500, () -> pollService.setClosed(poll, voterIdOf(alice), true));
+
+            assertThat(ballot).hasStatus(HttpStatus.CONFLICT);
+            assertThat(ballot).bodyJson().extractingPath("$.detail").asString().contains("Please try again");
+        }
+
+        /** Bob casts a ballot while {@code change} is made in a transaction that stays open a while. */
+        MvcTestResult castWhile(String poll, long openMillis, Runnable change) throws InterruptedException {
+            var ramen = optionIds(poll).getFirst();
+            var changed = new CountDownLatch(1);
+            var changer = Thread.ofVirtual().start(() -> transactions.executeWithoutResult(status -> {
+                change.run();
+                changed.countDown();
+                pause(openMillis);
+            }));
+            changed.await();
+            var ballot = put(bob, "/api/polls/" + poll + "/ballot", "{\"approvedOptionIds\": [\"" + ramen + "\"]}");
+            changer.join();
+            return ballot;
+        }
+
+        static String voterIdOf(Voter voter) {
+            return VoterIdentity.voterIdOf(voter.token());
+        }
+
+        static void pause(long millis) {
+            try {
+                Thread.sleep(millis);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
         }
     }
 

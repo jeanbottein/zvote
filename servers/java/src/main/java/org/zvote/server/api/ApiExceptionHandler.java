@@ -1,6 +1,9 @@
 package org.zvote.server.api;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.dao.TransientDataAccessException;
 import org.springframework.data.relational.core.conversion.DbActionExecutionException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -25,6 +28,8 @@ import org.zvote.server.polls.PollNotFoundException;
 @RestControllerAdvice
 public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
 
+    private static final Logger log = LoggerFactory.getLogger(ApiExceptionHandler.class);
+
     @ExceptionHandler
     ProblemDetail pollNotFound(PollNotFoundException e) {
         return problem(HttpStatus.NOT_FOUND,
@@ -47,15 +52,28 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
     }
 
     /**
-     * The same voter sending two ballots for one poll at the same instant: the
-     * database keeps one and rejects the other. Trying again is safe.
+     * Changes made at the same instant: two ballots from the same voter for one
+     * poll (the database keeps one and rejects the other), or a ballot that
+     * waited too long for a poll being changed. Trying again is safe.
      */
-    @ExceptionHandler({DataIntegrityViolationException.class, DbActionExecutionException.class})
+    @ExceptionHandler({DataIntegrityViolationException.class, TransientDataAccessException.class,
+        DbActionExecutionException.class})
     ProblemDetail collision(RuntimeException e) {
-        if (!(e instanceof DataIntegrityViolationException) && !(e.getCause() instanceof DataIntegrityViolationException)) {
-            throw e;
+        if (!isCollision(e) && !isCollision(e.getCause())) {
+            return unexpected(e);
         }
         return problem(HttpStatus.CONFLICT, "That change collided with another one made at the same moment. Please try again.");
+    }
+
+    /** Anything else is a bug, or the database away: logged in full, and told without details. */
+    @ExceptionHandler
+    ProblemDetail unexpected(RuntimeException e) {
+        log.error("Unexpected failure", e);
+        return problem(HttpStatus.INTERNAL_SERVER_ERROR, "Something went wrong on our side. Please try again in a moment.");
+    }
+
+    private static boolean isCollision(Throwable e) {
+        return e instanceof DataIntegrityViolationException || e instanceof TransientDataAccessException;
     }
 
     @Override

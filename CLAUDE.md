@@ -134,6 +134,11 @@ shown to people as is: write it as a sentence for them.
   virtual threads enabled, each flush and heartbeat gets a virtual thread.
 - **Maven 3.9 on JDK 24+** warns that its own Guice calls `sun.misc.Unsafe`:
   `servers/java/.mvn/jvm.config` allows it (that file cannot hold comments).
+- **Casting holds a shared lock on the poll** (`PollService.findOpen`, which
+  demands a transaction: `BallotService.cast`). Without it, a ballot could be
+  counted after the poll closed, or reported counted on a poll being deleted.
+  H2 only knows `FOR UPDATE`, so there ballots on one poll queue; PostgreSQL
+  gets `FOR SHARE`.
 - **A new watcher's first state is computed after it joins**, under its poll's
   lock (`PollStream.join`). Computed before, a ballot landing in between was
   lost until the next one.

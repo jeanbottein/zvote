@@ -82,6 +82,18 @@ A review against Spring Boot idioms, in the spirit of a Spring advocate
   restart, withdrawals, the heartbeat, and a 0.15 s shutdown with a watcher
   connected.
 
+Edge cases fixed afterwards, each with a test that failed first:
+
+- **A ballot could be counted after its poll closed**, and one cast while the
+  poll was deleted was answered "counted". `BallotService` now casts in one
+  transaction holding a shared lock on the poll, so closing or deleting waits
+  for ballots in flight, and later ballots get 409 or 404. A ballot kept
+  waiting past the lock time-out gets 409 "try again".
+- **Unexpected failures are problem documents too** (500, a plain sentence,
+  the error logged in full), so the API has one error format.
+- **The browser's bars follow the theme chosen in Settings**, not only the
+  device's.
+
 Considered and left out: domain events between modules (one listener, the
 live stream, would gain indirection and no decoupling); GraalVM native images
 (no GraalVM here to verify them; phase 8); Spring Security for identity
@@ -89,13 +101,13 @@ live stream, would gain indirection and no decoupling); GraalVM native images
 
 ## Verified
 
-- **Server**: 71 tests (56 before the cleanup; the module rules are now one
-  Modulith check), about 15 s. Coverage 98 % of instructions,
+- **Server**: 75 tests (56 before the cleanup; the module rules are now one
+  Modulith check), about 20 s. Coverage 98 % of instructions,
   88 % of branches. New: the stream's rules without a server (`PollStreamTest`),
   simultaneous ballots from one voter (only 200s and 409s, one ballot kept;
   about half get 409), a server offering less, every action on an unknown poll,
   Spring's own errors as problem documents, invalid approval ids.
-- **Client**: 140 tests (was 92). Coverage 95 % of statements, 93 % of
+- **Client**: 144 tests (was 92). Coverage 95 % of statements, 93 % of
   branches (was 76 % and 71 %): every screen, the app shell and settings, the
   approval components, preferences, toasts, the results export, the share
   dialog, the lost-stream recovery.

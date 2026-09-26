@@ -60,12 +60,15 @@ can use it), data classes are records, and nothing imports Reactor.
 
 1. `VoterIdentityFilter` reads the `zvote_voter` cookie (issuing one if
    needed) and puts the voter id on the request.
-2. `BallotController` asks `PollService.findOpen(id)` for the poll (404 if it
-   does not exist, 409 if it is closed), checks that the ballot has the right
-   shape and only this poll's option ids, and hands it to the voting system's
-   service.
-3. That service replaces the voter's ballot in one transaction: delete, then
-   insert.
+2. `BallotService`, in one transaction, asks `PollService.findOpen(id)` for
+   the poll (404 if it does not exist, 409 if it is closed), checks that the
+   ballot has the right shape and only this poll's option ids, and hands it to
+   the voting system's service, which replaces the voter's ballot: delete,
+   then insert.
+3. `findOpen` holds a shared lock on the poll until that transaction ends.
+   Ballots do not wait for each other, but closing or deleting the poll waits
+   for the ballots in flight, and a ballot arriving meanwhile waits, then
+   finds the poll closed or gone: none is counted after closing.
 4. `PollStream.changed(...)` is told the poll moved. The caller gets the fresh
    `PollView` straight away; watchers get an update a moment later.
 
@@ -138,8 +141,9 @@ migrations.
 `ApiExceptionHandler` turns domain exceptions into RFC 9457 problem documents
 whose `detail` can be shown to people as is: `InvalidRequestException` → 400,
 `NotPollCreatorException` → 403, `PollNotFoundException` → 404,
-`PollClosedException` and simultaneous ballots → 409. Spring MVC's own errors
-use the same format.
+`PollClosedException`, simultaneous ballots and lock time-outs → 409 ("try
+again"). Spring MVC's own errors use the same format, and anything unexpected
+is logged in full and answered 500 with a plain sentence and no details.
 
 ### Tests
 
