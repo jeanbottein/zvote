@@ -1,6 +1,7 @@
 package org.zvote.server.api;
 
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.aot.hint.annotation.RegisterReflectionForBinding;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -15,6 +16,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import org.zvote.server.api.dto.PollSummary;
+import org.zvote.server.api.dto.PollUpdate;
 import org.zvote.server.api.dto.PollView;
 import org.zvote.server.api.dto.UpdatePollRequest;
 import org.zvote.server.common.InvalidRequestException;
@@ -88,6 +90,7 @@ public class PollController {
      * client that reconnects is up to date at once rather than at the next ballot.
      */
     @GetMapping(path = "/{id}/events", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    @RegisterReflectionForBinding(PollUpdate.class) // what the stream carries: a native image must know it
     public SseEmitter events(@PathVariable String id, HttpServletResponse response) {
         var poll = polls.find(id);
         response.setHeader(HttpHeaders.CACHE_CONTROL, "no-store");

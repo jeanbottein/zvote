@@ -4,6 +4,7 @@ import com.tngtech.archunit.core.domain.JavaClasses;
 import com.tngtech.archunit.core.importer.ClassFileImporter;
 import com.tngtech.archunit.core.importer.ImportOption;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.DisabledInNativeImage;
 import org.springframework.modulith.core.ApplicationModules;
 import org.zvote.server.ZVoteServerApplication;
 
@@ -23,6 +24,7 @@ import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
  * Anything more elaborate (ports and adapters, an interface per implementation,
  * a mapper per boundary) would cost more to understand than it buys at this size.
  */
+@DisabledInNativeImage // reads class files, which a native image has none of
 class ArchitectureTest {
 
     static final JavaClasses classes = new ClassFileImporter()

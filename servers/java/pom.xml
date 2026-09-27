@@ -104,6 +104,12 @@
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
             </plugin>
+            <!-- GraalVM native image, on a GraalVM JDK: ./mvnw -Pnative native:compile builds
+                 target/zvote-server (Spring Boot's native profile runs its AOT processing first). -->
+            <plugin>
+                <groupId>org.graalvm.buildtools</groupId>
+                <artifactId>native-maven-plugin</artifactId>
+            </plugin>
         </plugins>
     </build>
 
