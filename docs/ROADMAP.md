@@ -75,7 +75,11 @@ Still to do:
   installing. PostgreSQL does not index foreign keys by itself, as H2 does:
   index `approval.option_id` and `judgment.option_id`, or deleting a poll scans
   both tables once per option.
-- **GraalVM native image**, together with PostgreSQL (H2 resists native image).
+- **Startup and memory**: measured in [PERFORMANCE.md](PERFORMANCE.md). The
+  native image works, H2 included, and with profile-guided optimization starts
+  in 0.13 s on 100 MB and serves as much as the JVM; the JVM with a Leyden AOT
+  cache and Spring AOT starts in 1.1 s at no cost. Choose on the target (Linux,
+  PostgreSQL), and run `-PnativeTest` in CI if the native image is chosen.
 - **One origin.** The server serves the built client, which keeps cookies
   first-party and enables the Open Graph pages above.
 - **Hardening.** TLS (the cookie turns `Secure` on its own behind HTTPS), a

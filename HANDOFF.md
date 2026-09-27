@@ -95,9 +95,19 @@ Edge cases fixed afterwards, each with a test that failed first:
   device's.
 
 Considered and left out: domain events between modules (one listener, the
-live stream, would gain indirection and no decoupling); GraalVM native images
-(no GraalVM here to verify them; phase 8); Spring Security for identity
+live stream, would gain indirection and no decoupling); Spring Security for identity
 (phase 5).
+
+## Performance (2026-09-27, branch `perf/native-image`)
+
+JDK 25 is installed (SDKMAN: Temurin `25.0.4-tem` by default, Oracle GraalVM
+`25.0.4-graal` beside it). The server now builds as a GraalVM native image
+(`./mvnw -Pnative native:compile`), and `docs/PERFORMANCE.md` measures seven
+ways to run it. The native image with profile-guided optimization starts in
+0.13 s on 99 MB and serves as much as the JVM; the JVM with a Leyden AOT cache
+and Spring AOT starts in 1.1 s. Two native-only bugs were fixed on the way
+(timestamp conversion, the live stream's payload). `perf/bench.py` reproduces
+it all.
 
 ## Verified
 

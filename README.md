@@ -72,6 +72,8 @@ it elsewhere. The schema is migrated automatically at startup.
 - [docs/API.md](docs/API.md): the HTTP API.
 - [docs/ROADMAP.md](docs/ROADMAP.md): accounts and social sign-in, installable
   app, Android, deployment.
+- [docs/PERFORMANCE.md](docs/PERFORMANCE.md): the JVM, Leyden's AOT cache and
+  GraalVM native images, measured.
 
 <img src="docs/images/desktop-results.png" width="560" alt="Majority judgment results on a desktop, dark theme">
 

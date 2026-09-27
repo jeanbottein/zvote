@@ -31,6 +31,8 @@ Server (`servers/java`, Java 25, Maven wrapper; Maven itself is not needed):
 ./mvnw test -Dtest=PollApiTest      # one class
 ./mvnw test -Pcoverage              # + JaCoCo report: target/site/jacoco/index.html
 ./mvnw spring-boot:run
+./mvnw -Pnative native:compile      # native image (GraalVM as JAVA_HOME), ~10 min
+./mvnw -PnativeTest test            # the tests as a native image; perf/ benchmarks: docs/PERFORMANCE.md
 ```
 
 Web app (`clients/web`, Node 20.19+; 24 LTS pinned):
@@ -152,6 +154,14 @@ shown to people as is: write it as a sentence for them.
 - **Dialogs hold their content only while open**, so that a live page does not
   re-render what nobody sees (the share dialog's QR code). jsdom has no
   `showModal()`: `src/test/setup.ts` stands in for it.
+- **A native image only keeps the reflection known at build time.** Two bugs
+  showed only there: Spring converting H2's `OffsetDateTime` to `Instant` by
+  reflection (`PersistenceConfiguration` now declares the converter), and the
+  live stream's `PollUpdate`, which no controller signature mentions
+  (`@RegisterReflectionForBinding` on the endpoint). A type serialized outside
+  a controller's signature needs the same; `-PnativeTest` finds what is missed.
+  Tests that cannot run natively (class-file scanning, Mockito) carry
+  `@DisabledInNativeImage`.
 - **Server tests are silent when green** (`logback-test.xml`,
   `application-test.yml`), and Mockito is set to need no Java agent
   (`src/test/resources/mockito-extensions`): mocking a final class or a static

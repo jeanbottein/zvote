@@ -11,6 +11,8 @@ described in [docs/API.md](../../docs/API.md).
 ./mvnw test                              # architecture, API and live-stream tests (~15 s, silent when green)
 ./mvnw test -Dtest=PollApiTest           # one class
 ./mvnw test -Pcoverage                   # + coverage report: target/site/jacoco/index.html
+./mvnw -Pnative native:compile           # a native executable, target/zvote-server (GraalVM as JAVA_HOME)
+./mvnw -PnativeTest test                 # the tests, compiled and run as a native image
 ./mvnw package && java -jar target/zvote-server-0.1.0-SNAPSHOT.jar
 ```
 
