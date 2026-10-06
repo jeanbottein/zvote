@@ -15,18 +15,25 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.assertj.MockMvcTester;
 import org.springframework.test.web.servlet.assertj.MvcTestResult;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.zvote.server.identity.VoterIdentity;
+import org.zvote.server.polls.Poll;
 import org.zvote.server.polls.PollService;
 
 import java.io.UnsupportedEncodingException;
 import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.Arrays;
 import java.util.Base64;
+import java.util.HashSet;
 import java.util.List;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CountDownLatch;
@@ -62,7 +69,7 @@ class PollApiTest {
         void startsWithEveryTallyAtZero() {
             var result = post(alice, "/api/polls", """
                 {"title": "Where do we eat?", "votingSystem": "MAJORITY_JUDGMENT",
-                 "visibility": "PUBLIC", "options": ["Ramen", "Tacos"]}
+                 "visibility": "UNLISTED", "options": ["Ramen", "Tacos"]}
                 """);
 
             assertThat(result).hasStatus(HttpStatus.CREATED);
@@ -116,7 +123,7 @@ class PollApiTest {
             Arguments.of(poll("Lunch?", "[\"A\", \" \"]"), "cannot be empty"),
             Arguments.of(poll("Lunch?", "[\"A\", \"" + "x".repeat(101) + "\"]"), "at most 100 characters"),
             Arguments.of(poll("Lunch?", "[\"Ramen\", \"ramen\"]"), "listed twice"),
-            Arguments.of("{\"title\": \"Lunch?\", \"visibility\": \"PUBLIC\", \"options\": [\"A\", \"B\"]}",
+            Arguments.of("{\"title\": \"Lunch?\", \"visibility\": \"UNLISTED\", \"options\": [\"A\", \"B\"]}",
                 "voting system"),
             Arguments.of("{\"title\": \"Lunch?\", \"votingSystem\": \"APPROVAL\", \"options\": [\"A\", \"B\"]}",
                 "visibility"),
@@ -127,7 +134,7 @@ class PollApiTest {
 
     private static String poll(String title, String options) {
         return """
-            {"title": "%s", "votingSystem": "MAJORITY_JUDGMENT", "visibility": "PUBLIC", "options": %s}
+            {"title": "%s", "votingSystem": "MAJORITY_JUDGMENT", "visibility": "UNLISTED", "options": %s}
             """.formatted(title, options);
     }
 
@@ -135,13 +142,12 @@ class PollApiTest {
     class FindingAPoll {
 
         @Test
-        void publicPollsAreListedAndUnlistedOnesAreNot() {
-            var listed = createPoll(alice, "MAJORITY_JUDGMENT", "PUBLIC");
-            var unlisted = createPoll(alice, "MAJORITY_JUDGMENT", "UNLISTED");
+        void publicPollsAreNotOfferedYet() {
+            var result = post(alice, "/api/polls", poll("Lunch?", "[\"A\", \"B\"]").replace("UNLISTED", "PUBLIC"));
 
-            var ids = JsonPath.<List<String>>read(body(get(bob, "/api/polls")), "$[*].id");
-
-            assertThat(ids).contains(listed).doesNotContain(unlisted);
+            assertThat(result).hasStatus(HttpStatus.BAD_REQUEST);
+            assertThat(result).bodyJson().extractingPath("$.detail").isEqualTo("Choose a visibility this server offers.");
+            assertThat(get(bob, "/api/polls")).bodyJson().isEqualTo("[]");
         }
 
         @Test
@@ -157,8 +163,8 @@ class PollApiTest {
         @Test
         void mineListsTheCallersPollsNewestFirst() {
             var first = createPoll(alice, "APPROVAL", "UNLISTED");
-            var second = createPoll(alice, "MAJORITY_JUDGMENT", "PUBLIC");
-            createPoll(bob, "APPROVAL", "PUBLIC");
+            var second = createPoll(alice, "MAJORITY_JUDGMENT", "UNLISTED");
+            createPoll(bob, "APPROVAL", "UNLISTED");
 
             var result = get(alice, "/api/polls/mine");
 
@@ -185,7 +191,7 @@ class PollApiTest {
         @Test
         void aPollReadsBackExactlyAsItWasAnswered() {
             var created = post(alice, "/api/polls", """
-                {"title": "Lunch?", "votingSystem": "APPROVAL", "visibility": "PUBLIC", "options": ["Ramen", "Tacos"]}
+                {"title": "Lunch?", "votingSystem": "APPROVAL", "visibility": "UNLISTED", "options": ["Ramen", "Tacos"]}
                 """);
             var poll = JsonPath.<String>read(body(created), "$.id");
             var closed = patch(alice, "/api/polls/" + poll, "{\"closed\": true}");
@@ -206,7 +212,7 @@ class PollApiTest {
 
         @BeforeEach
         void createPoll() {
-            poll = PollApiTest.this.createPoll(alice, "MAJORITY_JUDGMENT", "PUBLIC");
+            poll = PollApiTest.this.createPoll(alice, "MAJORITY_JUDGMENT", "UNLISTED");
             var options = optionIds(poll);
             ramen = options.get(0);
             tacos = options.get(1);
@@ -278,7 +284,7 @@ class PollApiTest {
 
         @Test
         void rejectsOptionsOfAnotherPoll() {
-            var otherPoll = PollApiTest.this.createPoll(bob, "MAJORITY_JUDGMENT", "PUBLIC");
+            var otherPoll = PollApiTest.this.createPoll(bob, "MAJORITY_JUDGMENT", "UNLISTED");
             var foreign = optionIds(otherPoll).getFirst();
 
             var result = put(alice, "/api/polls/" + poll + "/ballot", """
@@ -330,7 +336,7 @@ class PollApiTest {
 
         @BeforeEach
         void createPoll() {
-            poll = PollApiTest.this.createPoll(alice, "APPROVAL", "PUBLIC");
+            poll = PollApiTest.this.createPoll(alice, "APPROVAL", "UNLISTED");
             var options = optionIds(poll);
             ramen = options.get(0);
             tacos = options.get(1);
@@ -387,7 +393,7 @@ class PollApiTest {
 
         @Test
         void aClosedPollKeepsItsResultsAndRefusesBallots() {
-            var poll = createPoll(alice, "APPROVAL", "PUBLIC");
+            var poll = createPoll(alice, "APPROVAL", "UNLISTED");
             var ramen = optionIds(poll).getFirst();
             put(bob, "/api/polls/" + poll + "/ballot", "{\"approvedOptionIds\": [\"" + ramen + "\"]}");
 
@@ -402,21 +408,33 @@ class PollApiTest {
         }
 
         @Test
-        void aReopenedPollAcceptsBallotsAgain() {
-            var poll = createPoll(alice, "APPROVAL", "PUBLIC");
-            var ramen = optionIds(poll).getFirst();
-            patch(alice, "/api/polls/" + poll, "{\"closed\": true}");
+        void aClosedPollStaysClosed() {
+            var poll = createPoll(alice, "APPROVAL", "UNLISTED");
+            var closed = JsonPath.<String>read(body(patch(alice, "/api/polls/" + poll, "{\"closed\": true}")), "$.closedAt");
 
             var reopened = patch(alice, "/api/polls/" + poll, "{\"closed\": false}");
-            var ballot = put(bob, "/api/polls/" + poll + "/ballot", "{\"approvedOptionIds\": [\"" + ramen + "\"]}");
+            var closedAgain = patch(alice, "/api/polls/" + poll, "{\"closed\": true}");
 
-            assertThat(reopened).bodyJson().extractingPath("$.closedAt").isNull();
-            assertThat(ballot).hasStatus(HttpStatus.OK);
+            assertThat(reopened).hasStatus(HttpStatus.CONFLICT);
+            assertThat(reopened).hasContentType(MediaType.APPLICATION_PROBLEM_JSON);
+            assertThat(reopened).bodyJson().extractingPath("$.detail")
+                .isEqualTo("A closed poll stays closed: its results are final.");
+            assertThat(closedAgain).bodyJson().extractingPath("$.closedAt").isEqualTo(closed);
+        }
+
+        @Test
+        void anOpenPollCanBeToldToStayOpen() {
+            var poll = createPoll(alice, "APPROVAL", "UNLISTED");
+
+            var result = patch(alice, "/api/polls/" + poll, "{\"closed\": false}");
+
+            assertThat(result).hasStatus(HttpStatus.OK);
+            assertThat(result).bodyJson().extractingPath("$.closedAt").isNull();
         }
 
         @Test
         void onlyTheCreatorCanCloseOrDelete() {
-            var poll = createPoll(alice, "MAJORITY_JUDGMENT", "PUBLIC");
+            var poll = createPoll(alice, "MAJORITY_JUDGMENT", "UNLISTED");
 
             assertThat(patch(bob, "/api/polls/" + poll, "{\"closed\": true}")).hasStatus(HttpStatus.FORBIDDEN);
             assertThat(delete(bob, "/api/polls/" + poll)).hasStatus(HttpStatus.FORBIDDEN);
@@ -425,20 +443,315 @@ class PollApiTest {
 
         @Test
         void deletingRemovesThePollForEveryone() {
-            var poll = createPoll(alice, "MAJORITY_JUDGMENT", "PUBLIC");
+            var poll = createPoll(alice, "MAJORITY_JUDGMENT", "UNLISTED");
             var ramen = optionIds(poll).getFirst();
             put(bob, "/api/polls/" + poll + "/ballot", "{\"judgments\": {\"" + ramen + "\": \"Good\"}}");
 
             assertThat(delete(alice, "/api/polls/" + poll)).hasStatus(HttpStatus.NO_CONTENT);
             assertThat(get(bob, "/api/polls/" + poll)).hasStatus(HttpStatus.NOT_FOUND);
-            assertThat(JsonPath.<List<String>>read(body(get(bob, "/api/polls")), "$[*].id")).doesNotContain(poll);
         }
 
         @Test
         void aChangeMustSayWhatToChange() {
-            var poll = createPoll(alice, "MAJORITY_JUDGMENT", "PUBLIC");
+            var poll = createPoll(alice, "MAJORITY_JUDGMENT", "UNLISTED");
 
             assertThat(patch(alice, "/api/polls/" + poll, "{}")).hasStatus(HttpStatus.BAD_REQUEST);
+        }
+    }
+
+    @Nested
+    class JoiningWithACode {
+
+        @Test
+        void everyPollHasASixCharacterCodeWithoutLookAlikes() {
+            var poll = createPoll(alice, "APPROVAL", "UNLISTED");
+
+            assertThat(JsonPath.<String>read(body(get(bob, "/api/polls/" + poll)), "$.joinCode"))
+                .matches("[ABCDEFGHJKMNPQRSTUVWXYZ23456789]{6}");
+        }
+
+        @Test
+        void theCodeLeadsToThePollHoweverItIsTyped() {
+            var poll = createPoll(alice, "APPROVAL", "UNLISTED");
+            var code = JsonPath.<String>read(body(get(alice, "/api/polls/" + poll)), "$.joinCode");
+            var typed = code.substring(0, 3).toLowerCase() + "- " + code.substring(3);
+
+            var result = get(bob, "/api/join/" + typed);
+
+            assertThat(result).hasStatus(HttpStatus.OK);
+            assertThat(result).bodyJson().extractingPath("$.id").isEqualTo(poll);
+            assertThat(result).bodyJson().extractingPath("$.isMine").isEqualTo(false);
+        }
+
+        @Test
+        void anUnknownCodeIsNotFound() {
+            var result = get(bob, "/api/join/AAAAAA");
+
+            assertThat(result).hasStatus(HttpStatus.NOT_FOUND);
+            assertThat(result).hasContentType(MediaType.APPLICATION_PROBLEM_JSON);
+            assertThat(result).bodyJson().extractingPath("$.detail").asString().startsWith("No poll has this code.");
+        }
+    }
+
+    @Nested
+    class VoterNames {
+
+        String poll;
+        String ramen;
+
+        @BeforeEach
+        void createPollShowingNames() {
+            var created = post(alice, "/api/polls", """
+                {"title": "Lunch?", "votingSystem": "APPROVAL", "visibility": "UNLISTED",
+                 "showVoterNames": true, "options": ["Ramen", "Tacos"]}
+                """);
+            poll = JsonPath.read(body(created), "$.id");
+            ramen = JsonPath.<List<String>>read(body(created), "$.options[*].id").getFirst();
+            assertThat(created).bodyJson().extractingPath("$.showVoterNames").isEqualTo(true);
+            assertThat(created).bodyJson().extractingPath("$.voterNames").isEqualTo(List.of());
+        }
+
+        @Test
+        void namesShowWhoTookPartInAlphabeticalOrder() {
+            approve(bob, "  Zoé ");
+            approve(alice, "alice");
+            approve(Voter.random(), null);
+            approve(Voter.random(), "Émile");
+            approve(bob, "Bob");
+
+            var result = get(Voter.random(), "/api/polls/" + poll);
+
+            assertThat(result).bodyJson().extractingPath("$.voterNames").isEqualTo(List.of("alice", "Bob", "Émile"));
+            assertThat(result).bodyJson().extractingPath("$.totalBallots").isEqualTo(4);
+        }
+
+        @Test
+        void theVoterGetsTheirNameBackWithTheirBallot() {
+            var result = approve(bob, "Bob");
+
+            assertThat(result).bodyJson().extractingPath("$.myBallot.voterName").isEqualTo("Bob");
+            assertThat(get(alice, "/api/polls/" + poll)).bodyJson().extractingPath("$.myBallot").isNull();
+        }
+
+        @Test
+        void aBallotWithoutANameIsAnonymous() {
+            approve(bob, "Bob");
+
+            var result = approve(bob, " ");
+
+            assertThat(result).bodyJson().extractingPath("$.voterNames").isEqualTo(List.of());
+            assertThat(result).bodyJson().extractingPath("$.myBallot.voterName").isNull();
+        }
+
+        @Test
+        void withdrawingTheBallotTakesTheNameAway() {
+            approve(bob, "Bob");
+
+            var result = put(bob, "/api/polls/" + poll + "/ballot", """
+                {"approvedOptionIds": [], "voterName": "Bob"}
+                """);
+
+            assertThat(result).bodyJson().extractingPath("$.voterNames").isEqualTo(List.of());
+        }
+
+        @Test
+        void aNameMustBeShortAndOnOneLine() {
+            assertThat(approve(bob, "x".repeat(41))).bodyJson().extractingPath("$.detail")
+                .isEqualTo("A name can be at most 40 characters long.");
+            assertThat(approve(bob, "Bob\\nSmith")).bodyJson().extractingPath("$.detail")
+                .isEqualTo("A name must fit on one line.");
+            assertThat(get(bob, "/api/polls/" + poll)).bodyJson().extractingPath("$.myBallot").isNull();
+        }
+
+        @Test
+        void aPollThatHidesNamesRefusesThem() {
+            var hiding = createPoll(alice, "APPROVAL", "UNLISTED");
+            var option = optionIds(hiding).getFirst();
+
+            var result = put(bob, "/api/polls/" + hiding + "/ballot", """
+                {"approvedOptionIds": ["%s"], "voterName": "Bob"}
+                """.formatted(option));
+
+            assertThat(result).hasStatus(HttpStatus.BAD_REQUEST);
+            assertThat(result).bodyJson().extractingPath("$.detail").asString().contains("does not show names");
+            assertThat(get(bob, "/api/polls/" + hiding)).bodyJson().extractingPath("$.voterNames").isNull();
+        }
+
+        private MvcTestResult approve(Voter voter, String name) {
+            var voterName = name == null ? "null" : "\"" + name + "\"";
+            return put(voter, "/api/polls/" + poll + "/ballot", """
+                {"approvedOptionIds": ["%s"], "voterName": %s}
+                """.formatted(ramen, voterName));
+        }
+    }
+
+    @Nested
+    class Retention {
+
+        @Autowired
+        PollService pollService;
+
+        @Autowired
+        JdbcClient jdbc;
+
+        @Test
+        void aPollSaysWhenItWillBeDeleted() {
+            var result = get(alice, "/api/polls/" + createPoll(alice, "APPROVAL", "UNLISTED"));
+
+            var createdAt = Instant.parse(JsonPath.read(body(result), "$.createdAt"));
+            var expiresAt = Instant.parse(JsonPath.read(body(result), "$.expiresAt"));
+            assertThat(expiresAt).isEqualTo(createdAt.plus(Duration.ofDays(30)));
+        }
+
+        @Test
+        void pollsAreDeletedWithTheirBallotsOnceTheirLifetimeIsOver() {
+            var old = createPoll(alice, "APPROVAL", "UNLISTED");
+            var recent = createPoll(alice, "APPROVAL", "UNLISTED");
+            put(bob, "/api/polls/" + old + "/ballot", "{\"approvedOptionIds\": [\"" + optionIds(old).getFirst() + "\"]}");
+            var oldId = jdbc.sql("SELECT id FROM poll WHERE share_token = :token").param("token", old)
+                .query(Long.class).single();
+            jdbc.sql("UPDATE poll SET created_at = :createdAt WHERE share_token = :token")
+                .param("createdAt", OffsetDateTime.now(ZoneOffset.UTC).minusDays(31))
+                .param("token", old)
+                .update();
+
+            var deleted = pollService.deleteExpired();
+
+            assertThat(deleted).extracting(Poll::shareToken).contains(old).doesNotContain(recent);
+            assertThat(get(bob, "/api/polls/" + old)).hasStatus(HttpStatus.NOT_FOUND);
+            assertThat(get(bob, "/api/polls/" + recent)).hasStatus(HttpStatus.OK);
+            assertThat(jdbc.sql("SELECT COUNT(*) FROM approval WHERE poll_id = :poll")
+                .param("poll", oldId).query(Long.class).single()).isZero();
+        }
+    }
+
+    @Nested
+    class ResultsKeptBack {
+
+        @Test
+        void aPollShowingNamesShowsItsResultsOnceClosedUnlessAskedOtherwise() {
+            assertThat(resultsShown("\"showVoterNames\": true")).isEqualTo("AFTER_CLOSING");
+            assertThat(resultsShown("\"showVoterNames\": true, \"resultsShown\": \"LIVE\"")).isEqualTo("LIVE");
+            assertThat(resultsShown("\"showVoterNames\": false")).isEqualTo("LIVE");
+        }
+
+        @Test
+        void whileThePollIsOpenNobodySeesTheTalliesNotEvenItsCreator() {
+            var poll = createPoll(alice, "MAJORITY_JUDGMENT", "UNLISTED", "\"resultsShown\": \"AFTER_CLOSING\"");
+            var ramen = optionIds(poll).getFirst();
+
+            var cast = put(bob, "/api/polls/" + poll + "/ballot", "{\"judgments\": {\"" + ramen + "\": \"Good\"}}");
+            var seen = get(alice, "/api/polls/" + poll);
+
+            assertThat(cast).bodyJson().extractingPath("$.myBallot.judgments").asMap().containsEntry(ramen, "Good");
+            for (var result : List.of(cast, seen)) {
+                assertThat(result).bodyJson().extractingPath("$.resultsShown").isEqualTo("AFTER_CLOSING");
+                assertThat(result).bodyJson().extractingPath("$.resultsAfterBallots").isNull();
+                assertThat(result).bodyJson().extractingPath("$.totalBallots").isEqualTo(1);
+                assertThat(result).bodyJson().extractingPath("$.options[*].judgmentCounts").isEqualTo(Arrays.asList(null, null));
+            }
+        }
+
+        @Test
+        void closingThePollShowsThem() {
+            var poll = createPoll(alice, "APPROVAL", "UNLISTED", "\"resultsShown\": \"AFTER_CLOSING\"");
+            var ramen = optionIds(poll).getFirst();
+            put(bob, "/api/polls/" + poll + "/ballot", "{\"approvedOptionIds\": [\"" + ramen + "\"]}");
+
+            var closed = patch(alice, "/api/polls/" + poll, "{\"closed\": true}");
+
+            assertThat(closed).bodyJson().extractingPath("$.options[*].approvalCount").isEqualTo(List.of(1, 0));
+        }
+
+        @Test
+        void resultsShownAfterSomeBallotsShowOnceThatManyAreIn() {
+            var poll = createPoll(alice, "APPROVAL", "UNLISTED",
+                "\"resultsShown\": \"AFTER_BALLOTS\", \"resultsAfterBallots\": 3");
+            var ramen = optionIds(poll).getFirst();
+            var approveRamen = "{\"approvedOptionIds\": [\"" + ramen + "\"]}";
+            put(alice, "/api/polls/" + poll + "/ballot", approveRamen);
+            var second = put(bob, "/api/polls/" + poll + "/ballot", approveRamen);
+            var carol = Voter.random();
+
+            var third = put(carol, "/api/polls/" + poll + "/ballot", approveRamen);
+            var withdrawn = put(carol, "/api/polls/" + poll + "/ballot", "{\"approvedOptionIds\": []}");
+
+            assertThat(second).bodyJson().extractingPath("$.resultsAfterBallots").isEqualTo(3);
+            assertThat(second).bodyJson().extractingPath("$.options[*].approvalCount").isEqualTo(Arrays.asList(null, null));
+            assertThat(third).bodyJson().extractingPath("$.options[*].approvalCount").isEqualTo(List.of(3, 0));
+            assertThat(withdrawn).bodyJson().extractingPath("$.options[*].approvalCount").isEqualTo(Arrays.asList(null, null));
+        }
+
+        @ParameterizedTest(name = "{0}")
+        @ValueSource(strings = {"", ", \"resultsAfterBallots\": 2"})
+        void resultsShownAfterSomeBallotsNeedAtLeastThree(String threshold) {
+            var result = post(alice, "/api/polls", """
+                {"title": "Lunch?", "votingSystem": "APPROVAL", "visibility": "UNLISTED",
+                 "options": ["Ramen", "Tacos"], "resultsShown": "AFTER_BALLOTS"%s}
+                """.formatted(threshold));
+
+            assertThat(result).hasStatus(HttpStatus.BAD_REQUEST);
+            assertThat(result).bodyJson().extractingPath("$.detail")
+                .isEqualTo("Results shown after a number of ballots need at least 3 ballots.");
+        }
+
+        private String resultsShown(String choice) {
+            return JsonPath.read(body(get(bob, "/api/polls/" + createPoll(alice, "APPROVAL", "UNLISTED", choice))),
+                "$.resultsShown");
+        }
+    }
+
+    /** What a copy of the database would tell about who voted what: nothing. */
+    @Nested
+    class Anonymity {
+
+        @Autowired
+        JdbcClient jdbc;
+
+        @Test
+        void ballotsAndNamesShareNoKeyWithEachOtherWithOtherPollsOrWithTheCreator() {
+            var lunch = createPoll(alice, "APPROVAL", "UNLISTED", "\"showVoterNames\": true");
+            var dinner = createPoll(alice, "APPROVAL", "UNLISTED", "\"showVoterNames\": true");
+            for (var poll : List.of(lunch, dinner)) {
+                for (var voter : List.of(alice, bob)) {
+                    put(voter, "/api/polls/" + poll + "/ballot", """
+                        {"approvedOptionIds": ["%s"], "voterName": "Someone"}
+                        """.formatted(optionIds(poll).getFirst()));
+                }
+            }
+
+            var lunchBallots = keys("SELECT ballot_key FROM approval", lunch);
+            var dinnerBallots = keys("SELECT ballot_key FROM approval", dinner);
+            var names = new HashSet<String>(keys("SELECT name_key FROM voter_name", lunch));
+            names.addAll(keys("SELECT name_key FROM voter_name", dinner));
+
+            assertThat(lunchBallots).hasSize(2).doesNotContainAnyElementsOf(dinnerBallots);
+            assertThat(names).hasSize(4)
+                .doesNotContainAnyElementsOf(lunchBallots)
+                .doesNotContainAnyElementsOf(dinnerBallots)
+                .doesNotContain(voterIdOf(alice), voterIdOf(bob));
+            assertThat(lunchBallots).doesNotContain(voterIdOf(alice), voterIdOf(bob));
+        }
+
+        @Test
+        void nothingRecordsWhenABallotOrANameWasGiven() {
+            assertThat(timestampColumns("poll")).as("poll: created_at, closed_at").isEqualTo(2);
+            for (var table : List.of("approval", "judgment", "voter_name")) {
+                assertThat(timestampColumns(table)).as(table).isZero();
+            }
+        }
+
+        private long timestampColumns(String table) {
+            return jdbc.sql("""
+                    SELECT COUNT(*) FROM information_schema.columns
+                    WHERE LOWER(table_name) = :table AND data_type LIKE 'TIMESTAMP%'
+                    """)
+                .param("table", table).query(Long.class).single();
+        }
+
+        private List<String> keys(String select, String poll) {
+            return jdbc.sql(select + " WHERE poll_id = (SELECT id FROM poll WHERE share_token = :token)")
+                .param("token", poll).query(String.class).list();
         }
     }
 
@@ -454,7 +767,7 @@ class PollApiTest {
 
         @Test
         void aBallotCastWhileThePollClosesIsRefused() throws InterruptedException {
-            var poll = createPoll(alice, "APPROVAL", "PUBLIC");
+            var poll = createPoll(alice, "APPROVAL", "UNLISTED");
 
             var ballot = castWhile(poll, 300, () -> pollService.setClosed(poll, voterIdOf(alice), true));
 
@@ -465,7 +778,7 @@ class PollApiTest {
 
         @Test
         void aBallotCastWhileThePollIsDeletedFindsItGone() throws InterruptedException {
-            var poll = createPoll(alice, "APPROVAL", "PUBLIC");
+            var poll = createPoll(alice, "APPROVAL", "UNLISTED");
 
             var ballot = castWhile(poll, 300, () -> pollService.delete(poll, voterIdOf(alice)));
 
@@ -474,7 +787,7 @@ class PollApiTest {
 
         @Test
         void aBallotKeptWaitingTooLongIsToldToTryAgain() throws InterruptedException {
-            var poll = createPoll(alice, "APPROVAL", "PUBLIC");
+            var poll = createPoll(alice, "APPROVAL", "UNLISTED");
 
             var ballot = castWhile(poll, 2500, () -> pollService.setClosed(poll, voterIdOf(alice), true));
 
@@ -495,10 +808,6 @@ class PollApiTest {
             var ballot = put(bob, "/api/polls/" + poll + "/ballot", "{\"approvedOptionIds\": [\"" + ramen + "\"]}");
             changer.join();
             return ballot;
-        }
-
-        static String voterIdOf(Voter voter) {
-            return VoterIdentity.voterIdOf(voter.token());
         }
 
         static void pause(long millis) {
@@ -525,7 +834,7 @@ class PollApiTest {
 
         @Test
         void aKnownVoterKeepsTheirIdentity() {
-            var poll = createPoll(alice, "APPROVAL", "PUBLIC");
+            var poll = createPoll(alice, "APPROVAL", "UNLISTED");
 
             var result = get(alice, "/api/polls/" + poll);
 
@@ -545,7 +854,7 @@ class PollApiTest {
 
         @Test
         void neitherTheTokenNorTheVoterIdIsEverSent() {
-            var poll = createPoll(alice, "APPROVAL", "PUBLIC");
+            var poll = createPoll(alice, "APPROVAL", "UNLISTED");
 
             var body = body(get(alice, "/api/polls/" + poll));
 
@@ -569,10 +878,11 @@ class PollApiTest {
         var result = get(alice, "/api/server-info");
 
         assertThat(result).bodyJson().extractingPath("$.features").asMap().containsOnly(
-            entry("publicPolls", true), entry("unlistedPolls", true),
+            entry("publicPolls", false), entry("unlistedPolls", true),
             entry("approvalVoting", true), entry("majorityJudgment", true));
         assertThat(result).bodyJson().extractingPath("$.limits").asMap().containsOnly(
-            entry("maxOptions", 20), entry("maxTitleLength", 200), entry("maxOptionLength", 100));
+            entry("maxOptions", 20), entry("maxTitleLength", 200), entry("maxOptionLength", 100),
+            entry("maxVoterNameLength", 40), entry("pollLifetimeDays", 30));
     }
 
     @Test
@@ -604,10 +914,19 @@ class PollApiTest {
         }
     }
 
+    static String voterIdOf(Voter voter) {
+        return VoterIdentity.voterIdOf(voter.token());
+    }
+
     String createPoll(Voter creator, String votingSystem, String visibility) {
+        return createPoll(creator, votingSystem, visibility, "\"showVoterNames\": false");
+    }
+
+    /** {@code choices}: more fields of the request, such as {@code "showVoterNames": true}. */
+    String createPoll(Voter creator, String votingSystem, String visibility, String choices) {
         var result = post(creator, "/api/polls", """
-            {"title": "Lunch?", "votingSystem": "%s", "visibility": "%s", "options": ["Ramen", "Tacos"]}
-            """.formatted(votingSystem, visibility));
+            {"title": "Lunch?", "votingSystem": "%s", "visibility": "%s", "options": ["Ramen", "Tacos"], %s}
+            """.formatted(votingSystem, visibility, choices));
         assertThat(result).hasStatus(HttpStatus.CREATED);
         return JsonPath.read(body(result), "$.id");
     }

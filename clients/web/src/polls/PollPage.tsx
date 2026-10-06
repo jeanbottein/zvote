@@ -3,7 +3,7 @@ import type { Poll } from '../api/types';
 import Notice from '../ui/Notice';
 import BallotSection from './BallotSection';
 import DevBallotFeeder from './DevBallotFeeder';
-import { timeAgo, VISIBILITY_NAMES, VOTING_SYSTEM_NAMES } from './format';
+import { formatDate, timeAgo, VISIBILITY_NAMES, VOTING_SYSTEM_NAMES } from './format';
 import OwnerActions from './OwnerActions';
 import ResultsSection from './ResultsSection';
 import ShareButton from './ShareButton';
@@ -16,17 +16,17 @@ export default function PollPage() {
   return <PollScreen key={id} id={id} />;
 }
 
-const allPolls = <Link className="button primary" to="/">See all polls</Link>;
+const home = <Link className="button primary" to="/">Back to the home page</Link>;
 
 function PollScreen({ id }: { id: string }) {
   const { poll, error, deleted, connection, setPoll } = usePoll(id);
   const justCreated = (useLocation().state as { created?: boolean } | null)?.created === true;
 
   if (deleted) {
-    return <Notice title="This poll was deleted" action={allPolls}><p>Its creator deleted it, and its results with it.</p></Notice>;
+    return <Notice title="This poll was deleted" action={home}><p>It was deleted, and its results with it.</p></Notice>;
   }
   if (error?.status === 404) {
-    return <Notice title="Poll not found" action={allPolls}><p>The link may be incomplete, or the poll was deleted.</p></Notice>;
+    return <Notice title="Poll not found" action={home}><p>The link may be incomplete, or the poll was deleted.</p></Notice>;
   }
   if (error) {
     return (
@@ -56,6 +56,7 @@ function PollScreen({ id }: { id: string }) {
         ? <p className="panel callout">Voting closed {timeAgo(poll.closedAt)}. These are the final results.</p>
         : <BallotSection poll={poll} onCast={setPoll} />}
       <ResultsSection poll={poll} connection={connection} />
+      <p className="hint expiry">This poll and its ballots will be deleted on {formatDate(poll.expiresAt)}.</p>
       {poll.isMine && <OwnerActions poll={poll} onChange={setPoll} />}
       {import.meta.env.DEV && poll.isMine && <DevBallotFeeder poll={poll} />}
     </>

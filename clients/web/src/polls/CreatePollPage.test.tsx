@@ -15,7 +15,7 @@ vi.mock('../api/client', async (importOriginal) => ({
 beforeEach(() => {
   vi.mocked(getServerInfo).mockResolvedValue({
     features: { publicPolls: true, unlistedPolls: true, approvalVoting: true, majorityJudgment: true },
-    limits: { maxOptions: 20, maxTitleLength: 200, maxOptionLength: 100 },
+    limits: { maxOptions: 20, maxTitleLength: 200, maxOptionLength: 100, maxVoterNameLength: 40, pollLifetimeDays: 30 },
   });
 });
 
@@ -30,7 +30,8 @@ describe('creating a poll', () => {
     await userEvent.type(screen.getByLabelText('Option 1'), 'Ramen');
     await userEvent.type(screen.getByLabelText('Option 2'), 'Tacos');
     await userEvent.click(screen.getByRole('radio', { name: 'Approval' }));
-    await userEvent.click(screen.getByRole('radio', { name: 'Unlisted' }));
+    await userEvent.click(screen.getByRole('radio', { name: 'Private' }));
+    await userEvent.click(screen.getByRole('radio', { name: 'Show names' }));
     await userEvent.click(screen.getByRole('button', { name: 'Create poll' }));
 
     expect(createPoll).toHaveBeenCalledWith({
@@ -38,8 +39,60 @@ describe('creating a poll', () => {
       options: ['Ramen', 'Tacos'],
       votingSystem: 'APPROVAL',
       visibility: 'UNLISTED',
+      showVoterNames: true,
+      resultsShown: 'AFTER_CLOSING',
+      resultsAfterBallots: null,
     });
     expect(await screen.findByText('Poll page fresh')).toBeInTheDocument();
+  });
+
+  it('keeps the results of a poll showing names for when it closes, unless told otherwise', async () => {
+    openForm();
+
+    expect(await screen.findByRole('radio', { name: 'Live' })).toBeChecked();
+    await userEvent.click(screen.getByRole('radio', { name: 'Show names' }));
+    expect(screen.getByRole('radio', { name: 'At close' })).toBeChecked();
+
+    await userEvent.click(screen.getByRole('radio', { name: 'Live' }));
+    expect(screen.getByText(/along with the voter's name/)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('radio', { name: 'Anonymous' }));
+    await userEvent.click(screen.getByRole('radio', { name: 'Show names' }));
+    expect(screen.getByRole('radio', { name: 'Live' })).toBeChecked();
+  });
+
+  it('warns the creator about live results', async () => {
+    openForm();
+
+    expect(await screen.findByText(/In a small group, that shows who chose what/)).toHaveAttribute('data-tone', 'warning');
+    await userEvent.click(screen.getByRole('radio', { name: 'At close' }));
+    expect(screen.getByText(/Results show once you close the poll/)).not.toHaveAttribute('data-tone');
+  });
+
+  it('shows the results after a number of ballots, at least three', async () => {
+    vi.mocked(createPoll).mockResolvedValue({ id: 'fresh' } as Poll);
+    openForm();
+    await userEvent.type(await screen.findByLabelText('Question'), 'Lunch?');
+    await userEvent.type(screen.getByLabelText('Option 1'), 'Ramen');
+    await userEvent.type(screen.getByLabelText('Option 2'), 'Tacos');
+
+    await userEvent.click(screen.getByRole('radio', { name: 'Delayed' }));
+    const ballots = screen.getByLabelText('Ballots before the results show');
+    expect(ballots).toHaveValue(5);
+    await userEvent.clear(ballots);
+    await userEvent.type(ballots, '2');
+    await userEvent.click(screen.getByRole('button', { name: 'Create poll' }));
+
+    expect(screen.getByText('Choose at least 3 ballots.')).toBeInTheDocument();
+    expect(createPoll).not.toHaveBeenCalled();
+
+    await userEvent.clear(ballots);
+    await userEvent.type(ballots, '4');
+    await userEvent.click(screen.getByRole('button', { name: 'Create poll' }));
+
+    expect(createPoll).toHaveBeenCalledWith(expect.objectContaining({
+      resultsShown: 'AFTER_BALLOTS',
+      resultsAfterBallots: 4,
+    }));
   });
 
   it('adds a row for the next option as the last one is filled in', async () => {

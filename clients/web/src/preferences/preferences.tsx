@@ -12,9 +12,11 @@ export interface Preferences {
   mjBallot: 'scale' | 'dropdown';
   /** Live: every change is cast at once. Envelope: changes are reviewed, then submitted together. */
   submission: 'live' | 'envelope';
+  /** The name last given on a poll that shows names, offered again on the next one. Empty: anonymous. */
+  voterName: string;
 }
 
-const DEFAULTS: Preferences = { theme: 'system', colorblind: false, mjBallot: 'scale', submission: 'live' };
+const DEFAULTS: Preferences = { theme: 'system', colorblind: false, mjBallot: 'scale', submission: 'live', voterName: '' };
 const STORAGE_KEY = 'zvote.preferences';
 
 export function loadPreferences(): Preferences {
@@ -26,7 +28,7 @@ export function loadPreferences(): Preferences {
 }
 
 /** Reflects the preferences on the document, where the stylesheets look for them. */
-export function applyPreferences({ theme, colorblind }: Preferences) {
+export function applyPreferences({ theme, colorblind }: Pick<Preferences, 'theme' | 'colorblind'>) {
   const root = document.documentElement;
   if (theme === 'system') {
     delete root.dataset.theme;

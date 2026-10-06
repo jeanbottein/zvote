@@ -19,5 +19,12 @@ public record ZVoteProperties(Features features, Limits limits) {
         boolean majorityJudgment
     ) {}
 
-    public record Limits(int maxOptions, int maxTitleLength, int maxOptionLength) {}
+    /** pollLifetimeDays: a poll is deleted, with its ballots, this many days after it was created. */
+    public record Limits(
+        int maxOptions,
+        int maxTitleLength,
+        int maxOptionLength,
+        int maxVoterNameLength,
+        int pollLifetimeDays
+    ) {}
 }

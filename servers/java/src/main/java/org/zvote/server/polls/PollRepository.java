@@ -4,6 +4,7 @@ import org.springframework.data.relational.core.sql.LockMode;
 import org.springframework.data.relational.repository.Lock;
 import org.springframework.data.repository.ListCrudRepository;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
@@ -18,6 +19,12 @@ interface PollRepository extends ListCrudRepository<Poll, Long> {
      */
     @Lock(LockMode.PESSIMISTIC_READ)
     Optional<Poll> findLockedByShareToken(String shareToken);
+
+    Optional<Poll> findByJoinCode(String joinCode);
+
+    boolean existsByJoinCode(String joinCode);
+
+    List<Poll> findByCreatedAtBefore(Instant cutoff);
 
     List<Poll> findTop50ByVisibilityOrderByCreatedAtDesc(Poll.Visibility visibility);
 

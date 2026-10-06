@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import ShareButton from './ShareButton';
 
-const lunch = { id: 'abc', title: 'Where do we eat?', visibility: 'UNLISTED' as const };
+const lunch = { id: 'abc', joinCode: 'K7M4QX', title: 'Where do we eat?', visibility: 'UNLISTED' as const };
 const link = `${window.location.origin}/p/abc`;
 
 afterEach(() => {
@@ -18,9 +18,10 @@ async function openShare() {
 }
 
 describe('sharing a poll', () => {
-  it('shows its link, and a QR code of it', async () => {
+  it('shows its join code, its link, and a QR code of the link', async () => {
     await openShare();
 
+    expect(screen.getByText('K7M-4QX')).toBeInTheDocument();
     expect(screen.getByRole('textbox', { name: 'Link to the poll' })).toHaveValue(link);
     expect(screen.getByTitle(`QR code for ${link}`)).toBeInTheDocument();
     expect(screen.getByText(/not listed anywhere else/)).toBeInTheDocument();

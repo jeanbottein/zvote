@@ -27,12 +27,14 @@ describe('the API client', () => {
   it('sends bodies as JSON', async () => {
     fetchMock.mockResolvedValue(Response.json({ id: 'abc' }, { status: 201 }));
 
-    await createPoll({ title: 'Lunch?', options: ['Ramen', 'Tacos'], votingSystem: 'APPROVAL', visibility: 'PUBLIC' });
+    await createPoll({
+      title: 'Lunch?', options: ['Ramen', 'Tacos'], votingSystem: 'APPROVAL', visibility: 'UNLISTED', showVoterNames: false, resultsShown: 'LIVE', resultsAfterBallots: null,
+    });
 
     const [, init] = fetchMock.mock.calls[0];
     expect(init?.headers).toEqual({ 'Content-Type': 'application/json' });
     expect(JSON.parse(init?.body as string)).toEqual({
-      title: 'Lunch?', options: ['Ramen', 'Tacos'], votingSystem: 'APPROVAL', visibility: 'PUBLIC',
+      title: 'Lunch?', options: ['Ramen', 'Tacos'], votingSystem: 'APPROVAL', visibility: 'UNLISTED', showVoterNames: false, resultsShown: 'LIVE', resultsAfterBallots: null,
     });
   });
 

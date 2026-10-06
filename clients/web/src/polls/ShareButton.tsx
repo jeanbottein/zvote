@@ -3,13 +3,17 @@ import { useId, useRef, useState } from 'react';
 import type { Poll } from '../api/types';
 import Dialog from '../ui/Dialog';
 import { ShareIcon } from '../ui/icons';
+import { formatJoinCode } from './format';
 
 interface ShareButtonProps {
-  poll: Pick<Poll, 'id' | 'title' | 'visibility'>;
+  poll: Pick<Poll, 'id' | 'title' | 'visibility' | 'joinCode'>;
   className?: string;
 }
 
-/** The poll's link, as text to copy, as a QR code, and through the device's own share sheet. */
+/**
+ * The poll's join code, large enough to read from across a room, and its link:
+ * as text to copy, as a QR code, and through the device's own share sheet.
+ */
 export default function ShareButton({ poll, className = 'button secondary' }: ShareButtonProps) {
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -34,9 +38,14 @@ export default function ShareButton({ poll, className = 'button secondary' }: Sh
       </button>
       <Dialog open={open} onClose={() => setOpen(false)} title="Share this poll">
         <p className="hint">
-          Anyone with this link can vote.
+          Anyone with the code or the link can vote.
           {poll.visibility === 'UNLISTED' && ' The poll is not listed anywhere else.'}
         </p>
+        <div className="share-code">
+          <span className="share-code-label">Join code</span>
+          <strong className="join-code">{formatJoinCode(poll.joinCode)}</strong>
+          <span className="hint">to enter at {window.location.host}</span>
+        </div>
         <label className="visually-hidden" htmlFor={inputId}>Link to the poll</label>
         <div className="share-link">
           <input id={inputId} ref={input} value={url} readOnly onFocus={(event) => event.target.select()} />

@@ -5,12 +5,16 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseCookie;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
+import javax.crypto.SecretKey;
+import javax.crypto.spec.SecretKeySpec;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
 import java.time.Duration;
 import java.util.Arrays;
@@ -19,9 +23,9 @@ import java.util.Optional;
 import java.util.regex.Pattern;
 
 /**
- * Resolves the caller's voter id on every API request, issuing a voter token to
+ * Resolves the caller on every API request, issuing a voter token to
  * newcomers, so that handlers simply declare
- * {@code @RequestAttribute(VoterIdentity.ATTRIBUTE) String voterId}.
+ * {@code @RequestAttribute(VoterIdentity.ATTRIBUTE) Voter voter}.
  *
  * The cookie is SameSite=Lax: browsers do not send it on cross-site POST, PUT,
  * PATCH or DELETE requests, and the server enables no CORS, so another site
@@ -35,6 +39,23 @@ public class VoterIdentityFilter extends OncePerRequestFilter {
 
     /** 256 random bits, base64url: exactly what {@link #newToken()} issues. */
     private static final Pattern TOKEN = Pattern.compile("[A-Za-z0-9_-]{43}");
+
+    private static final int MIN_SECRET_LENGTH = 32;
+
+    private final SecretKey secret;
+
+    /**
+     * The secret keys every ballot's owner: changing it leaves every ballot
+     * counted but nobody able to revise theirs. It never has a default, so a
+     * server cannot run on a secret everybody knows.
+     */
+    public VoterIdentityFilter(@Value("${zvote.voter-secret:}") String secret) {
+        if (secret.length() < MIN_SECRET_LENGTH) {
+            throw new IllegalStateException("Set ZVOTE_VOTER_SECRET to at least " + MIN_SECRET_LENGTH
+                + " random characters (openssl rand -base64 48): it keys who owns each ballot.");
+        }
+        this.secret = new SecretKeySpec(secret.getBytes(StandardCharsets.UTF_8), "HmacSHA256");
+    }
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
@@ -57,7 +78,7 @@ public class VoterIdentityFilter extends OncePerRequestFilter {
                 .build()
                 .toString());
         }
-        request.setAttribute(VoterIdentity.ATTRIBUTE, VoterIdentity.voterIdOf(token));
+        request.setAttribute(VoterIdentity.ATTRIBUTE, new Voter(token, secret));
         chain.doFilter(request, response);
     }
 

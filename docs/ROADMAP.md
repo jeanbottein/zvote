@@ -12,43 +12,106 @@ the codebase as simple as it found it: add what the phase needs, no more.
 | 2 | One backend: SpacetimeDB and the dual-backend layer removed (licence: see ARCHITECTURE.md) |
 | 3 | Server rebuilt: Spring Boot 4.1, MVC on virtual threads, JDBC, REST + SSE; anonymous identity; closing polls; RFC 9457 errors; tests for the whole HTTP contract and the live stream |
 | 4 | Client rebuilt against it: one API module, three screens, mobile-first design, live and envelope ballots, tests |
+| 5 | MVP for groups: private polls shared by link or join code (`K7M-4QX`), optional voter names shown as a cloud under the results, polls deleted 30 days after creation; public polls off until accounts |
 
 ## Next
 
-### 5. Accounts and social sign-in
+### 6. Deployment (OVHcloud)
+
+Before accounts, which need an HTTPS domain. A small OVHcloud VPS in France is
+enough (the native image serves on about 100 MB): Docker Compose with Caddy
+(automatic Let's Encrypt certificates) in front of the server and PostgreSQL,
+and a nightly `pg_dump` to OVH Object Storage. GitHub Actions runs the tests,
+builds the image, pushes it to GHCR and deploys it.
+
+- **PostgreSQL** (add `org.flywaydb:flyway-database-postgresql`), with a
+  Testcontainers PostgreSQL profile in CI. Locally H2 stays, so nothing needs
+  installing. PostgreSQL does not index foreign keys by itself, as H2 does:
+  index `approval.option_id` and `judgment.option_id`, or deleting a poll scans
+  both tables once per option.
+- **Startup and memory**: measured in [PERFORMANCE.md](PERFORMANCE.md). The
+  native image works, H2 included, and with profile-guided optimization starts
+  in 0.13 s on 100 MB and serves as much as the JVM; the JVM with a Leyden AOT
+  cache and Spring AOT starts in 1.1 s at no cost. Choose on the target (Linux,
+  PostgreSQL), and run `-PnativeTest` in CI if the native image is chosen.
+- **One origin.** The server serves the built client, which keeps cookies
+  first-party and enables the Open Graph pages above.
+- **Hardening.** TLS (the cookie turns `Secure` on its own behind HTTPS), a
+  Content Security Policy, and rate limits on poll creation, ballots and join
+  code lookups (a join code is guessable in principle; the link is not).
+- **The voter secret.** `ZVOTE_VOTER_SECRET` (`openssl rand -base64 48`)
+  comes from the host's secrets: never from the image, the repository or
+  the database backups. The server refuses to start without it. Losing or
+  changing it orphans every ballot: still counted, but nobody can revise
+  theirs (see [ARCHITECTURE.md](ARCHITECTURE.md#anonymity)). Access logs
+  keep no request bodies, and only for a short time.
+- **Legal pages** (France and the EU; a checklist, not legal advice). The voter
+  cookie and voter names are personal data, so GDPR applies already: a privacy
+  page (what is stored, why, for how long, your rights, a contact address;
+  and plainly, that ballots are unlinkable at rest but the server operator
+  is trusted),
+  answering access and deletion requests, a one-page record of processing,
+  and telling the CNIL of a breach within 72 hours. No cookie banner as long
+  as the only cookie is the one the service needs (CNIL exemption for strictly
+  necessary cookies): analytics would change that. Mentions légales (LCEN):
+  the publisher and the host; a private person may publish the host's details
+  only, having given their identity to the host. A contact to report illegal
+  content (titles, options, names), acted on promptly. Hosting in France keeps
+  the data in the EU.
+- **Several nodes.** Relay live updates through PostgreSQL `LISTEN/NOTIFY` or
+  Redis.
+- **End-to-end tests in CI** with Playwright, on a phone viewport and a
+  desktop one.
+
+### 7. Accounts and social sign-in
 
 Goal: sign in with Google, Apple and other OpenID Connect providers, keep
-ballots cast before signing in, and make private polls possible.
+ballots cast before signing in, bring back public polls for signed-in
+creators, and make polls restricted to chosen people possible. It needs the
+deployment first: providers only redirect to an HTTPS address on a real
+domain (Apple also needs a paid developer account).
 
 - **Server.** Add `spring-boot-starter-security-oauth2-client` and let Spring
   Security run the OpenID Connect login (`/oauth2/authorization/{provider}`),
   with a server-side session in an HttpOnly cookie. Tokens never reach the
   page's JavaScript. Add an `account` table (provider, subject, created) and a
-  `/api/me` endpoint.
+  `/api/me` endpoint. Ask providers for the `openid` scope only: the subject
+  is all an account needs, and no email or real name is then stored.
 - **One place for identity.** `VoterIdentityFilter` resolves the signed-in
   account first and the anonymous token second. Everything else keeps using
-  the voter id it puts on the request.
+  the `Voter` it puts on the request. A signed-in `Voter` derives its keys
+  from the account rather than the token. Since accounts are few, a copy of
+  the database *with* the secret could then try each one: one more reason to
+  keep the secret out of backups.
 - **Keep the anonymous past.** At sign-in, move the anonymous voter's ballots
-  and polls onto the account: one transaction updating `voter_id` and
-  `creator_id`. Where both identities voted on the same poll, keep the most
-  recent ballot. Without this, ballots cast before signing in are orphaned.
-- **Private polls.** Bring back `PRIVATE` visibility: only listed accounts (or
+  and polls onto the account, in one transaction. Polls: update
+  `creator_id`. Ballots and names are keyed per poll, so re-key them: for
+  each poll still alive (30 days at most), look up the anonymous keys and
+  rewrite them as the account's. Where both identities voted on the same
+  poll, keep the most recent ballot. Without this, ballots cast before
+  signing in are orphaned.
+- **A voter code, not a receipt.** Accounts answer "revise my ballot from
+  another device". Before them, a code that restores the voter token
+  elsewhere would do. It must never show the choices on its own, or someone
+  could demand to see it: secret ballots avoid such receipts on purpose.
+- **Public polls.** Turn `public-polls` back on, for signed-in creators only.
+- **Restricted polls.** A `PRIVATE` visibility: only listed accounts (or
   a group) can open the poll. The check belongs in `PollService.find`, where
   visibility rules live.
 - **Rich links.** When a poll's link is pasted into a chat, show its title and
   a preview image (Open Graph tags). That needs the server to render
   `index.html` for `/p/{id}`, which it can once it serves the client (see
-  phase 8).
+  phase 6).
 - **Client.** A sign-in button that simply navigates to the provider (no
   client-side OAuth), the account in the settings sheet, sign-out.
 
-### 6. Installable web app
+### 8. Installable web app
 
 Web app manifest and icons, a service worker that caches the shell so the app
 opens offline and says so, and an install prompt. The layout is already built
 for phones (safe areas, touch targets, bottom sheets).
 
-### 7. Android app (Capacitor)
+### 9. Android app (Capacitor)
 
 Capacitor wraps the built client in a native shell, so the Android app is the
 same code and the same design. Already in place: the mobile-first UI, and
@@ -68,27 +131,6 @@ Still to do:
 - The Android back button, the status bar colour, and the Capacitor share
   plugin where `navigator.share` is missing.
 
-### 8. Deployment
-
-- **PostgreSQL** (add `org.flywaydb:flyway-database-postgresql`), with a
-  Testcontainers PostgreSQL profile in CI. Locally H2 stays, so nothing needs
-  installing. PostgreSQL does not index foreign keys by itself, as H2 does:
-  index `approval.option_id` and `judgment.option_id`, or deleting a poll scans
-  both tables once per option.
-- **Startup and memory**: measured in [PERFORMANCE.md](PERFORMANCE.md). The
-  native image works, H2 included, and with profile-guided optimization starts
-  in 0.13 s on 100 MB and serves as much as the JVM; the JVM with a Leyden AOT
-  cache and Spring AOT starts in 1.1 s at no cost. Choose on the target (Linux,
-  PostgreSQL), and run `-PnativeTest` in CI if the native image is chosen.
-- **One origin.** The server serves the built client, which keeps cookies
-  first-party and enables the Open Graph pages above.
-- **Hardening.** TLS (the cookie turns `Secure` on its own behind HTTPS), a
-  Content Security Policy, and rate limits on poll creation and ballots.
-- **Several nodes.** Relay live updates through PostgreSQL `LISTEN/NOTIFY` or
-  Redis.
-- **End-to-end tests in CI** with Playwright, on a phone viewport and a
-  desktop one.
-
 ## Questions for the owner
 
 Choices that change results or meaning, deliberately left as they are:
@@ -96,11 +138,24 @@ Choices that change results or meaning, deliberately left as they are:
 1. **Unrated means Bad.** On a live ballot, rating one option counts every
    unrated option as `Bad` until the voter rates it. That is the method's
    convention, and the ballot says so, but it can surprise.
-2. **Results before voting.** Results are visible before you vote, which suits
-   live polls but can anchor voters. A per-poll "show results after voting or
-   after closing" option would be simple to add.
+2. **Results before voting.** On a live poll, results are visible before you
+   vote, which can anchor voters. "At close" exists now (below); "after
+   voting" would be simple to add, but it shows a voter the tallies just
+   before and after their own ballot.
 
 Decided:
+
+- Live results (2026-10-05, 2026-10-06): the creator chooses, once, when
+  results show: live (with a warning), once a number of ballots are in (3 at
+  least, 5 offered), or at close. Live tallies show what each voter chose to
+  whoever watches them land, so polls showing names wait for closing unless
+  the creator asks otherwise. Until then, only the number of ballots shows,
+  to everyone, the creator included.
+- A counted ballot starts hidden (2026-10-06), on every screen size, behind
+  "Change my ballot": a projector or a shoulder is not a receipt.
+- Closing is final (2026-10-06): a closed poll cannot be reopened, and the
+  creator confirms after a warning saying so. Final results stay final, and
+  results kept for the closing cannot be peeked at.
 
 - With an even number of ballots, the majority mention is the lower of the two
   middle mentions (classic majority judgment), so five `Excellent` and five

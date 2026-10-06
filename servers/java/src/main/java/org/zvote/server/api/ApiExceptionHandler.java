@@ -43,7 +43,7 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
 
     @ExceptionHandler
     ProblemDetail pollClosed(PollClosedException e) {
-        return problem(HttpStatus.CONFLICT, "This poll is closed and no longer accepts ballots.");
+        return problem(HttpStatus.CONFLICT, e.getMessage());
     }
 
     @ExceptionHandler

@@ -71,6 +71,9 @@ export const listMyPolls = () => request<PollSummary[]>('GET', '/api/polls/mine'
 
 export const getPoll = (id: string) => request<Poll>('GET', pollPath(id));
 
+/** The poll behind a join code, however it was typed. */
+export const joinPoll = (code: string) => request<PollSummary>('GET', `/api/join/${encodeURIComponent(code)}`);
+
 export const createPoll = (poll: NewPoll) => request<Poll>('POST', '/api/polls', poll);
 
 export const castBallot = (id: string, ballot: BallotRequest) =>

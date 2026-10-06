@@ -1,7 +1,7 @@
 # zvote performance: JVM, Leyden and GraalVM
 
 Measured on 2026-09-27. The question: how should the server run once it is
-deployed (roadmap phase 8)? On the regular JVM, with OpenJDK's new AOT cache
+deployed (roadmap phase 6)? On the regular JVM, with OpenJDK's new AOT cache
 (Project Leyden), on Oracle GraalVM's JIT, or as a GraalVM native image, with or
 without profile-guided optimization?
 
@@ -85,7 +85,7 @@ stream's 200 ms coalescing window, not by the runtime.
 
 ## What it means for zvote
 
-For deployment (phase 8), in order of effort:
+For deployment (phase 6), in order of effort:
 
 - **Now, for free**: run the JVM with a Leyden AOT cache and Spring AOT, built
   in the image by a training run. 1.1 s startups, the JIT's full speed, no

@@ -29,7 +29,8 @@ origin: cookies and event streams need no CORS.
 
 A **poll** is the question being decided. A **ballot** is one voter's answer to
 it. "Vote" is ambiguous between the two and is not used as a noun in the code.
-A poll's **id** is its share token.
+A poll's **id** is its share token; its **join code** is a six-character
+stand-in to type on a phone (`K7M-4QX`).
 
 ## Server
 
@@ -59,12 +60,14 @@ can use it), data classes are records, and nothing imports Reactor.
 ### Casting a ballot, step by step
 
 1. `VoterIdentityFilter` reads the `zvote_voter` cookie (issuing one if
-   needed) and puts the voter id on the request.
+   needed) and puts the `Voter` on the request.
 2. `BallotService`, in one transaction, asks `PollService.findOpen(id)` for
    the poll (404 if it does not exist, 409 if it is closed), checks that the
    ballot has the right shape and only this poll's option ids, and hands it to
-   the voting system's service, which replaces the voter's ballot: delete,
-   then insert.
+   the voting system's service, which replaces the ballot stored under the
+   voter's ballot key for this poll: delete, then insert. The voter's name, on a poll that shows names, is part of the
+   ballot: `PollService.nameVoter` records it under the voter's name key, or
+   forgets it when the ballot is withdrawn or carries none.
 3. `findOpen` holds a shared lock on the poll until that transaction ends.
    Ballots do not wait for each other, but closing or deleting the poll waits
    for the ballots in flight, and a ballot arriving meanwhile waits, then
@@ -75,14 +78,97 @@ can use it), data classes are records, and nothing imports Reactor.
 ### Identity
 
 Anonymous first: a friend who opens a share link can vote at once. The cookie
-holds 256 random bits; the database holds only `base64url(SHA-256(token))`, so
-a copy of the database is not enough to act as a voter. The cookie is
+holds 256 random bits, and the database never holds them, so a copy of it is
+not enough to act as a voter. The cookie is
 `HttpOnly` (scripts cannot read it) and `SameSite=Lax` (other sites cannot send
 it with a `POST`, `PUT`, `PATCH` or `DELETE`), and no CORS is enabled, which is
 what protects against cross-site request forgery.
 
 Accounts will plug in at the same place: the filter will resolve a signed-in
 account first and the anonymous token second (see [ROADMAP.md](ROADMAP.md)).
+
+### Anonymity
+
+Who can tell what someone chose, and what stops them:
+
+- **Someone with a copy of the database** (a backup, a leak, a curious
+  admin) learns nothing about who chose what. A `Voter` stores three
+  different things:
+  - polls it created, under `base64url(SHA-256(token))`;
+  - its ballot on a poll, under `HMAC(secret, "ballot:" + poll + ":" + token)`;
+  - its name on a poll, under `HMAC(secret, "name:" + poll + ":" + token)`.
+
+  Names don't join with ballots, a voter's ballots don't join across polls,
+  and a creator doesn't join with their own ballot. Nothing records when a
+  ballot or a name was given. The server recomputes the keys for whoever
+  holds the cookie, so revising works. Going the other way, from a row back
+  to a person, means guessing a 256-bit token, even with the secret.
+- **Others on the poll** see the tallies move. Among a few people, a tally
+  that moves just as Sam taps "submit", or as "Sam" joins the names, shows
+  what Sam chose, mention by mention in the live ballot mode. So a creator
+  chooses, once, when the results show (`Poll.ResultsShown`): live (the
+  form warns what that means), once a number of ballots are in (at least
+  three; this spares the first voters, but each later ballot still moves the
+  tallies), or once the poll is closed, which is the default on polls
+  showing names. Until then, everyone, the creator included, sees only how
+  many have voted. Closing is for good: reopening would let a creator read
+  the results kept back and then watch the next ballots move them. Names
+  are listed alphabetically, never in the order they came.
+- **Someone looking at the voter's screen**, over a shoulder or on a
+  projector, sees the ballot on it. A ballot counted before the page opened
+  starts hidden behind "Change my ballot", on every screen size. The cookie
+  still gives the ballot back to whoever holds the browser: that is what
+  lets a voter revise it.
+- **Whoever runs the server** sees every request, cookie and address as it
+  happens. The design keeps nothing linkable at rest, but it does not hide
+  ballots from the running server: that would take cryptographic voting
+  (blind signatures, mix networks), well beyond deciding where to eat. The
+  operator is trusted, and the privacy notice says so.
+
+The secret is `ZVOTE_VOTER_SECRET` (at least 32 characters). The server
+refuses to start without one; `spring-boot:run` sets a development secret in
+`pom.xml`, and the tests set their own. Changing it orphans every ballot:
+still counted, but nobody can revise theirs.
+
+#### Known limit: insertion order
+
+Ballot rows and name rows share no key and no time, but both are written as
+voters come, in the same transaction. Ids count up; the database stores rows
+roughly in the order written; PostgreSQL also stamps each row with the
+transaction that wrote it (`xmin`) and logs every change, in order, in its
+write-ahead log. So a copy of the database could pair the n-th name given
+on a poll with the n-th ballot cast on it. Revisions, withdrawals and
+anonymous voters blur the pairing, and it takes a copy of the database, a
+poll that shows names and few voters.
+
+Neither random nor encrypted ids close it: both hide the id's value, not
+the order in which the rows were written, which the database keeps
+anyway. What would close it for the tables is giving names no order to
+read: one row per poll holding its names as a list, shuffled and rewritten
+with every ballot. The write-ahead log would still hold the successive
+versions until it is recycled, so archived logs must not outlive their
+use. Not worth it yet; revisit if names come to matter more (public polls,
+accounts).
+
+### Names and join codes
+
+A creator can make a poll show names. Voters then may give one with their
+ballot; it is stored per poll (`voter_name`), never across polls, and it is
+shown to everyone on the poll as a cloud under the results. Its key matches
+no ballot row, and the cloud is alphabetical (see [Anonymity](#anonymity)).
+Withdrawing the ballot takes the name away.
+
+A join code is drawn at random from 31 characters without look-alikes
+(887 million codes), unique among polls. It is shorter than the 128-bit share
+token, so it is guessable in principle: lookups (`GET /api/join/{code}`) get a
+rate limit at deployment.
+
+### Retention
+
+`PollRetention` deletes polls `zvote.limits.poll-lifetime-days` (30) after
+their creation, every hour, and tells their watchers. Polls are for deciding,
+not archiving, and keeping them briefly keeps little personal data around.
+Tests switch the job off (`zvote.retention-cron: "-"`) and call it themselves.
 
 ### Tallies
 
@@ -133,7 +219,8 @@ Flyway owns the schema (`src/main/resources/db/migration`). The SQL is portable
 runs unchanged on PostgreSQL. Table names are singular and unquoted and entities
 have no `@Table`: see the note at the top of `V1__init.sql`. Deleting a poll
 deletes its options and ballots (`ON DELETE CASCADE`). `V1` has never been
-released and was rewritten in place; from the first deployment on, only add
+released and was rewritten in place; `V2` was added instead, so that
+development databases migrate. From the first deployment on, only add
 migrations.
 
 ### Errors
@@ -192,7 +279,7 @@ the same way `api` composes polls and ballots on the server.
 
 | Path | Screen |
 |---|---|
-| `/` | your polls and other people's public polls |
+| `/` | join with a code, your polls, and public polls if the server offers them |
 | `/new` | create a poll |
 | `/p/:id` | a poll: your ballot, the live results, and the creator's controls |
 
@@ -203,7 +290,7 @@ A poll's page address is its share link.
 `usePoll(id)` loads the poll, then opens its event stream. Loading first
 guarantees that the stream's first event is at least as recent as what was
 loaded, so an update can neither be missed nor rolled back. Updates are merged
-into the loaded poll; they carry nothing about the voter, so `isMine` and
+into the loaded poll; they are the same for every watcher, so `isMine` and
 `myBallot` survive. After a ballot, the server's answer replaces the poll.
 
 Browsers reconnect a dropped stream by themselves, but only after a network
@@ -223,7 +310,9 @@ have been deleted.
   stay there if submitting fails.
 
 Withdrawing, in either mode, goes through the live queue: it cannot overtake a
-ballot that is still on its way.
+ballot that is still on its way. Renaming yourself on a counted ballot casts it
+again (`recast`): through the live queue in live mode, and without the unsent
+changes in envelope mode.
 
 ### The results visualisation
 
@@ -280,7 +369,13 @@ Playwright is on the roadmap.
 | `PUT` for ballots | One ballot per voter per poll; cast, revise and withdraw are one operation, and retries are safe. |
 | Share token as the only id | One identifier, unguessable, that doubles as the unlisted-poll secret. |
 | Hashed voter ids | The database alone cannot be used to act as someone. |
-| Public and unlisted only | "Private" means "only people I choose", which needs accounts. It comes back with them. |
+| Ballots and names under keyed, per-poll HMACs | A copy of the database cannot tell who chose what, nor link a voter across polls. |
+| Results live, after some ballots or at close, chosen per poll | Tallies moving as people vote show who chose what in a small group. |
+| Closing is final | Final results stay final, and results kept back cannot be peeked at then watched. |
+| A counted ballot starts hidden | The voter's screen is not a receipt for whoever looks at it. |
+| Private by link or code; public polls off | Anyone could list anything anonymously; public polls come back for signed-in creators. "Only people I choose" needs accounts too. |
+| Names per poll, optional | A cloud of who took part, without an account and without a profile kept across polls. |
+| Polls deleted after 30 days | Data minimisation (GDPR), and nothing to archive for a group decision. |
 | No client state library | Two data hooks and one ballot hook are all the state there is. |
 
 ## Known limits

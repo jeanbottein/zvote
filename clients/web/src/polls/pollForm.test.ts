@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { checkPollForm, filledOptions, offeredVotingSystems, optionRows } from './pollForm';
 
-const limits = { maxOptions: 4, maxTitleLength: 10, maxOptionLength: 6 };
+const limits = { maxOptions: 4, maxTitleLength: 10, maxOptionLength: 6, maxVoterNameLength: 40, pollLifetimeDays: 30 };
 
 describe('checkPollForm', () => {
   it('accepts a title and two distinct options', () => {

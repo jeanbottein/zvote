@@ -5,6 +5,11 @@ spring:
   main:
     banner-mode: off
 
+# No poll retention running in the middle of a test: tests call it themselves.
+zvote:
+  retention-cron: "-"
+  voter-secret: test-voter-secret-0123456789abcdef
+
 # Warnings and errors only (see logback-test.xml), minus the expected ones.
 logging:
   level:

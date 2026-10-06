@@ -5,6 +5,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.zvote.server.api.dto.CastBallotRequest;
 import org.zvote.server.approval.ApprovalBallotService;
 import org.zvote.server.common.InvalidRequestException;
+import org.zvote.server.identity.Voter;
 import org.zvote.server.judgment.JudgmentBallotService;
 import org.zvote.server.judgment.Mention;
 import org.zvote.server.polls.Poll;
@@ -45,16 +46,29 @@ public class BallotService {
         this.judgments = judgments;
     }
 
-    /** Returns the poll the ballot was cast on. */
+    /**
+     * Returns the poll the ballot was cast on. The voter's name goes with their
+     * ballot, but under a key of its own (see {@link Voter}).
+     */
     @Transactional
-    public Poll cast(String shareToken, CastBallotRequest ballot, String voterId) {
+    public Poll cast(String shareToken, CastBallotRequest ballot, Voter voter) {
         var poll = polls.findOpen(shareToken);
         var optionIds = polls.optionsOf(poll).stream().map(PollOption::id).toList();
+        var ballotKey = voter.ballotKey(poll.id());
 
-        switch (poll.votingSystem()) {
-            case APPROVAL -> approvals.cast(poll.id(), voterId, approvedOptions(ballot, optionIds));
-            case MAJORITY_JUDGMENT -> judgments.cast(poll.id(), voterId, mentions(ballot, optionIds), optionIds);
-        }
+        var withdrawn = switch (poll.votingSystem()) {
+            case APPROVAL -> {
+                var approved = approvedOptions(ballot, optionIds);
+                approvals.cast(poll.id(), ballotKey, approved);
+                yield approved.isEmpty();
+            }
+            case MAJORITY_JUDGMENT -> {
+                var mentions = mentions(ballot, optionIds);
+                judgments.cast(poll.id(), ballotKey, mentions, optionIds);
+                yield mentions.isEmpty();
+            }
+        };
+        polls.nameVoter(poll, voter.nameKey(poll.id()), withdrawn ? null : ballot.voterName());
         return poll;
     }
 

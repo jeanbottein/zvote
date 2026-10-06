@@ -8,6 +8,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.zvote.server.api.dto.CastBallotRequest;
 import org.zvote.server.api.dto.PollView;
+import org.zvote.server.identity.Voter;
 import org.zvote.server.identity.VoterIdentity;
 import org.zvote.server.live.PollStream;
 
@@ -34,9 +35,9 @@ public class BallotController {
     @PutMapping
     public PollView cast(@PathVariable String id,
                          @RequestBody CastBallotRequest ballot,
-                         @RequestAttribute(VoterIdentity.ATTRIBUTE) String voterId) {
-        var poll = ballots.cast(id, ballot, voterId);
+                         @RequestAttribute(VoterIdentity.ATTRIBUTE) Voter voter) {
+        var poll = ballots.cast(id, ballot, voter);
         stream.changed(poll.id(), () -> views.update(poll.id()));
-        return views.view(poll, voterId);
+        return views.view(poll, voter);
     }
 }

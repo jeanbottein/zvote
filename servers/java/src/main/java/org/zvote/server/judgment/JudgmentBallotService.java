@@ -3,7 +3,6 @@ package org.zvote.server.judgment;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.Instant;
 import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -34,22 +33,21 @@ public class JudgmentBallotService {
      * different options stay comparable.
      */
     @Transactional
-    public void cast(Long pollId, String voterId, Map<Long, Mention> mentions, List<Long> optionIds) {
-        judgments.deleteBallot(pollId, voterId);
+    public void cast(Long pollId, String ballotKey, Map<Long, Mention> mentions, List<Long> optionIds) {
+        judgments.deleteBallot(pollId, ballotKey);
         if (mentions.isEmpty()) {
             return;
         }
-        var now = Instant.now();
         judgments.saveAll(optionIds.stream()
             .map(optionId -> new Judgment(
-                null, pollId, optionId, voterId, mentions.getOrDefault(optionId, Mention.BAD), now))
+                null, pollId, optionId, ballotKey, mentions.getOrDefault(optionId, Mention.BAD)))
             .toList());
     }
 
     /** This voter's mentions by option id; empty if they have not voted. */
-    public Map<Long, Mention> ballotOf(Long pollId, String voterId) {
+    public Map<Long, Mention> ballotOf(Long pollId, String ballotKey) {
         var ballot = new HashMap<Long, Mention>();
-        for (var judgment : judgments.findByPollIdAndVoterId(pollId, voterId)) {
+        for (var judgment : judgments.findByPollIdAndBallotKey(pollId, ballotKey)) {
             ballot.put(judgment.optionId(), judgment.mention());
         }
         return ballot;

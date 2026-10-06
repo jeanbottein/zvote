@@ -139,3 +139,32 @@ describe('withdrawing', () => {
     expect(server.received).toEqual(['Ramen', 'nothing']);
   });
 });
+
+describe('recasting', () => {
+  it('sends the latest choice again on a live ballot', async () => {
+    const server = slowServer();
+    const { result } = renderBallot('live', server.cast, 'Ramen');
+
+    act(() => result.current.recast());
+    expect(server.received).toEqual(['Ramen']);
+
+    act(() => result.current.change('Tacos'));
+    act(() => result.current.recast());
+    await server.answerNext();
+    await server.answerNext();
+
+    expect(server.received).toEqual(['Ramen', 'Tacos']);
+  });
+
+  it('sends what the server holds on an envelope ballot, and keeps the changes unsent', () => {
+    const server = slowServer();
+    const { result } = renderBallot('envelope', server.cast, 'Ramen');
+
+    act(() => result.current.change('Tacos'));
+    act(() => result.current.recast());
+
+    expect(server.received).toEqual(['Ramen']);
+    expect(result.current.ballot).toBe('Tacos');
+    expect(result.current.hasChanges).toBe(true);
+  });
+});

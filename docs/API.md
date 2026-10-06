@@ -22,19 +22,23 @@ Send it back on every request (`fetch(..., { credentials: 'include' })`,
 counts as a brand new voter: your polls stop being yours and your ballots
 cannot be revised. A cookie the server could not have issued is replaced.
 
-The server stores only a hash of the token, and never sends voter ids back:
-`isMine` and `myBallot` are computed for the caller.
+The server never stores the token, and never sends voter ids back: `isMine`
+and `myBallot` are computed for the caller. It stores the polls you create
+under a hash of the token, and your ballot and name on each poll under two
+other keys, keyed with a server secret, that nothing else matches
+(see [ARCHITECTURE.md](ARCHITECTURE.md#anonymity)).
 
 ## Endpoints
 
 | Method | Path | Answer |
 |---|---|---|
 | `GET` | `/api/server-info` | `ServerInfo`: what this server offers |
-| `GET` | `/api/polls` | `PollSummary[]`: the 50 most recent public polls |
+| `GET` | `/api/polls` | `PollSummary[]`: the 50 most recent public polls (none while `publicPolls` is off) |
 | `GET` | `/api/polls/mine` | `PollSummary[]`: the caller's polls, newest first |
 | `POST` | `/api/polls` | `201` + `PollView`, `Location: /api/polls/{id}` |
 | `GET` | `/api/polls/{id}` | `PollView` |
-| `PATCH` | `/api/polls/{id}` | `PollView`: creator only, `{"closed": true \| false}` |
+| `GET` | `/api/join/{code}` | `PollSummary`: the poll behind a join code (case, spaces and dashes ignored) |
+| `PATCH` | `/api/polls/{id}` | `PollView`: creator only, `{"closed": true}`, for good: reopening answers `409` |
 | `DELETE` | `/api/polls/{id}` | `204`: creator only |
 | `PUT` | `/api/polls/{id}/ballot` | `PollView`: cast, revise or withdraw the caller's ballot |
 | `GET` | `/api/polls/{id}/events` | `text/event-stream`: live updates |
@@ -43,7 +47,12 @@ The server stores only a hash of the token, and never sends voter ids back:
 A poll's `id` is its **share token**: 22 url-safe characters, unguessable. It
 is the only identifier that leaves the server, and it appears in the web
 address of the poll (`/p/{id}`). Holding it is what gives access to an
-unlisted poll.
+unlisted poll. Its **join code** (`joinCode`, six characters such as `K7M4QX`,
+shown as `K7M-4QX`) is a stand-in to type: `GET /api/join/{code}` answers the
+poll's summary, or `404` "No poll has this code.".
+
+Polls are deleted, with their ballots, `pollLifetimeDays` after they were
+created (`expiresAt`).
 
 ## Shapes
 
@@ -54,11 +63,16 @@ A poll as the calling voter sees it.
 ```jsonc
 {
   "id": "R0JsGfPEiNuO7CoMMd_I5g",
+  "joinCode": "K7M4QX",
   "title": "Where do we eat?",
   "votingSystem": "MAJORITY_JUDGMENT",   // or "APPROVAL"
-  "visibility": "PUBLIC",                // or "UNLISTED"
+  "visibility": "UNLISTED",              // or "PUBLIC"
+  "showVoterNames": true,                // chosen at creation
+  "resultsShown": "AFTER_BALLOTS",       // chosen at creation: LIVE, AFTER_BALLOTS or AFTER_CLOSING
+  "resultsAfterBallots": 3,              // AFTER_BALLOTS only: ballots before the tallies show
   "createdAt": "2026-09-24T13:58:35.129057Z",
-  "closedAt": null,                      // set while voting is closed
+  "closedAt": null,                      // set once voting is closed, for good
+  "expiresAt": "2026-10-24T13:58:35.129057Z", // when the server deletes it
   "isMine": true,                        // the caller created it
   "totalBallots": 2,                     // voters with a ballot on this poll
   "options": [
@@ -67,17 +81,30 @@ A poll as the calling voter sees it.
       "label": "Ramen",
       "approvalCount": null,             // approval polls: how many approved it
       "judgmentCounts": {                // majority judgment: voters per mention, worst first
+                                         // (both null while resultsShown keeps them back)
         "Bad": 0, "Inadequate": 0, "Passable": 0, "Fair": 0,
         "Good": 1, "VeryGood": 0, "Excellent": 1
       }
     }
   ],
+  "voterNames": ["Sam", "Zoé"],          // null unless showVoterNames: names given, alphabetical
   "myBallot": {                          // null until the caller votes
     "approvedOptionIds": null,           // approval polls, in the poll's order
-    "judgments": { "1": "Excellent" }    // majority judgment: option id -> mention
+    "judgments": { "1": "Excellent" },   // majority judgment: option id -> mention
+    "voterName": "Zoé"                   // the name the caller gave, or null
   }
 }
 ```
+
+While the poll is open, its options carry tallies only if `resultsShown` is
+`LIVE`, or `AFTER_BALLOTS` with at least `resultsAfterBallots` ballots in
+(fewer again after withdrawals, and they hide again). Otherwise they carry
+none, for anyone, its creator included; `totalBallots` still counts.
+Watching tallies move as people vote shows what each of them chose. Closing
+the poll shows them.
+A closed poll cannot be reopened: its results are final, and a creator
+cannot read the results kept for the closing and then watch the next
+ballots move them.
 
 The server sends tallies, not rankings. Clients rank majority judgment options
 themselves from the seven counts (`clients/web/src/utils/majorityJudgment.ts`:
@@ -94,21 +121,25 @@ Bad, Inadequate, Passable, Fair, Good, VeryGood, Excellent
 
 ### PollSummary
 
-`PollView` without `totalBallots`, `options` and `myBallot`: enough to list a
-poll and open it.
+`id`, `title`, `votingSystem`, `visibility`, `createdAt`, `closedAt` and
+`isMine`: enough to list a poll and open it.
 
 ### PollUpdate
 
-What watchers receive live: `{ "closedAt", "totalBallots", "options" }`. It
-carries nothing about any one voter, so a client can merge it straight into its
-`PollView` and keep its own `isMine` and `myBallot`.
+What watchers receive live: `{ "closedAt", "totalBallots", "options",
+"voterNames" }`. It is the same for every watcher, so a client can merge it
+straight into its `PollView` and keep its own `isMine` and `myBallot`. The
+names say who took part, by their own choice, never what they chose; voters
+who gave none count in `totalBallots` only. They come in alphabetical order:
+in the order given, they would line up with the ballots as they landed.
 
 ### ServerInfo
 
 ```json
 {
-  "features": { "publicPolls": true, "unlistedPolls": true, "approvalVoting": true, "majorityJudgment": true },
-  "limits": { "maxOptions": 20, "maxTitleLength": 200, "maxOptionLength": 100 }
+  "features": { "publicPolls": false, "unlistedPolls": true, "approvalVoting": true, "majorityJudgment": true },
+  "limits": { "maxOptions": 20, "maxTitleLength": 200, "maxOptionLength": 100,
+              "maxVoterNameLength": 40, "pollLifetimeDays": 30 }
 }
 ```
 
@@ -120,10 +151,17 @@ enforces them when a poll is created.
 ```json
 POST /api/polls
 { "title": "Where do we eat?", "options": ["Ramen", "Tacos"],
-  "votingSystem": "MAJORITY_JUDGMENT", "visibility": "PUBLIC" }
+  "votingSystem": "MAJORITY_JUDGMENT", "visibility": "UNLISTED", "showVoterNames": true,
+  "resultsShown": "AFTER_BALLOTS", "resultsAfterBallots": 5 }
 ```
 
-Every field is required. Title and options are trimmed. There must be 2 to
+Every field is required but `showVoterNames` (false when left out),
+`resultsShown` (left out: `LIVE`, or `AFTER_CLOSING` if the poll shows
+names, since a name and a ballot arriving together show who chose what) and
+`resultsAfterBallots` (`AFTER_BALLOTS` only, and then at least 3: with
+fewer, the results are the ballots). Public
+polls are refused while `publicPolls` is off: they will need a signed-in
+creator. Title and options are trimmed. There must be 2 to
 `maxOptions` options, none empty, none longer than `maxOptionLength`, and no two
 the same (ignoring case).
 
@@ -136,7 +174,13 @@ the same operation, so retrying is always safe.
 { "judgments": { "1": "Excellent", "2": "Good" } }   // majority judgment
 { "approvedOptionIds": ["1", "3"] }                    // approval
 { "judgments": {} }  or  { "approvedOptionIds": [] }   // withdraw
+{ "approvedOptionIds": ["1"], "voterName": "Zoé" }     // with a name
 ```
+
+- The name is part of the ballot, on polls that show names: left out, null or
+  blank, the voter takes part anonymously (and a name given before is
+  forgotten). At most `maxVoterNameLength` characters, on one line. A poll
+  that does not show names refuses one (`400`). Withdrawing forgets it.
 
 - Majority judgment: options left out are graded `Bad`, so every ballot grades
   every option.
@@ -171,7 +215,7 @@ data:{}
   error answer: a `404`, or a proxy's `502` while the server restarts. Load the
   poll again, then watch it again: that is what the web client does.
 - A burst of ballots becomes one `update`, about 200 ms after it starts.
-- Closing and reopening the poll send an `update` (see `closedAt`).
+- Closing the poll sends an `update` (see `closedAt`).
 - `deleted` ends the stream.
 - A comment line every 20 s keeps proxies from closing an idle stream. Streams
   end after 30 minutes and browsers reconnect.
@@ -194,8 +238,8 @@ the person using the app and can be shown as is.
 |---|---|
 | `400` | The request breaks a rule (the `detail` says which), or its JSON cannot be read |
 | `403` | Only the poll's creator can do that |
-| `404` | No poll has that id (or it was deleted) |
-| `409` | The poll is closed, or the change collided with another made at the same moment (send it again) |
+| `404` | No poll has that id or join code (or it was deleted) |
+| `409` | The poll is closed (to ballots, and to reopening), or the change collided with another made at the same moment (send it again) |
 | `500` | Something unexpected failed on the server; the `detail` says so and nothing more |
 
 ## Trying it with curl
@@ -204,7 +248,7 @@ the person using the app and can be shown as is.
 # Create a poll; the cookie jar keeps your voter token.
 ID=$(curl -s -c me.txt -X POST localhost:8080/api/polls \
   -H 'Content-Type: application/json' \
-  -d '{"title":"Lunch?","options":["Ramen","Tacos"],"visibility":"PUBLIC","votingSystem":"MAJORITY_JUDGMENT"}' \
+  -d '{"title":"Lunch?","options":["Ramen","Tacos"],"visibility":"UNLISTED","votingSystem":"MAJORITY_JUDGMENT"}' \
   | python3 -c 'import json,sys; print(json.load(sys.stdin)["id"])')
 
 # Watch it live in another terminal.

@@ -3,7 +3,6 @@ package org.zvote.server.approval;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -25,17 +24,16 @@ public class ApprovalBallotService {
      * are one operation, and approving nothing withdraws.
      */
     @Transactional
-    public void cast(Long pollId, String voterId, Set<Long> approvedOptionIds) {
-        approvals.deleteBallot(pollId, voterId);
-        var now = Instant.now();
+    public void cast(Long pollId, String ballotKey, Set<Long> approvedOptionIds) {
+        approvals.deleteBallot(pollId, ballotKey);
         approvals.saveAll(approvedOptionIds.stream()
-            .map(optionId -> new Approval(null, pollId, optionId, voterId, now))
+            .map(optionId -> new Approval(null, pollId, optionId, ballotKey))
             .toList());
     }
 
     /** The option ids this voter approved; empty if they have not voted. */
-    public Set<Long> ballotOf(Long pollId, String voterId) {
-        return approvals.findByPollIdAndVoterId(pollId, voterId).stream()
+    public Set<Long> ballotOf(Long pollId, String ballotKey) {
+        return approvals.findByPollIdAndBallotKey(pollId, ballotKey).stream()
             .map(Approval::optionId)
             .collect(Collectors.toSet());
     }

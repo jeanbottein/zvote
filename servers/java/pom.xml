@@ -103,6 +103,12 @@
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration>
+                    <!-- spring-boot:run only, for development: a deployed server sets its own. -->
+                    <environmentVariables>
+                        <ZVOTE_VOTER_SECRET>development-only-voter-secret-never-deployed</ZVOTE_VOTER_SECRET>
+                    </environmentVariables>
+                </configuration>
             </plugin>
             <!-- GraalVM native image, on a GraalVM JDK: ./mvnw -Pnative native:compile builds
                  target/zvote-server (Spring Boot's native profile runs its AOT processing first). -->

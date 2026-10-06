@@ -24,6 +24,10 @@ interface BallotOptions<B> {
  *
  * Withdrawing, in either mode, is cast like a live change: it drops unsent
  * changes and cannot overtake a ballot already on its way.
+ *
+ * Recasting sends again the ballot the server holds, or is about to hold, when
+ * something cast() adds to it changed (the voter's name). Unsent envelope
+ * changes stay unsent.
  */
 export function useBallot<B>({ saved, cast, mode, equals, onError }: BallotOptions<B>) {
   const [draft, setDraft] = useState<B | null>(null);
@@ -82,5 +86,12 @@ export function useBallot<B>({ saved, cast, mode, equals, onError }: BallotOptio
     change: (ballot: B) => (mode === 'envelope' ? setDraft(ballot) : send(ballot)),
     submit,
     withdraw: send,
+    recast() {
+      if (mode === 'live') {
+        send(travelling ?? saved);
+      } else if (!busy) {
+        cast(saved).catch(onError);
+      }
+    },
   };
 }

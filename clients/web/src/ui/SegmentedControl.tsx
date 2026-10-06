@@ -7,11 +7,15 @@ interface SegmentedControlProps<T extends string> {
   options: { value: T; label: string }[];
   onChange(value: T): void;
   hint?: ReactNode;
+  /** A hint that warns of a consequence, rather than explains. */
+  hintTone?: 'warning';
+  /** What the chosen option needs filled in, between the options and the hint. */
+  children?: ReactNode;
 }
 
 /** One choice among a few, as radio buttons drawn side by side: keyboard arrows work. */
 export default function SegmentedControl<T extends string>(
-  { legend, name, value, options, onChange, hint }: SegmentedControlProps<T>,
+  { legend, name, value, options, onChange, hint, hintTone, children }: SegmentedControlProps<T>,
 ) {
   return (
     <fieldset className="segmented">
@@ -30,7 +34,8 @@ export default function SegmentedControl<T extends string>(
           </label>
         ))}
       </div>
-      {hint && <p className="hint">{hint}</p>}
+      {children}
+      {hint && <p className="hint" data-tone={hintTone}>{hint}</p>}
     </fieldset>
   );
 }

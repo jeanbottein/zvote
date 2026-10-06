@@ -12,9 +12,13 @@ architecture, YAGNI, industry standards and the lowest cognitive complexity
 that works. When those pull apart, pick YAGNI and simplicity: no ports and
 adapters, no interface per implementation, no mapper per boundary.
 
-Next phases (in order): accounts and social sign-in, installable web app,
-Android through Capacitor, deployment on PostgreSQL. See `docs/ROADMAP.md`
-before designing anything in those areas.
+The MVP is for groups deciding together: private polls shared by link or join
+code, optional voter names shown as a cloud, results live, delayed or at close
+(the creator's choice), ballots unlinkable at rest, polls deleted after 30 days,
+public polls off until accounts. Next phases (in order): deployment on
+OVHcloud with PostgreSQL, accounts and social sign-in, installable web app,
+Android through Capacitor. See `docs/ROADMAP.md` before designing anything in
+those areas.
 
 ## Commands
 
@@ -169,3 +173,28 @@ shown to people as is: write it as a sentence for them.
 - **Toasts sit at the top**, under the header. At the bottom they covered the
   delete confirmation on phones.
 - **Readiness probe**: `/actuator/health`, not an API route.
+- **Jackson 3 fails on a missing primitive** (`FAIL_ON_NULL_FOR_PRIMITIVES` is
+  on): an optional request field is a `Boolean`, not a `boolean`, or leaving
+  it out answers "could not be read".
+- **Scheduled jobs are off in tests** (`zvote.retention-cron: "-"`). Running
+  at startup, `PollRetention` raced Mockito's stubbing in
+  `UnexpectedFailureTest` and stole the stub. Tests call the job themselves.
+- **Voter names are per poll and go with the ballot**: a `PUT` without
+  `voterName` makes the voter anonymous, and withdrawing forgets the name.
+  They never say who chose what: names and ballots are keyed apart
+  (`Voter.nameKey` / `Voter.ballotKey`, HMACs per poll under
+  `ZVOTE_VOTER_SECRET`). Never store them under the same key or the voter id,
+  never add a timestamp to either, and keep the name cloud alphabetical.
+- **The server will not start without `ZVOTE_VOTER_SECRET`** (32+
+  characters). `spring-boot:run` and `./dev.sh` get a development one from
+  `pom.xml`, tests from `application-test.yml`; `java -jar`, a native image
+  and `perf/bench.py` need it set.
+- **Results kept back are hidden from everyone**, the creator included:
+  `PollViewService` leaves the tallies null unless `Poll.showsResults`
+  (mirrored by `polls/showsResults.ts`). Anything new that shows counts must
+  ask it too.
+- **A counted ballot starts hidden** (`BallotFrame`), on every screen, so
+  the voter's screen is no receipt. Only opening it or withdrawing shows it.
+- **Closing is for good** (`PollService.setClosed`): `{"closed": false}` on a
+  closed poll answers `409`. Reopening would let a creator peek at hidden
+  results and then watch the next ballots move them.

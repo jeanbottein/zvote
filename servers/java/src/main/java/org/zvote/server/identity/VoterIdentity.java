@@ -14,16 +14,17 @@ import java.util.Base64;
  * never read.
  *
  * The token is a credential, and like a password it is never stored. The voter
- * id - what ballots and polls are keyed by - is a hash of it, so a copy of the
- * database is not enough to impersonate anyone.
+ * id - what a poll's creator is stored as - is a hash of it, so a copy of the
+ * database is not enough to impersonate anyone. Ballots and names are stored
+ * under other keys, one per poll (see {@link Voter}).
  *
  * Signing in with an account (see docs/ROADMAP.md) will resolve to a voter id
- * in this same place, and must carry the anonymous id over to the account so
- * that ballots cast before signing in keep their owner.
+ * in this same place, and must carry the anonymous token over to the account
+ * so that ballots cast before signing in keep their owner.
  */
 public final class VoterIdentity {
 
-    /** Request attribute holding the caller's voter id. Set for every /api request. */
+    /** Request attribute holding the caller, a {@link Voter}. Set for every /api request. */
     public static final String ATTRIBUTE = "zvote.voterId";
 
     /** Cookie carrying the voter token. */

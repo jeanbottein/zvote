@@ -7,8 +7,26 @@ export const VOTING_SYSTEM_NAMES: Record<VotingSystem, string> = {
 
 export const VISIBILITY_NAMES: Record<Visibility, string> = {
   PUBLIC: 'Public',
-  UNLISTED: 'Unlisted',
+  UNLISTED: 'Private',
 };
+
+/** A join code as people read it: K7M-4QX. */
+export function formatJoinCode(code: string): string {
+  return code.length === 6 ? `${code.slice(0, 3)}-${code.slice(3)}` : code;
+}
+
+/** "and 2 anonymous voters", or "1 anonymous voter" when nobody gave a name. */
+export function anonymousVoters(count: number, afterNames: boolean): string {
+  const voters = `${count} anonymous ${count === 1 ? 'voter' : 'voters'}`;
+  return afterNames ? `and ${voters}` : voters;
+}
+
+const longDate = new Intl.DateTimeFormat('en', { dateStyle: 'long' });
+
+/** "October 30, 2026". */
+export function formatDate(isoDate: string): string {
+  return longDate.format(new Date(isoDate));
+}
 
 export function ballotCount(count: number): string {
   return `${count} ${count === 1 ? 'ballot' : 'ballots'}`;

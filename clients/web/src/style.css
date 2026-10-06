@@ -256,7 +256,7 @@ a {
   margin: 0 auto;
   padding: var(--gutter)
     max(var(--gutter), env(safe-area-inset-right))
-    calc(48px + env(safe-area-inset-bottom))
+    24px
     max(var(--gutter), env(safe-area-inset-left));
 }
 
@@ -444,6 +444,14 @@ fieldset.field {
   font-weight: 700;
 }
 
+.hint[data-tone="warning"] {
+  color: var(--danger-text);
+}
+
+.results-after input {
+  max-width: 7em;
+}
+
 .field-problem {
   color: var(--danger-text);
   font-size: 14px;
@@ -534,6 +542,39 @@ fieldset.field {
 .hero p {
   max-width: 36em;
   font-size: 17px;
+}
+
+/* A join code, typed or shown: capitals and digits that stay apart. */
+.join-code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.join-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.join-form > label {
+  font-weight: 700;
+}
+
+.join-row {
+  display: flex;
+  gap: 8px;
+}
+
+.join-row input {
+  flex: 1;
+  min-width: 0;
+  text-transform: uppercase;
+}
+
+.join-row input::placeholder {
+  text-transform: none;
+  letter-spacing: 0.08em;
 }
 
 .poll-list {
@@ -667,6 +708,17 @@ fieldset.field {
   margin: 0;
 }
 
+.ballot-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ballot-body > .button.link {
+  align-self: flex-start;
+  margin-left: -8px; /* its text lines up with the text above */
+}
+
 .ballot .hint {
   color: inherit;
   opacity: 0.85;
@@ -732,6 +784,60 @@ fieldset.field {
   display: flex;
   justify-content: flex-end;
   margin-top: 4px;
+}
+
+.voter-names {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+  text-align: center;
+}
+
+.voter-names h3 {
+  margin: 0;
+  font-size: 15px;
+}
+
+.results .voter-names .hint {
+  margin: 0;
+}
+
+/* Every name the same size, gathered in the middle like a cloud. */
+.name-cloud {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.name-cloud li {
+  max-width: 100%;
+  padding: 6px 14px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  animation: name-arrives 0.4s ease-out;
+}
+
+@keyframes name-arrives {
+  from {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+}
+
+.expiry {
+  text-align: center;
 }
 
 .owner-actions .confirm {
@@ -840,6 +946,84 @@ fieldset.field {
   border-radius: 12px;
   background: #ffffff; /* QR codes need a light background in every theme */
   line-height: 0;
+}
+
+.share-code {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 12px;
+  border-radius: var(--radius-small);
+  background: var(--accent-soft);
+}
+
+.share-code-label {
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.share-code .join-code {
+  font-size: clamp(34px, 11vw, 48px);
+  line-height: 1.15;
+}
+
+/* ------------------------------------------------------------------ */
+/* Footer and About                                                   */
+/* ------------------------------------------------------------------ */
+
+.app-footer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  max-width: var(--page-width);
+  margin: 0 auto;
+  padding: 0 var(--gutter) calc(24px + env(safe-area-inset-bottom));
+  color: var(--muted);
+  font-size: 14px;
+  text-align: center;
+}
+
+.app-footer p {
+  margin: 0;
+}
+
+.app-footer nav {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0 16px;
+}
+
+/* Footer links are small text: padding makes them comfortable to tap. */
+.app-footer a {
+  display: inline-block;
+  padding: 10px 2px;
+}
+
+.about-section h2 {
+  margin-top: 0;
+}
+
+.about-section h3 {
+  margin: 20px 0 4px;
+  font-size: 17px;
+}
+
+.references {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin: 16px 0 0;
+  padding-left: 22px;
+}
+
+.references li > .hint {
+  display: block;
+  margin-top: 2px;
 }
 
 /* ------------------------------------------------------------------ */

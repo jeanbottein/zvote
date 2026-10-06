@@ -6,7 +6,8 @@ import java.util.Map;
  * One option and its tallies. Approval polls fill approvalCount; majority
  * judgment polls fill judgmentCounts with the seven mention tallies, worst
  * first, under their wire names (Bad ... Excellent). The client ranks the
- * options itself from these numbers.
+ * options itself from these numbers. Both are null while the poll keeps its
+ * results back (see Poll.ResultsShown).
  */
 public record OptionView(
     String id,

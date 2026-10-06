@@ -2,6 +2,9 @@ import type { ServerInfo, Visibility, VotingSystem } from '../api/types';
 
 type Limits = ServerInfo['limits'];
 
+/** Fewer ballots than this, and the results are the ballots: two voters would each read the other's. */
+export const MIN_RESULTS_AFTER_BALLOTS = 3;
+
 export interface PollFormProblems {
   title?: string;
   options?: string;
@@ -46,6 +49,15 @@ export function checkPollForm(title: string, options: string[], limits: Limits):
   return problems;
 }
 
+/** Results shown after some ballots: a whole number, at least MIN_RESULTS_AFTER_BALLOTS, as the server requires. */
+export function checkResultsAfterBallots(raw: string): string | undefined {
+  const ballots = Number(raw);
+  if (raw.trim() === '' || !Number.isInteger(ballots) || ballots < MIN_RESULTS_AFTER_BALLOTS) {
+    return `Choose at least ${MIN_RESULTS_AFTER_BALLOTS} ballots.`;
+  }
+  return undefined;
+}
+
 /**
  * The rows the form shows: the options typed so far, a blank row to type the
  * next one into (while there is room), and never fewer than two.
@@ -72,6 +84,6 @@ export function offeredVotingSystems(info: ServerInfo): { value: VotingSystem; l
 export function offeredVisibilities(info: ServerInfo): { value: Visibility; label: string }[] {
   return [
     info.features.publicPolls && { value: 'PUBLIC' as const, label: 'Public' },
-    info.features.unlistedPolls && { value: 'UNLISTED' as const, label: 'Unlisted' },
+    info.features.unlistedPolls && { value: 'UNLISTED' as const, label: 'Private' },
   ].filter((choice) => choice !== false);
 }

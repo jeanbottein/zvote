@@ -8,12 +8,12 @@ import java.util.List;
 
 interface ApprovalRepository extends ListCrudRepository<Approval, Long> {
 
-    List<Approval> findByPollIdAndVoterId(Long pollId, String voterId);
+    List<Approval> findByPollIdAndBallotKey(Long pollId, String ballotKey);
 
     /** One statement; see JudgmentRepository#deleteBallot for why it is not derived. */
     @Modifying
-    @Query("DELETE FROM approval WHERE poll_id = :pollId AND voter_id = :voterId")
-    void deleteBallot(Long pollId, String voterId);
+    @Query("DELETE FROM approval WHERE poll_id = :pollId AND ballot_key = :ballotKey")
+    void deleteBallot(Long pollId, String ballotKey);
 
     /** Every tally of a poll in one query. */
     @Query("""
@@ -24,6 +24,6 @@ interface ApprovalRepository extends ListCrudRepository<Approval, Long> {
         """)
     List<ApprovalCount> countByOption(Long pollId);
 
-    @Query("SELECT COUNT(DISTINCT voter_id) FROM approval WHERE poll_id = :pollId")
+    @Query("SELECT COUNT(DISTINCT ballot_key) FROM approval WHERE poll_id = :pollId")
     long countBallots(Long pollId);
 }

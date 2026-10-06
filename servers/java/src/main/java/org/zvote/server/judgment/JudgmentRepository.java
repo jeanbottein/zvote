@@ -8,7 +8,7 @@ import java.util.List;
 
 interface JudgmentRepository extends ListCrudRepository<Judgment, Long> {
 
-    List<Judgment> findByPollIdAndVoterId(Long pollId, String voterId);
+    List<Judgment> findByPollIdAndBallotKey(Long pollId, String ballotKey);
 
     /**
      * One statement. A derived deleteBy... loads the rows and deletes them one
@@ -16,8 +16,8 @@ interface JudgmentRepository extends ListCrudRepository<Judgment, Long> {
      * soon as a ballot grades more than one option.
      */
     @Modifying
-    @Query("DELETE FROM judgment WHERE poll_id = :pollId AND voter_id = :voterId")
-    void deleteBallot(Long pollId, String voterId);
+    @Query("DELETE FROM judgment WHERE poll_id = :pollId AND ballot_key = :ballotKey")
+    void deleteBallot(Long pollId, String ballotKey);
 
     /** Every tally of a poll in one query: seven per option at most. */
     @Query("""
@@ -28,6 +28,6 @@ interface JudgmentRepository extends ListCrudRepository<Judgment, Long> {
         """)
     List<JudgmentCount> countByOptionAndMention(Long pollId);
 
-    @Query("SELECT COUNT(DISTINCT voter_id) FROM judgment WHERE poll_id = :pollId")
+    @Query("SELECT COUNT(DISTINCT ballot_key) FROM judgment WHERE poll_id = :pollId")
     long countBallots(Long pollId);
 }
