@@ -100,6 +100,27 @@ domain (Apple also needs a paid developer account).
   elsewhere would do. It must never show the choices on its own, or someone
   could demand to see it: secret ballots avoid such receipts on purpose.
 - **Public polls.** Turn `public-polls` back on, for signed-in creators only.
+- **Polls for accounts only.** The creator may require signing in to vote:
+  one ballot per account, not per browser. That raises the bar but does not
+  close it, since anyone can open several accounts. Say so where the option
+  is offered, as the creation form already says it of browsers.
+- **Invitation polls.** For votes that must count each person once, the
+  creator generates one link per voter and sends each to one person.
+  These polls don't need accounts and could come before them.
+  - Each link carries its own voter token, so it holds exactly one ballot,
+    which can be revised. The poll can't be joined by its share link or code.
+  - Each invitation is anonymous, or bears a pseudonym that the creator or
+    the voter gives.
+  - The creator answers for sending each link to the right person, and could
+    vote with a link they kept: the trust moves from the voters to the
+    creator. The form must say so.
+  - Keep invitations as unlinkable from ballots as browsers are today: a
+    ballot is keyed by the invitation's token, as by the cookie's.
+  - Whether to show the creator which invitations were used is the owner's
+    call. Showing it tells the creator who voted, though never what.
+  - Sending: one row per invitation with icons to share it (copy, QR code,
+    email, SMS, the usual messengers through `navigator.share`), and a way
+    to mark it sent. The native app makes this easier (phase 9).
 - **Restricted polls.** A `PRIVATE` visibility: only listed accounts (or
   a group) can open the poll. The check belongs in `PollService.find`, where
   visibility rules live.
@@ -133,6 +154,8 @@ Still to do:
   the app.
 - **Share links** built from the public web address, not the app's origin
   (`ShareButton` uses `window.location.origin` today).
+- **Sending invitations** (see phase 7): the system share sheet and the
+  contacts picker, so a creator sends each voter their link in a tap or two.
 - The Android back button, the status bar colour, and the Capacitor share
   plugin where `navigator.share` is missing.
 
@@ -158,8 +181,8 @@ thousands of ballots a second. Next, in order:
   ballot key as the shard key) and fold per shard; the counters stay one
   small table per poll.
 - **Identity at scale.** One cookie per browser lets anyone vote twice by
-  clearing it. A billion-ballot poll needs accounts (phase 7) or proof of
-  personhood, and rate limits per network: of all the limits, this is the
+  clearing it. A billion-ballot poll needs accounts or invitations (phase 7),
+  or proof of personhood, and rate limits per network: of all the limits, this is the
   one technology alone does not remove.
 
 ## Questions for the owner

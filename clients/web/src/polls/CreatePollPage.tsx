@@ -239,6 +239,11 @@ export default function CreatePollPage() {
         )}
       </SegmentedControl>
 
+      <p className="hint" data-tone="warning">
+        Anyone set on it can vote more than once, from another browser or device: zvote counts on voters' good
+        faith. Keep an eye on the number of ballots, which should not exceed the number of people you invited.
+      </p>
+
       <p className="hint">Polls are deleted {limits.pollLifetimeDays} days after they are created, with their ballots.</p>
 
       {failure && <p className="error-text" role="alert">{failure}</p>}

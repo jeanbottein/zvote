@@ -79,6 +79,12 @@ describe('creating a poll', () => {
     expect(screen.getByText(/Results show once you close the poll/)).not.toHaveAttribute('data-tone');
   });
 
+  it('tells the creator that one ballot per person rests on good faith', async () => {
+    openForm();
+
+    expect(await screen.findByText(/can vote more than once/)).toBeInTheDocument();
+  });
+
   it('shows the results after a number of ballots, at least three', async () => {
     vi.mocked(createPoll).mockResolvedValue({ id: 'fresh' } as Poll);
     openForm();

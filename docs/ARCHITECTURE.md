@@ -465,7 +465,9 @@ Playwright is on the roadmap.
 ## Known limits
 
 - **Anonymous identity is per browser.** Clearing cookies, or another browser,
-  is another voter. Fine among friends; not for decisions that must resist
-  ballot stuffing, which need accounts.
+  is another voter. Fine among friends, and the creation form says so: zvote
+  counts on voters' good faith, and the ballot count shows when it is
+  abused. Decisions that must resist ballot stuffing need invitation polls,
+  or polls for accounts only (roadmap, phase 7).
 - **Live updates are single-node** (see above), though folding is not.
 - **Lists are capped** (50 public polls, 100 of your own) and not paginated.
