@@ -1,5 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { ApiError, castBallot, castBallotAsNewVoter, createPoll, deletePoll, getPoll, watchPoll } from './client';
+import {
+  ApiError, castBallot, castBallotAsNewVoter, createPoll, deletePoll, getPoll, revokeInvitation, watchPoll,
+} from './client';
+import type { NewPoll } from './types';
 
 describe('the API client', () => {
   const fetchMock = vi.fn<typeof fetch>();
@@ -27,15 +30,38 @@ describe('the API client', () => {
   it('sends bodies as JSON', async () => {
     fetchMock.mockResolvedValue(Response.json({ id: 'abc' }, { status: 201 }));
 
-    await createPoll({
-      title: 'Lunch?', options: ['Ramen', 'Tacos'], votingSystem: 'APPROVAL', visibility: 'UNLISTED', showVoterNames: false, resultsShown: 'LIVE', resultsAfterBallots: null,
-    });
+    const poll: NewPoll = {
+      title: 'Lunch?', options: ['Ramen', 'Tacos'], votingSystem: 'APPROVAL', visibility: 'UNLISTED',
+      invitationOnly: false, showVoterNames: false, resultsShown: 'LIVE', resultsAfterBallots: null,
+    };
+
+    await createPoll(poll);
 
     const [, init] = fetchMock.mock.calls[0];
     expect(init?.headers).toEqual({ 'Content-Type': 'application/json' });
-    expect(JSON.parse(init?.body as string)).toEqual({
-      title: 'Lunch?', options: ['Ramen', 'Tacos'], votingSystem: 'APPROVAL', visibility: 'UNLISTED', showVoterNames: false, resultsShown: 'LIVE', resultsAfterBallots: null,
-    });
+    expect(JSON.parse(init?.body as string)).toEqual(poll);
+  });
+
+  it('sends the invitation a voter came with in a header, never in an address', async () => {
+    fetchMock.mockImplementation(() => Promise.resolve(Response.json({ id: 'abc' })));
+
+    await getPoll('abc', 't0k3n');
+    await castBallot('abc', { approvedOptionIds: ['1'] }, 't0k3n');
+
+    for (const [url, init] of fetchMock.mock.calls) {
+      expect(url).not.toContain('t0k3n');
+      expect(init?.headers).toMatchObject({ 'Zvote-Invitation': 't0k3n' });
+    }
+  });
+
+  it('takes an invitation back by its token', async () => {
+    fetchMock.mockResolvedValue(new Response(null, { status: 204 }));
+
+    await revokeInvitation('abc', 'ana-token');
+
+    expect(fetchMock).toHaveBeenCalledWith('/api/polls/abc/invitations/ana-token', expect.objectContaining({
+      method: 'DELETE',
+    }));
   });
 
   it('leaves the cookie out of ballots from the ballot feeder, so each comes from a new voter', async () => {

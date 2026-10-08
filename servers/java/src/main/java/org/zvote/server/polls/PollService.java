@@ -21,8 +21,9 @@ import java.util.regex.Pattern;
 
 /**
  * Every rule about polls lives here: what a valid poll is, who can find it and
- * who can change it. Nothing else can touch the poll repositories (they are
- * package-private), so these rules cannot be walked around.
+ * who can change it; who may vote on it, in {@link InvitationService}. Nothing
+ * else can touch the poll repositories (they are package-private), so these
+ * rules cannot be walked around.
  */
 @Service
 public class PollService {
@@ -58,16 +59,18 @@ public class PollService {
     public Poll create(CreatePollRequest request, String creatorId) {
         var title = validTitle(request.title());
         var labels = validLabels(request.options());
+        var invitationOnly = Boolean.TRUE.equals(request.invitationOnly());
         var showVoterNames = Boolean.TRUE.equals(request.showVoterNames());
-        var resultsShown = resultsShown(request.resultsShown(), showVoterNames);
+        var resultsShown = resultsShown(request.resultsShown(), invitationOnly || showVoterNames);
         var poll = polls.save(new Poll(
             null,
-            newShareToken(),
+            randomToken(),
             newJoinCode(),
             creatorId,
             title,
             offered(request.votingSystem()),
             offered(request.visibility()),
+            invitationOnly,
             showVoterNames,
             resultsShown,
             resultsShown == Poll.ResultsShown.AFTER_BALLOTS ? validThreshold(request.resultsAfterBallots()) : null,
@@ -199,7 +202,7 @@ public class PollService {
      */
     @Transactional(propagation = Propagation.MANDATORY)
     public void nameVoter(Poll poll, String nameKey, String rawName) {
-        var name = rawName == null ? "" : SPACES.matcher(rawName).replaceAll(" ").strip();
+        var name = validName(rawName);
         if (!poll.showVoterNames()) {
             if (!name.isEmpty()) {
                 throw new InvalidRequestException("This poll does not show names: vote without one.");
@@ -209,13 +212,6 @@ public class PollService {
         if (name.isEmpty()) {
             voterNames.deleteName(poll.id(), nameKey);
             return;
-        }
-        var max = settings.limits().maxVoterNameLength();
-        if (name.length() > max) {
-            throw new InvalidRequestException("A name can be at most " + max + " characters long.");
-        }
-        if (INVISIBLE.matcher(name).find()) {
-            throw new InvalidRequestException("A name can only hold visible characters.");
         }
         var existing = voterNames.findByPollIdAndNameKey(poll.id(), nameKey);
         if (existing.isEmpty()) {
@@ -241,11 +237,28 @@ public class PollService {
         return voterNames.findByPollIdAndNameKey(poll.id(), nameKey).map(VoterName::name);
     }
 
+    /**
+     * A name as a person typed it, with single spaces between its words and
+     * none around them; blank, it is "". Refused if too long, or if it holds
+     * invisible characters.
+     */
+    String validName(String raw) {
+        var name = raw == null ? "" : SPACES.matcher(raw).replaceAll(" ").strip();
+        var max = settings.limits().maxVoterNameLength();
+        if (name.length() > max) {
+            throw new InvalidRequestException("A name can be at most " + max + " characters long.");
+        }
+        if (INVISIBLE.matcher(name).find()) {
+            throw new InvalidRequestException("A name can only hold visible characters.");
+        }
+        return name;
+    }
+
     private Duration lifetime() {
         return Duration.ofDays(settings.limits().pollLifetimeDays());
     }
 
-    private Poll createdBy(String shareToken, String voterId) {
+    Poll createdBy(String shareToken, String voterId) {
         var poll = find(shareToken);
         if (!poll.isCreatedBy(voterId)) {
             throw new NotPollCreatorException();
@@ -254,15 +267,16 @@ public class PollService {
     }
 
     /**
-     * Live results show each ballot land, and next to a name that appears at
-     * the same moment they show who chose what: a poll showing names waits
-     * for closing unless its creator asks otherwise.
+     * Live results show each ballot land, and next to a name that appears, or
+     * an invitation its creator sees used, at the same moment, they show who
+     * chose what: such a poll waits for closing unless its creator asks
+     * otherwise.
      */
-    private static Poll.ResultsShown resultsShown(Poll.ResultsShown requested, boolean showVoterNames) {
+    private static Poll.ResultsShown resultsShown(Poll.ResultsShown requested, boolean showsWhoVoted) {
         if (requested != null) {
             return requested;
         }
-        return showVoterNames ? Poll.ResultsShown.AFTER_CLOSING : Poll.ResultsShown.LIVE;
+        return showsWhoVoted ? Poll.ResultsShown.AFTER_CLOSING : Poll.ResultsShown.LIVE;
     }
 
     /** Below three ballots, the results are the ballots: two voters each read the other's. */
@@ -361,8 +375,8 @@ public class PollService {
         return code;
     }
 
-    /** 128 random bits: unguessable, so an unlisted poll stays unlisted. */
-    private static String newShareToken() {
+    /** 128 random bits: unguessable, so that an unlisted poll stays unlisted, and an invitation its voter's. */
+    static String randomToken() {
         var bytes = new byte[16];
         RANDOM.nextBytes(bytes);
         return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);

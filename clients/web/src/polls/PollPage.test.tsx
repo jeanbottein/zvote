@@ -120,7 +120,7 @@ describe('voting', () => {
     await screen.findByRole('radiogroup', { name: 'Ramen' });
     await userEvent.click(within(scaleOf('Ramen')).getByRole('radio', { name: 'Excellent' }));
 
-    expect(castBallot).toHaveBeenCalledWith('abc', { judgments: { 1: 'Excellent' } });
+    expect(castBallot).toHaveBeenCalledWith('abc', { judgments: { 1: 'Excellent' } }, null);
     expect(await screen.findByText(/Your ballot is counted/)).toBeInTheDocument();
   });
 
@@ -148,7 +148,7 @@ describe('voting', () => {
     expect(castBallot).not.toHaveBeenCalled();
     await userEvent.click(screen.getByRole('button', { name: 'Submit my ballot' }));
 
-    expect(castBallot).toHaveBeenCalledWith('abc', { judgments: { 1: 'Good', 2: 'Fair' } });
+    expect(castBallot).toHaveBeenCalledWith('abc', { judgments: { 1: 'Good', 2: 'Fair' } }, null);
   });
 
   it('lets the voter withdraw their ballot', async () => {
@@ -162,7 +162,7 @@ describe('voting', () => {
 
     await userEvent.click(await screen.findByRole('button', { name: 'Withdraw' }));
 
-    expect(castBallot).toHaveBeenCalledWith('abc', { judgments: {} });
+    expect(castBallot).toHaveBeenCalledWith('abc', { judgments: {} }, null);
     expect(await screen.findByText('You have not voted yet.')).toBeInTheDocument();
   });
 
@@ -177,7 +177,7 @@ describe('voting', () => {
 
     await userEvent.click(await screen.findByRole('checkbox', { name: 'Tacos' }));
 
-    expect(castBallot).toHaveBeenCalledWith('abc', { approvedOptionIds: ['2'] });
+    expect(castBallot).toHaveBeenCalledWith('abc', { approvedOptionIds: ['2'] }, null);
   });
 });
 
@@ -457,7 +457,7 @@ describe('names', () => {
     expect(await screen.findByLabelText('Your name')).toHaveValue('Jean');
     await userEvent.click(screen.getByRole('checkbox', { name: 'Tacos' }));
 
-    expect(castBallot).toHaveBeenCalledWith('abc', { approvedOptionIds: ['2'], voterName: 'Jean' });
+    expect(castBallot).toHaveBeenCalledWith('abc', { approvedOptionIds: ['2'], voterName: 'Jean' }, null);
   });
 
   it('can be left blank, to vote anonymously', async () => {
@@ -469,7 +469,7 @@ describe('names', () => {
     await userEvent.clear(await screen.findByLabelText('Your name'));
     await userEvent.click(screen.getByRole('checkbox', { name: 'Tacos' }));
 
-    expect(castBallot).toHaveBeenCalledWith('abc', { approvedOptionIds: ['2'], voterName: null });
+    expect(castBallot).toHaveBeenCalledWith('abc', { approvedOptionIds: ['2'], voterName: null }, null);
   });
 
   it('change on a counted ballot once the voter is done typing', async () => {
@@ -486,7 +486,7 @@ describe('names', () => {
     await userEvent.type(name, 'my{Enter}');
 
     expect(castBallot).toHaveBeenCalledTimes(1);
-    expect(castBallot).toHaveBeenCalledWith('abc', { approvedOptionIds: ['1'], voterName: 'Sammy' });
+    expect(castBallot).toHaveBeenCalledWith('abc', { approvedOptionIds: ['1'], voterName: 'Sammy' }, null);
   });
 
   it('warn that live results can tell who chose what', async () => {
@@ -530,5 +530,45 @@ describe('names', () => {
     }));
 
     expect(within(whoVoted).getAllByRole('listitem')).toHaveLength(3);
+  });
+});
+
+describe('a poll only invited people may vote on', () => {
+  const invitational: Poll = { ...lunch, invitationOnly: true, resultsShown: 'AFTER_CLOSING' };
+
+  it('takes the invitation from the link, and votes with it', async () => {
+    vi.mocked(getPoll).mockResolvedValue(invitational);
+    vi.mocked(castBallot).mockResolvedValue(invitational);
+    openPoll('/p/abc#invitation=t0k3n');
+
+    await screen.findByRole('radiogroup', { name: 'Ramen' });
+    expect(getPoll).toHaveBeenCalledWith('abc', 't0k3n');
+    expect(screen.getByText(/Your invitation holds one ballot/)).toBeInTheDocument();
+    await userEvent.click(within(scaleOf('Ramen')).getByRole('radio', { name: 'Good' }));
+
+    expect(castBallot).toHaveBeenCalledWith('abc', { judgments: { 1: 'Good' } }, 't0k3n');
+  });
+
+  it('tells whoever came without an invitation that they cannot vote', async () => {
+    vi.mocked(getPoll).mockResolvedValue({ ...invitational, admission: 'NOT_INVITED' });
+    openPoll();
+
+    expect(await screen.findByText(/^Only invited people can vote on this poll/)).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Your ballot' })).not.toBeInTheDocument();
+  });
+
+  it('says when the link is not a valid invitation', async () => {
+    vi.mocked(getPoll).mockResolvedValue({ ...invitational, admission: 'NOT_INVITED' });
+    openPoll('/p/abc#invitation=made-up');
+
+    expect(await screen.findByText(/^This invitation link is not valid/)).toBeInTheDocument();
+  });
+
+  it('says when the invitation was used in another browser', async () => {
+    vi.mocked(getPoll).mockResolvedValue({ ...invitational, admission: 'INVITATION_USED' });
+    openPoll('/p/abc#invitation=t0k3n');
+
+    expect(await screen.findByText(/^This invitation was already used/)).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Your ballot' })).not.toBeInTheDocument();
   });
 });

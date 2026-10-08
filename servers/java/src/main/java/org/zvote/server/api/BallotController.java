@@ -4,6 +4,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestAttribute;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.zvote.server.api.dto.CastBallotRequest;
@@ -41,10 +42,11 @@ public class BallotController {
     @PutMapping
     public PollView cast(@PathVariable String id,
                          @RequestBody CastBallotRequest ballot,
+                         @RequestHeader(name = InvitationController.HEADER, required = false) String invitation,
                          @RequestAttribute(VoterIdentity.ATTRIBUTE) Voter voter) {
-        var poll = ballots.cast(id, ballot, voter);
+        var poll = ballots.cast(id, ballot, voter, invitation);
         folding.fold();
         stream.changed(poll.id(), () -> views.update(poll.id()));
-        return views.view(poll, voter);
+        return views.view(poll, voter, invitation);
     }
 }

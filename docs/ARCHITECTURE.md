@@ -35,12 +35,12 @@ stand-in to type on a phone (`K7M-4QX`).
 ## Server
 
 Java 25, Spring Boot 4.1: Spring MVC on virtual threads, Spring Data JDBC,
-Flyway, H2 in file mode or PostgreSQL, Spring Modulith. About 1,300 lines of
+Flyway, H2 in file mode or PostgreSQL, Spring Modulith. About 1,500 lines of
 code, in six modules, one per package under `org.zvote.server`:
 
 | Module | Uses | Holds |
 |---|---|---|
-| `polls` | `common` | `Poll`, `PollOption`, `PollService`: every rule about polls |
+| `polls` | `common` | `Poll`, `PollOption`, `PollService`: every rule about polls; who may vote, in `InvitationService` |
 | `ballots` | nothing | ballots, one byte per option; their tallies (`TallyService`); `Mention` |
 | `api` | everything | controllers, the services that join polls and ballots, DTOs, error mapping |
 | `identity` | nothing | the voter cookie and `VoterIdentityFilter` |
@@ -62,7 +62,9 @@ Reactor.
 1. `VoterIdentityFilter` reads the `zvote_voter` cookie (issuing one if
    needed) and puts the `Voter` on the request.
 2. `BallotService`, in one transaction, asks `PollService.findOpen(id)` for
-   the poll (404 if it does not exist, 409 if it is closed), checks that the
+   the poll (404 if it does not exist, 409 if it is closed), and
+   `InvitationService.admit` whether the voter may vote on it (403 if not;
+   see [Invitations](#invitations)). It checks that the
    ballot has the right shape and only this poll's option ids, and encodes it
    as one byte per option, in the options' order (`BallotFormat`: a mention's
    rank, or 1 for an approved option). `BallotBoxService` replaces the voter's
@@ -97,17 +99,20 @@ account first and the anonymous token second (see [ROADMAP.md](ROADMAP.md)).
 Who can tell what someone chose, and what stops them:
 
 - **Someone with a copy of the database** (a backup, a leak, a curious
-  admin) learns nothing about who chose what. A `Voter` stores three
+  admin) learns nothing about who chose what. A `Voter` stores four
   different things:
   - polls it created, under `base64url(SHA-256(token))`;
   - its ballot on a poll, under `HMAC(secret, "ballot:" + poll + ":" + token)`;
-  - its name on a poll, under `HMAC(secret, "name:" + poll + ":" + token)`.
+  - its name on a poll, under `HMAC(secret, "name:" + poll + ":" + token)`;
+  - the invitation it used on a poll, marked with
+    `HMAC(secret, "invitation:" + poll + ":" + token)`.
 
-  Names don't join with ballots, a voter's ballots don't join across polls,
-  and a creator doesn't join with their own ballot. Nothing records when a
-  ballot or a name was given. The server recomputes the keys for whoever
-  holds the cookie, so revising works. Going the other way, from a row back
-  to a person, means guessing a 256-bit token, even with the secret.
+  Names and invitations don't join with ballots, a voter's ballots don't
+  join across polls, and a creator doesn't join with their own ballot.
+  Nothing records when a ballot, a name or an invitation was given. The
+  server recomputes the keys for whoever holds the cookie, so revising
+  works. Going the other way, from a row back to a person, means guessing a
+  256-bit token, even with the secret.
 - **Others on the poll** see the tallies move. Among a few people, a tally
   that moves just as Sam taps "submit", or as "Sam" joins the names, shows
   what Sam chose, mention by mention in the live ballot mode. So a creator
@@ -119,6 +124,18 @@ Who can tell what someone chose, and what stops them:
   many have voted. Closing is for good: reopening would let a creator read
   the results kept back and then watch the next ballots move them. Names
   are listed alphabetically, never in the order they came.
+- **The creator of a poll that takes invitations** knows whom each link went
+  to, and sees which links were used: who voted, never what they chose.
+  They hold every link, but a link only works in the browser that first
+  voted with it: opened anywhere else, it shows neither the ballot nor a way
+  to change it. Showing which were used gives nothing away, since a used
+  link opened elsewhere says so anyway. Seen next to live tallies, a link
+  turning used does show what its voter chose, so such polls show their
+  results at close unless the creator asks otherwise. What the design
+  cannot stop is a creator voting with links they kept before sending them:
+  the people concerned then find theirs used, and can say so. An invitation
+  poll trusts its creator to hand out the links honestly, as any election
+  trusts whoever draws up the list of voters.
 - **Someone looking at the voter's screen**, over a shoulder or on a
   projector, sees the ballot on it. A ballot counted before the page opened
   starts hidden behind "Change my ballot", on every screen size. The cookie
@@ -140,14 +157,16 @@ database, development runs included, the same one.
 
 #### Known limit: what the database itself records
 
-Ballot rows and name rows share no key and no time, but a voter's ballot
-and name are written in one transaction, as voters come.
+Ballot rows, name rows and invitations share no key and no time, but a
+voter's ballot and name, and the invitation their first ballot used, are
+written in one transaction, as voters come.
 
 - **On PostgreSQL, exactly.** Every row carries the transaction that wrote
   it (`xmin`), so whoever can query the live database, or holds a physical
-  copy of it (a base backup, a replica), can join a name to its ballot. A
-  name row is only rewritten when the name changes, so a revised ballot no
-  longer shares its name's transaction, but a first ballot does. That
+  copy of it (a base backup, a replica), can join a name, or an invitation
+  and so whom it was for, to its ballot. A name row is only rewritten when
+  the name changes, and an invitation never again, so a revised ballot no
+  longer shares their transaction, but a first ballot does. That
   reaches the operator, who is trusted anyway (above); backups stay
   logical (`pg_dump`), which carry no `xmin`.
 - **In any copy, roughly.** Rows are stored about in the order written (and
@@ -170,6 +189,31 @@ shown to everyone on the poll as a cloud under the results: the first 100
 names in alphabetical order, then how many more voted. Its key matches no
 ballot row (see [Anonymity](#anonymity)). Withdrawing the ballot takes the name
 away.
+
+### Invitations
+
+A creator can make a poll take invitations (`Poll.invitationOnly`, chosen at
+creation): only the people they invite may vote, each with a link of their
+own. They make one invitation per voter, with a label for whom it is for if
+they like, which only they see, and send each link themselves, by any means
+(the share dialog offers copy, QR code, email and the device's share sheet).
+A poll takes at most `zvote.limits.max-invitations` (1,000) invitations: they
+are made by hand, so they go with their poll in one deletion.
+
+- The link is the poll's address with the invitation's token in the fragment
+  (`/p/{id}#invitation=...`). Browsers never send a fragment, and the client
+  passes the token in the `Zvote-Invitation` header: no URL the server or a
+  proxy logs ever holds it.
+- The first ballot cast with an invitation marks it used by that browser
+  (`InvitationService.admit`, in the casting transaction: of two browsers
+  voting with one link at the same moment, one is refused). From then on
+  that browser votes without the link, and no other can use it. The
+  creator votes without one.
+- Every `PollView` says whether its reader may vote (`admission`), so the page
+  explains why not before anyone tries: no invitation, a link that is not
+  valid, or an invitation used elsewhere.
+- An invitation nobody voted with can be taken back; one that was used
+  cannot, since its ballot cannot be found to remove it.
 
 A join code is drawn at random from 31 characters without look-alikes
 (887 million codes), unique among polls. It is shorter than the 128-bit share
@@ -292,7 +336,8 @@ add CPU. Beyond one PostgreSQL server, ballots split by voter (Citus, or a
 shard key) with folds on each shard. What else stands between zvote and a
 billion-ballot poll is in [ROADMAP.md](ROADMAP.md#scale): live updates across
 servers, results through a CDN for millions of watchers, and, above all,
-identity: one cookie per browser cannot stop anyone from voting twice.
+identity: one cookie per browser cannot stop anyone from voting twice, and
+invitations, which count each person once, are made by hand.
 
 ### Errors
 
@@ -360,11 +405,14 @@ the same way `api` composes polls and ballots on the server.
 | `/p/:id` | a poll: your ballot, the live results, and the creator's controls |
 | `/about` | how results are decided, the research behind it, the source code |
 
-A poll's page address is its share link.
+A poll's page address is its share link. An invitation's link adds the
+invitation in the fragment (`#invitation=...`), which the page passes to the
+server in a header.
 
 ### Data flow on a poll page
 
-`usePoll(id)` loads the poll, then opens its event stream. Loading first
+`usePoll(id, invitation)` loads the poll, as seen with the invitation the
+voter came with, then opens its event stream. Loading first
 guarantees that the stream's first event is at least as recent as what was
 loaded, so an update can neither be missed nor rolled back. Updates are merged
 into the loaded poll; they are the same for every watcher, so `isMine` and
@@ -457,7 +505,9 @@ Playwright is on the roadmap.
 | Results live, after some ballots or at close, chosen per poll | Tallies moving as people vote show who chose what in a small group. |
 | Closing is final | Final results stay final, and results kept back cannot be peeked at then watched. |
 | A counted ballot starts hidden | The voter's screen is not a receipt for whoever looks at it. |
-| Private by link or code; public polls off | Anyone could list anything anonymously; public polls come back for signed-in creators. "Only people I choose" needs accounts too. |
+| Private by link or code; public polls off | Anyone could list anything anonymously; public polls come back for signed-in creators. Choosing who may open a poll needs accounts too. |
+| Invitations made by the creator, held by the first browser that votes | Each person counted once without accounts. The creator holds every link, but a used one shows them nothing. |
+| Invitation tokens in the fragment and a header | No server or proxy log ever holds one. |
 | Names per poll, optional | A cloud of who took part, without an account and without a profile kept across polls. |
 | Polls deleted after 30 days | Data minimisation (GDPR), and nothing to archive for a group decision. |
 | No client state library | Two data hooks and one ballot hook are all the state there is. |
@@ -467,7 +517,11 @@ Playwright is on the roadmap.
 - **Anonymous identity is per browser.** Clearing cookies, or another browser,
   is another voter. Fine among friends, and the creation form says so: zvote
   counts on voters' good faith, and the ballot count shows when it is
-  abused. Decisions that must resist ballot stuffing need invitation polls,
-  or polls for accounts only (roadmap, phase 7).
+  abused. Decisions that must resist ballot stuffing take invitations, which
+  trust the creator instead, or will take accounts (roadmap, phase 7).
+- **An invitation works in one browser.** A voter who changes device, or
+  clears their cookies, can no longer change their ballot, and the creator
+  cannot give them another link without counting them twice. Accounts will
+  carry a ballot across devices.
 - **Live updates are single-node** (see above), though folding is not.
 - **Lists are capped** (50 public polls, 100 of your own) and not paginated.

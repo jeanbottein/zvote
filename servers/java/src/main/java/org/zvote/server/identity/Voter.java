@@ -13,8 +13,9 @@ import java.security.GeneralSecurityException;
  * token, so voters can revise their ballot, but nothing stored leads back to
  * them. Without the token, a copy of the database cannot tell whose ballot a
  * row is, cannot link one voter's ballots across polls, and cannot link a
- * creator to their own ballot. Ballots and names use different keys, so that
- * a name never joins with what its voter chose.
+ * creator to their own ballot. Ballots, names and invitations use different
+ * keys, so that neither a name nor an invitation joins with what its voter
+ * chose.
  */
 public final class Voter {
 
@@ -43,6 +44,11 @@ public final class Voter {
     /** What this voter's name on one poll is stored under: never their ballot key. */
     public String nameKey(long pollId) {
         return key("name", pollId);
+    }
+
+    /** What marks the invitation this voter used on one poll: never their ballot or name key. */
+    public String invitationKey(long pollId) {
+        return key("invitation", pollId);
     }
 
     private String key(String purpose, long pollId) {

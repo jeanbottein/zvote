@@ -40,6 +40,8 @@ zvote:
     max-title-length: 200
     max-option-length: 100
     max-voter-name-length: 40
+    # Per poll. Each one is sent to its person by hand.
+    max-invitations: 1000
     # Polls are for deciding, not archiving: keeping them briefly keeps little
     # personal data (voter names) around.
     poll-lifetime-days: 30

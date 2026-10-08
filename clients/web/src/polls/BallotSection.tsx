@@ -1,7 +1,7 @@
 import { useId, useRef, useState, type ReactNode } from 'react';
 import { flushSync } from 'react-dom';
 import { castBallot, errorMessage } from '../api/client';
-import type { Mention, Poll } from '../api/types';
+import type { Admission, Mention, Poll } from '../api/types';
 import ApprovalBallot from '../features/VotingSystem/Approval/ApprovalBallot';
 import MajorityJudgmentBallot from '../features/VotingSystem/MajorityJudgment/MajorityJudgmentBallot';
 import MajorityJudgmentDropdownBallot from '../features/VotingSystem/MajorityJudgment/MajorityJudgmentDropdownBallot';
@@ -13,21 +13,40 @@ import { useServerInfo } from './useServerInfo';
 
 interface BallotSectionProps {
   poll: Poll;
+  /** The token from the invitation link the voter came with, if any. */
+  invitation: string | null;
   /** Receives the poll as the server returns it after a ballot. */
   onCast(poll: Poll): void;
 }
 
-/** The voter's own ballot, in the poll's voting system. */
+/** The voter's own ballot, in the poll's voting system, or why they cannot vote. */
 export default function BallotSection(props: BallotSectionProps) {
-  return props.poll.votingSystem === 'MAJORITY_JUDGMENT'
+  const { poll, invitation } = props;
+  if (poll.admission !== 'ADMITTED') {
+    return <p className="panel callout">{whyNotAdmitted(poll.admission, invitation !== null)}</p>;
+  }
+  return poll.votingSystem === 'MAJORITY_JUDGMENT'
     ? <MajorityJudgmentBallotSection {...props} />
     : <ApprovalBallotSection {...props} />;
 }
 
+function whyNotAdmitted(admission: Exclude<Admission, 'ADMITTED'>, withInvitation: boolean): string {
+  if (admission === 'INVITATION_USED') {
+    return 'This invitation was already used, in another browser or on another device. Its ballot can only be changed there.';
+  }
+  return withInvitation
+    ? 'This invitation link is not valid. Ask whoever invited you for a new one.'
+    : 'Only invited people can vote on this poll. If you were invited, open the link from your invitation.';
+}
+
+/** What a voter invited to the poll should know before using their invitation. */
+const INVITED = 'Your invitation holds one ballot, which only this browser can change once cast. Whoever invited you '
+  + 'sees that it was used, never what you chose.';
+
 const NO_JUDGMENTS: Record<string, Mention> = {};
 const NO_APPROVALS: string[] = [];
 
-function MajorityJudgmentBallotSection({ poll, onCast }: BallotSectionProps) {
+function MajorityJudgmentBallotSection({ poll, invitation, onCast }: BallotSectionProps) {
   const [{ mjBallot, submission }] = usePreferences();
   const showToast = useToast();
   const voter = useVoterName(poll);
@@ -35,7 +54,7 @@ function MajorityJudgmentBallotSection({ poll, onCast }: BallotSectionProps) {
     saved: poll.myBallot?.judgments ?? NO_JUDGMENTS,
     mode: submission,
     equals: sameJudgments,
-    cast: async (judgments) => onCast(await castBallot(poll.id, { judgments, voterName: voter.forBallot })),
+    cast: async (judgments) => onCast(await castBallot(poll.id, { judgments, voterName: voter.forBallot }, invitation)),
     castChanged: voter.changedSinceCast,
     onError: (error) => showToast(errorMessage(error), 'error'),
   });
@@ -55,6 +74,7 @@ function MajorityJudgmentBallotSection({ poll, onCast }: BallotSectionProps) {
       instructions={submission === 'live'
         ? 'Give every option a mention. Options you have not rated count as Bad.'
         : 'Give every option a mention, then submit your ballot.'}
+      invited={poll.invitationOnly && !poll.isMine}
       nameField={poll.showVoterNames && <VoterNameField poll={poll} voter={voter} onCommit={ballot.recast} />}
     >
       <Ballot options={poll.options} ballot={ballot.ballot} onChange={ballot.change} />
@@ -62,7 +82,7 @@ function MajorityJudgmentBallotSection({ poll, onCast }: BallotSectionProps) {
   );
 }
 
-function ApprovalBallotSection({ poll, onCast }: BallotSectionProps) {
+function ApprovalBallotSection({ poll, invitation, onCast }: BallotSectionProps) {
   const [{ submission }] = usePreferences();
   const showToast = useToast();
   const voter = useVoterName(poll);
@@ -71,7 +91,7 @@ function ApprovalBallotSection({ poll, onCast }: BallotSectionProps) {
     mode: submission,
     equals: sameApprovals,
     cast: async (approvedOptionIds) =>
-      onCast(await castBallot(poll.id, { approvedOptionIds, voterName: voter.forBallot })),
+      onCast(await castBallot(poll.id, { approvedOptionIds, voterName: voter.forBallot }, invitation)),
     castChanged: voter.changedSinceCast,
     onError: (error) => showToast(errorMessage(error), 'error'),
   });
@@ -87,6 +107,7 @@ function ApprovalBallotSection({ poll, onCast }: BallotSectionProps) {
       onSubmit={ballot.submit}
       onWithdraw={() => ballot.withdraw(NO_APPROVALS)}
       instructions="Tick every option you would be happy with."
+      invited={poll.invitationOnly && !poll.isMine}
       nameField={poll.showVoterNames && <VoterNameField poll={poll} voter={voter} onCommit={ballot.recast} />}
     >
       <ApprovalBallot options={poll.options} approved={ballot.ballot} onChange={ballot.change} />
@@ -106,6 +127,8 @@ interface BallotFrameProps {
   onSubmit(): void;
   onWithdraw(): void;
   instructions: string;
+  /** The voter came with an invitation, which this ballot uses. */
+  invited: boolean;
   /** Polls that show names: the voter's name, above the ballot. */
   nameField: ReactNode;
   children: ReactNode;
@@ -119,7 +142,8 @@ interface BallotFrameProps {
  */
 function BallotFrame(props: BallotFrameProps) {
   const {
-    mode, counted, unsent, busy, canSubmit, submitLabel, onSubmit, onWithdraw, instructions, nameField, children,
+    mode, counted, unsent, busy, canSubmit, submitLabel, onSubmit, onWithdraw, instructions, invited, nameField,
+    children,
   } = props;
   const titleId = useId();
   const body = useRef<HTMLDivElement>(null);
@@ -151,6 +175,7 @@ function BallotFrame(props: BallotFrameProps) {
         ? <div className="ballot-body" ref={body} onChange={() => setRevealed(true)}>
           {nameField}
           <p className="hint">{instructions}</p>
+          {invited && !counted && <p className="hint">{INVITED}</p>}
           {children}
           {mode === 'envelope' && (
             <button type="button" className="button primary wide" disabled={!canSubmit || busy} onClick={onSubmit}>

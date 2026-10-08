@@ -15,6 +15,7 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.assertj.MockMvcTester;
@@ -594,6 +595,205 @@ class PollApiTest {
         }
     }
 
+    /** Polls only invited people may vote on: one link each, sent by the creator. */
+    @Nested
+    class Invitations {
+
+        String poll;
+        String ramen;
+        Voter carol;
+
+        @BeforeEach
+        void createPollTakingInvitations() {
+            poll = createPoll(alice, "APPROVAL", "UNLISTED", "\"invitationOnly\": true");
+            ramen = optionIds(poll).getFirst();
+            carol = Voter.random();
+        }
+
+        @Test
+        void onlyInvitedPeopleCanVote() {
+            var view = get(bob, "/api/polls/" + poll);
+            assertThat(view).bodyJson().extractingPath("$.invitationOnly").isEqualTo(true);
+            assertThat(view).bodyJson().extractingPath("$.admission").isEqualTo("NOT_INVITED");
+
+            var result = approve(bob, null);
+
+            assertThat(result).hasStatus(HttpStatus.FORBIDDEN);
+            assertThat(result).bodyJson().extractingPath("$.detail").asString().startsWith("Only invited people");
+            assertThat(get(alice, "/api/polls/" + poll)).bodyJson().extractingPath("$.totalBallots").isEqualTo(0);
+        }
+
+        @Test
+        void anInvitationHoldsOneBallotThatOnlyTheBrowserWhichCastItCanChange() {
+            var invitation = invite("Bob");
+            assertThat(read(bob, invitation)).bodyJson().extractingPath("$.admission").isEqualTo("ADMITTED");
+
+            assertThat(approve(bob, invitation)).hasStatus(HttpStatus.OK);
+            var revised = put(bob, "/api/polls/" + poll + "/ballot", "{\"approvedOptionIds\": []}");
+
+            assertThat(revised).hasStatus(HttpStatus.OK);
+            assertThat(revised).bodyJson().extractingPath("$.admission").isEqualTo("ADMITTED");
+            assertThat(read(carol, invitation)).bodyJson().extractingPath("$.admission").isEqualTo("INVITATION_USED");
+            assertThat(approve(carol, invitation)).hasStatus(HttpStatus.CONFLICT);
+            assertThat(approve(carol, invitation)).bodyJson().extractingPath("$.detail").asString()
+                .startsWith("This invitation was already used");
+        }
+
+        @Test
+        void theCreatorHoldsEveryLinkButNeitherReadsNorChangesTheBallotsCastWithThem() {
+            var invitation = invite("Bob");
+            approve(bob, invitation);
+
+            var asCreator = read(alice, invitation);
+            var castAsCreator = put(alice, "/api/polls/" + poll + "/ballot", "{\"approvedOptionIds\": []}");
+
+            assertThat(asCreator).bodyJson().extractingPath("$.myBallot").isNull();
+            assertThat(castAsCreator).bodyJson().extractingPath("$.myBallot").isNull();
+            assertThat(get(bob, "/api/polls/" + poll)).bodyJson().extractingPath("$.myBallot.approvedOptionIds")
+                .isEqualTo(List.of(ramen));
+        }
+
+        @Test
+        void theCreatorVotesWithoutAnInvitation() {
+            assertThat(get(alice, "/api/polls/" + poll)).bodyJson().extractingPath("$.admission").isEqualTo("ADMITTED");
+
+            assertThat(approve(alice, null)).bodyJson().extractingPath("$.totalBallots").isEqualTo(1);
+        }
+
+        @Test
+        void aLinkThatIsNotAnInvitationToThisPollLetsNobodyIn() {
+            var otherPoll = createPoll(alice, "APPROVAL", "UNLISTED", "\"invitationOnly\": true");
+            var elsewhere = JsonPath.<String>read(
+                body(post(alice, "/api/polls/" + otherPoll + "/invitations", "{}")), "$.token");
+
+            for (var invitation : List.of(elsewhere, "made-up")) {
+                assertThat(read(bob, invitation)).bodyJson().extractingPath("$.admission").isEqualTo("NOT_INVITED");
+                assertThat(approve(bob, invitation)).hasStatus(HttpStatus.FORBIDDEN);
+                assertThat(approve(bob, invitation)).bodyJson().extractingPath("$.detail")
+                    .isEqualTo("This invitation link is not valid. Ask whoever invited you for a new one.");
+            }
+        }
+
+        @Test
+        void aBrowserUsesOneInvitationPerPoll() {
+            var first = invite("Bob");
+            var second = invite("Bob again");
+
+            approve(bob, first);
+            var again = approve(bob, second);
+
+            assertThat(again).bodyJson().extractingPath("$.totalBallots").isEqualTo(1);
+            assertThat(invitations()).bodyJson().extractingPath("$[*].used").isEqualTo(List.of(true, false));
+        }
+
+        @Test
+        void theCreatorSeesWhichInvitationsWereUsedNeverWithWhichBallot() {
+            var forBob = invite("Bob");
+            invite(null);
+            invite("  Zoé\\tM. ");
+            approve(bob, forBob);
+
+            var result = invitations();
+
+            assertThat(result).hasStatus(HttpStatus.OK);
+            assertThat(result).bodyJson().extractingPath("$[*].label").isEqualTo(Arrays.asList("Bob", null, "Zoé M."));
+            assertThat(result).bodyJson().extractingPath("$[*].used").isEqualTo(List.of(true, false, false));
+            assertThat(result).bodyJson().extractingPath("$[0]").asMap().containsOnlyKeys("token", "label", "used");
+            assertThat(forBob).hasSize(22);
+        }
+
+        @Test
+        void onlyItsCreatorManagesThem() {
+            var invitation = invite("Bob");
+
+            assertThat(get(bob, "/api/polls/" + poll + "/invitations")).hasStatus(HttpStatus.FORBIDDEN);
+            assertThat(post(bob, "/api/polls/" + poll + "/invitations", "{}")).hasStatus(HttpStatus.FORBIDDEN);
+            assertThat(delete(bob, "/api/polls/" + poll + "/invitations/" + invitation)).hasStatus(HttpStatus.FORBIDDEN);
+        }
+
+        @Test
+        void anInvitationNobodyVotedWithCanBeTakenBack() {
+            var unused = invite("Bob");
+            var used = invite("Carol");
+            approve(carol, used);
+
+            assertThat(revoke(unused)).hasStatus(HttpStatus.NO_CONTENT);
+            assertThat(revoke(unused)).hasStatus(HttpStatus.NO_CONTENT);
+            assertThat(read(bob, unused)).bodyJson().extractingPath("$.admission").isEqualTo("NOT_INVITED");
+            assertThat(revoke(used)).hasStatus(HttpStatus.CONFLICT);
+            assertThat(revoke(used)).bodyJson().extractingPath("$.detail")
+                .isEqualTo("Someone has voted with this invitation, so it can no longer be taken back.");
+        }
+
+        @Test
+        void aNameOnAnInvitationFollowsTheRulesOfNames() {
+            var tooLong = post(alice, "/api/polls/" + poll + "/invitations", "{\"label\": \"" + "x".repeat(41) + "\"}");
+            var invisible = post(alice, "/api/polls/" + poll + "/invitations", "{\"label\": \"\\u202Eboj\"}");
+
+            assertThat(tooLong).bodyJson().extractingPath("$.detail").isEqualTo("A name can be at most 40 characters long.");
+            assertThat(invisible).bodyJson().extractingPath("$.detail").isEqualTo("A name can only hold visible characters.");
+        }
+
+        @Test
+        void aPollHasAtMostAThousandInvitations(@Autowired JdbcTemplate jdbc) {
+            var pollId = jdbc.queryForObject("SELECT id FROM poll WHERE share_token = ?", Long.class, poll);
+            jdbc.batchUpdate("INSERT INTO invitation (poll_id, token) VALUES (?, ?)",
+                IntStream.range(0, 999).mapToObj(i -> new Object[] {pollId, "token-" + i}).toList());
+
+            assertThat(post(alice, "/api/polls/" + poll + "/invitations", "{}")).hasStatus(HttpStatus.CREATED);
+            assertThat(post(alice, "/api/polls/" + poll + "/invitations", "{}")).bodyJson().extractingPath("$.detail")
+                .isEqualTo("A poll can have at most 1000 invitations.");
+        }
+
+        @Test
+        void aPollOpenToAnyoneTakesNone() {
+            var open = createPoll(alice, "APPROVAL", "UNLISTED");
+
+            var result = post(alice, "/api/polls/" + open + "/invitations", "{}");
+
+            assertThat(result).hasStatus(HttpStatus.BAD_REQUEST);
+            assertThat(get(bob, "/api/polls/" + open)).bodyJson().extractingPath("$.admission").isEqualTo("ADMITTED");
+        }
+
+        @Test
+        void aClosedPollTakesNoMore() {
+            patch(alice, "/api/polls/" + poll, "{\"closed\": true}");
+
+            var result = post(alice, "/api/polls/" + poll + "/invitations", "{}");
+
+            assertThat(result).hasStatus(HttpStatus.CONFLICT);
+            assertThat(result).bodyJson().extractingPath("$.detail")
+                .isEqualTo("This poll is closed: nobody else can vote on it.");
+        }
+
+        String invite(String label) {
+            var result = post(alice, "/api/polls/" + poll + "/invitations",
+                label == null ? "{}" : "{\"label\": \"" + label + "\"}");
+            assertThat(result).hasStatus(HttpStatus.CREATED);
+            return JsonPath.read(body(result), "$.token");
+        }
+
+        MvcTestResult invitations() {
+            return get(alice, "/api/polls/" + poll + "/invitations");
+        }
+
+        MvcTestResult revoke(String invitation) {
+            return delete(alice, "/api/polls/" + poll + "/invitations/" + invitation);
+        }
+
+        /** The poll as someone who opened this invitation's link sees it. */
+        MvcTestResult read(Voter voter, String invitation) {
+            return mvc.get().uri("/api/polls/" + poll).cookie(voter.cookie())
+                .header(InvitationController.HEADER, invitation).exchange();
+        }
+
+        MvcTestResult approve(Voter voter, String invitation) {
+            var request = mvc.put().uri("/api/polls/" + poll + "/ballot").cookie(voter.cookie())
+                .contentType(MediaType.APPLICATION_JSON).content("{\"approvedOptionIds\": [\"" + ramen + "\"]}");
+            return (invitation == null ? request : request.header(InvitationController.HEADER, invitation)).exchange();
+        }
+    }
+
     @Nested
     class Retention {
 
@@ -653,6 +853,17 @@ class PollApiTest {
             assertThat(jdbc.sql("SELECT COUNT(*) FROM poll_removal").query(Long.class).single()).isZero();
         }
 
+        @Test
+        void aDeletedPollTakesItsInvitationsWithIt() {
+            var poll = createPoll(alice, "APPROVAL", "UNLISTED", "\"invitationOnly\": true");
+            post(alice, "/api/polls/" + poll + "/invitations", "{}");
+            var id = idOf(poll);
+
+            delete(alice, "/api/polls/" + poll);
+
+            assertThat(rowsOf("invitation", id)).isZero();
+        }
+
         long rowsOf(String table, long pollId) {
             return jdbc.sql("SELECT COUNT(*) FROM " + table + " WHERE poll_id = :poll")
                 .param("poll", pollId).query(Long.class).single();
@@ -663,8 +874,9 @@ class PollApiTest {
     class ResultsKeptBack {
 
         @Test
-        void aPollShowingNamesShowsItsResultsOnceClosedUnlessAskedOtherwise() {
+        void aPollShowingWhoVotedShowsItsResultsOnceClosedUnlessAskedOtherwise() {
             assertThat(resultsShown("\"showVoterNames\": true")).isEqualTo("AFTER_CLOSING");
+            assertThat(resultsShown("\"invitationOnly\": true")).isEqualTo("AFTER_CLOSING");
             assertThat(resultsShown("\"showVoterNames\": true, \"resultsShown\": \"LIVE\"")).isEqualTo("LIVE");
             assertThat(resultsShown("\"showVoterNames\": false")).isEqualTo("LIVE");
         }
@@ -823,9 +1035,32 @@ class PollApiTest {
         }
 
         @Test
+        void anInvitationSharesNoKeyWithTheBallotOrTheNameCastWithIt() {
+            var poll = createPoll(alice, "APPROVAL", "UNLISTED", "\"invitationOnly\": true, \"showVoterNames\": true");
+            var invitation = JsonPath.<String>read(
+                body(post(alice, "/api/polls/" + poll + "/invitations", "{\"label\": \"Bob\"}")), "$.token");
+            mvc.put().uri("/api/polls/" + poll + "/ballot").cookie(bob.cookie())
+                .header(InvitationController.HEADER, invitation)
+                .contentType(MediaType.APPLICATION_JSON).content("""
+                    {"approvedOptionIds": ["%s"], "voterName": "Bob"}
+                    """.formatted(optionIds(poll).getFirst()))
+                .exchange();
+
+            var ballots = keys("SELECT ballot_key FROM ballot", poll);
+            var names = keys("SELECT name_key FROM voter_name", poll);
+
+            assertThat(ballots).hasSize(1);
+            assertThat(names).hasSize(1);
+            assertThat(keys("SELECT used_by FROM invitation", poll)).hasSize(1)
+                .doesNotContainAnyElementsOf(ballots)
+                .doesNotContainAnyElementsOf(names)
+                .doesNotContain(voterIdOf(bob));
+        }
+
+        @Test
         void nothingRecordsWhenABallotOrANameWasGiven() {
             assertThat(timestampColumns("poll")).as("poll: created_at, closed_at").isEqualTo(2);
-            for (var table : List.of("ballot", "ballot_change", "tally", "ballot_count", "voter_name")) {
+            for (var table : List.of("ballot", "ballot_change", "tally", "ballot_count", "voter_name", "invitation")) {
                 assertThat(timestampColumns(table)).as(table).isZero();
             }
         }
@@ -971,7 +1206,7 @@ class PollApiTest {
             entry("approvalVoting", true), entry("majorityJudgment", true));
         assertThat(result).bodyJson().extractingPath("$.limits").asMap().containsOnly(
             entry("maxOptions", 20), entry("maxTitleLength", 200), entry("maxOptionLength", 100),
-            entry("maxVoterNameLength", 40), entry("pollLifetimeDays", 30));
+            entry("maxVoterNameLength", 40), entry("maxInvitations", 1000), entry("pollLifetimeDays", 30));
     }
 
     @Test

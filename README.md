@@ -22,6 +22,9 @@ in, on a phone or a desktop, with nothing to install and no account needed.
   Vote *live* (every tap counts) or *in an envelope* (review, then submit).
 - **Private polls**, shared by link, join code (`K7M-4QX`), QR code or your
   phone's share sheet. Public polls come back with accounts.
+- **Invitation polls**, when each person must count once: send everyone a
+  link of their own, good for one ballot. You see which links were used,
+  never what anyone chose.
 - **For the creator**: close voting (for good), delete the poll, download the
   results.
 - **Private by design**: nobody else sees a ballot, only the totals, which

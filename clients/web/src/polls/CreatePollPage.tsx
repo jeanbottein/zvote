@@ -21,6 +21,20 @@ const VISIBILITY_HINTS: Record<Visibility, string> = {
   UNLISTED: 'Not listed anywhere: only people you share the link or the code with can find it.',
 };
 
+const WHO_CAN_VOTE: { value: 'anyone' | 'invited'; label: string }[] = [
+  { value: 'anyone', label: 'Anyone' },
+  { value: 'invited', label: 'Invited only' },
+];
+
+/** A browser is all that tells voters apart, unless the creator invites each one: the creator is warned. */
+const WHO_CAN_VOTE_HINTS = {
+  anyone: 'Anyone with the link or the code can vote. Someone set on it can vote again from another browser or '
+    + 'device: zvote counts on good faith, and the number of ballots shows if someone did. To count each person '
+    + 'once, invite them.',
+  invited: 'You send each person a link of their own, which holds one ballot. You will see which links were used, '
+    + 'never what anyone chose.',
+};
+
 const VOTER_NAMES: { value: 'anonymous' | 'shown'; label: string }[] = [
   { value: 'anonymous', label: 'Anonymous' },
   { value: 'shown', label: 'Show names' },
@@ -54,10 +68,11 @@ export default function CreatePollPage() {
   const [options, setOptions] = useState<string[]>([]);
   const [votingSystem, setVotingSystem] = useState<VotingSystem>('MAJORITY_JUDGMENT');
   const [visibility, setVisibility] = useState<Visibility>('UNLISTED');
+  const [invitationOnly, setInvitationOnly] = useState(false);
   const [showVoterNames, setShowVoterNames] = useState(false);
-  // Until chosen, results wait for closing on polls that show names (as the server decides).
+  // Until chosen, results wait for closing on polls that show who voted (as the server decides).
   const [chosenResultsShown, setChosenResultsShown] = useState<ResultsShown | null>(null);
-  const resultsShown = chosenResultsShown ?? (showVoterNames ? 'AFTER_CLOSING' : 'LIVE');
+  const resultsShown = chosenResultsShown ?? (invitationOnly || showVoterNames ? 'AFTER_CLOSING' : 'LIVE');
   const [resultsAfterBallots, setResultsAfterBallots] = useState('5');
   const [showProblems, setShowProblems] = useState(false);
   const [creating, setCreating] = useState(false);
@@ -118,6 +133,7 @@ export default function CreatePollPage() {
         options: filledOptions(options),
         votingSystem: chosenSystem,
         visibility: chosenVisibility,
+        invitationOnly,
         showVoterNames,
         resultsShown,
         resultsAfterBallots: resultsShown === 'AFTER_BALLOTS' ? Number(resultsAfterBallots) : null,
@@ -201,6 +217,16 @@ export default function CreatePollPage() {
       )}
 
       <SegmentedControl
+        legend="Who can vote"
+        name="whoCanVote"
+        value={invitationOnly ? 'invited' : 'anyone'}
+        options={WHO_CAN_VOTE}
+        onChange={(choice) => setInvitationOnly(choice === 'invited')}
+        hint={WHO_CAN_VOTE_HINTS[invitationOnly ? 'invited' : 'anyone']}
+        hintTone={invitationOnly ? undefined : 'warning'}
+      />
+
+      <SegmentedControl
         legend="Who voted"
         name="voterNames"
         value={showVoterNames ? 'shown' : 'anonymous'}
@@ -238,11 +264,6 @@ export default function CreatePollPage() {
           </div>
         )}
       </SegmentedControl>
-
-      <p className="hint" data-tone="warning">
-        Anyone set on it can vote more than once, from another browser or device: zvote counts on voters' good
-        faith. Keep an eye on the number of ballots, which should not exceed the number of people you invited.
-      </p>
 
       <p className="hint">Polls are deleted {limits.pollLifetimeDays} days after they are created, with their ballots.</p>
 

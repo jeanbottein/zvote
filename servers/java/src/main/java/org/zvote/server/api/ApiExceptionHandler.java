@@ -17,6 +17,8 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 import org.zvote.server.common.InvalidRequestException;
+import org.zvote.server.polls.InvitationUsedException;
+import org.zvote.server.polls.NotInvitedException;
 import org.zvote.server.polls.NotPollCreatorException;
 import org.zvote.server.polls.PollClosedException;
 import org.zvote.server.polls.PollNotFoundException;
@@ -44,7 +46,17 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
     }
 
     @ExceptionHandler
+    ProblemDetail notInvited(NotInvitedException e) {
+        return problem(HttpStatus.FORBIDDEN, e.getMessage());
+    }
+
+    @ExceptionHandler
     ProblemDetail pollClosed(PollClosedException e) {
+        return problem(HttpStatus.CONFLICT, e.getMessage());
+    }
+
+    @ExceptionHandler
+    ProblemDetail invitationUsed(InvitationUsedException e) {
         return problem(HttpStatus.CONFLICT, e.getMessage());
     }
 

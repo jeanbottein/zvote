@@ -9,14 +9,14 @@ class ZVotePropertiesTest {
     @Test
     void aLifetimeLeftOutStopsTheServerRatherThanDeletingEveryPoll() {
         assertThatIllegalArgumentException()
-            .isThrownBy(() -> new ZVoteProperties.Limits(20, 200, 100, 40, 0))
+            .isThrownBy(() -> new ZVoteProperties.Limits(20, 200, 100, 40, 1000, 0))
             .withMessageContaining("poll-lifetime-days");
     }
 
     @Test
     void aNameLongerThanItsColumnIsRefused() {
         assertThatIllegalArgumentException()
-            .isThrownBy(() -> new ZVoteProperties.Limits(20, 200, 100, 101, 30))
+            .isThrownBy(() -> new ZVoteProperties.Limits(20, 200, 100, 101, 1000, 30))
             .withMessageContaining("max-voter-name-length");
     }
 }

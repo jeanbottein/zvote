@@ -5,7 +5,10 @@ import type { Poll, ServerInfo } from '../api/types';
 export function serverInfo(features: Partial<ServerInfo['features']> = {}): ServerInfo {
   return {
     features: { publicPolls: false, unlistedPolls: true, approvalVoting: true, majorityJudgment: true, ...features },
-    limits: { maxOptions: 20, maxTitleLength: 200, maxOptionLength: 100, maxVoterNameLength: 40, pollLifetimeDays: 30 },
+    limits: {
+      maxOptions: 20, maxTitleLength: 200, maxOptionLength: 100, maxVoterNameLength: 40, maxInvitations: 1000,
+      pollLifetimeDays: 30,
+    },
   };
 }
 
@@ -21,6 +24,7 @@ export function lunchPoll(changes: Partial<Poll> = {}): Poll {
     title: 'Where do we eat?',
     votingSystem: 'MAJORITY_JUDGMENT',
     visibility: 'UNLISTED',
+    invitationOnly: false,
     showVoterNames: false,
     resultsShown: 'LIVE',
     resultsAfterBallots: null,
@@ -28,6 +32,7 @@ export function lunchPoll(changes: Partial<Poll> = {}): Poll {
     closedAt: null,
     expiresAt: '2026-10-24T10:00:00Z',
     isMine: false,
+    admission: 'ADMITTED',
     totalBallots: 0,
     options: [
       { id: '1', label: 'Ramen', approvalCount: null, judgmentCounts: NO_JUDGMENTS },

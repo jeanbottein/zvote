@@ -13,8 +13,9 @@ import java.time.Instant;
  * usual "anyone with the link" trade-off. The join code is a short stand-in for
  * it, to type on a phone.
  *
- * showVoterNames and resultsShown are chosen once, at creation: whether the
- * poll shows who took part, and when its results show.
+ * invitationOnly, showVoterNames and resultsShown are chosen once, at
+ * creation: whether only invited people may vote (see InvitationService),
+ * whether the poll shows who took part, and when its results show.
  */
 public record Poll(
     @Id Long id,
@@ -24,6 +25,7 @@ public record Poll(
     String title,
     VotingSystem votingSystem,
     Visibility visibility,
+    boolean invitationOnly,
     boolean showVoterNames,
     ResultsShown resultsShown,
     Long resultsAfterBallots,
@@ -34,8 +36,8 @@ public record Poll(
 
     /**
      * Whether the poll is listed publicly. Anyone holding the link can open
-     * either kind; restricting access to named people needs accounts, and
-     * arrives with them.
+     * either kind, even when only invited people may vote; restricting who
+     * can open it needs accounts, and arrives with them.
      */
     public enum Visibility { PUBLIC, UNLISTED }
 
@@ -68,7 +70,7 @@ public record Poll(
     }
 
     Poll withClosedAt(Instant closedAt) {
-        return new Poll(id, shareToken, joinCode, creatorId, title, votingSystem, visibility, showVoterNames,
-            resultsShown, resultsAfterBallots, createdAt, closedAt);
+        return new Poll(id, shareToken, joinCode, creatorId, title, votingSystem, visibility, invitationOnly,
+            showVoterNames, resultsShown, resultsAfterBallots, createdAt, closedAt);
     }
 }

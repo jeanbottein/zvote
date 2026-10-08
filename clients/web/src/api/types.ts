@@ -18,6 +18,14 @@ export type ResultsShown = 'LIVE' | 'AFTER_BALLOTS' | 'AFTER_CLOSING';
 /** Whether a poll is listed publicly. Anyone with the link or the join code can open either kind. */
 export type Visibility = 'PUBLIC' | 'UNLISTED';
 
+/**
+ * Whether the caller may vote: anyone may, on a poll that takes no
+ * invitations. On one that does, its creator may, and whoever brings an
+ * invitation (NOT_INVITED: none, or not a valid one), which then holds their
+ * ballot in their browser only (INVITATION_USED: it was used in another).
+ */
+export type Admission = 'ADMITTED' | 'NOT_INVITED' | 'INVITATION_USED';
+
 export interface PollOption {
   id: string;
   label: string;
@@ -41,6 +49,8 @@ export interface Poll {
   title: string;
   votingSystem: VotingSystem;
   visibility: Visibility;
+  /** Chosen at creation: only people its creator invites may vote, each with a link of their own. */
+  invitationOnly: boolean;
   /** Chosen at creation: voters may give a name, which everyone on the poll sees. */
   showVoterNames: boolean;
   /** Chosen at creation: when the results show. Until then, the options carry no counts. */
@@ -52,6 +62,7 @@ export interface Poll {
   /** When the server deletes the poll, with its ballots. */
   expiresAt: string;
   isMine: boolean;
+  admission: Admission;
   totalBallots: number;
   options: PollOption[];
   /** Polls that show names: the first names voters gave, in alphabetical order. Never what they chose. */
@@ -74,9 +85,21 @@ export interface NewPoll {
   options: string[];
   votingSystem: VotingSystem;
   visibility: Visibility;
+  invitationOnly: boolean;
   showVoterNames: boolean;
   resultsShown: ResultsShown;
   resultsAfterBallots: number | null;
+}
+
+/**
+ * An invitation, as the creator of its poll sees it: the token its link
+ * carries, whom it is for (null: they did not say), and whether someone
+ * voted with it. Never what they chose.
+ */
+export interface Invitation {
+  token: string;
+  label: string | null;
+  used: boolean;
 }
 
 /**
@@ -100,6 +123,7 @@ export interface ServerInfo {
     maxTitleLength: number;
     maxOptionLength: number;
     maxVoterNameLength: number;
+    maxInvitations: number;
     pollLifetimeDays: number;
   };
 }

@@ -7,6 +7,7 @@ import org.zvote.server.ballots.BallotBoxService;
 import org.zvote.server.ballots.Mention;
 import org.zvote.server.common.InvalidRequestException;
 import org.zvote.server.identity.Voter;
+import org.zvote.server.polls.InvitationService;
 import org.zvote.server.polls.Poll;
 import org.zvote.server.polls.PollOption;
 import org.zvote.server.polls.PollService;
@@ -18,9 +19,9 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 /**
- * Casts a ballot in the poll's voting system, after checking it has the right
- * shape and only this poll's options, and writes it as {@link BallotFormat}
- * says.
+ * Casts a ballot in the poll's voting system, after checking the voter may
+ * (InvitationService), and that it has the right shape and only this poll's
+ * options, and writes it as {@link BallotFormat} says.
  *
  * One transaction holds the poll's lock from the check that it is open to the
  * saved ballot, so a poll closed or deleted at the same moment either waits
@@ -37,20 +38,24 @@ public class BallotService {
         .collect(Collectors.joining(", "));
 
     private final PollService polls;
+    private final InvitationService invitations;
     private final BallotBoxService ballotBox;
 
-    public BallotService(PollService polls, BallotBoxService ballotBox) {
+    public BallotService(PollService polls, InvitationService invitations, BallotBoxService ballotBox) {
         this.polls = polls;
+        this.invitations = invitations;
         this.ballotBox = ballotBox;
     }
 
     /**
      * Returns the poll the ballot was cast on. The voter's name goes with their
-     * ballot, but under a key of its own (see {@link Voter}).
+     * ballot, but under a key of its own (see {@link Voter}). invitation: the
+     * token from the invitation link the voter came with, if any.
      */
     @Transactional
-    public Poll cast(String shareToken, CastBallotRequest ballot, Voter voter) {
+    public Poll cast(String shareToken, CastBallotRequest ballot, Voter voter, String invitation) {
         var poll = polls.findOpen(shareToken);
+        invitations.admit(poll, voter.id(), voter.invitationKey(poll.id()), invitation);
         var options = polls.optionsOf(poll);
         var choices = switch (poll.votingSystem()) {
             case APPROVAL -> approvals(ballot, options);

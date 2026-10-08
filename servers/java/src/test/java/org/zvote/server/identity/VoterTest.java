@@ -15,6 +15,7 @@ class VoterTest {
     void theSameVoterFindsTheirKeysAgain() {
         assertThat(voter(TOKEN, "secret").ballotKey(1)).isEqualTo(voter(TOKEN, "secret").ballotKey(1));
         assertThat(voter(TOKEN, "secret").nameKey(1)).isEqualTo(voter(TOKEN, "secret").nameKey(1));
+        assertThat(voter(TOKEN, "secret").invitationKey(1)).isEqualTo(voter(TOKEN, "secret").invitationKey(1));
     }
 
     @Test
@@ -24,6 +25,7 @@ class VoterTest {
         assertThat(voter.ballotKey(1))
             .isNotEqualTo(voter.ballotKey(2))
             .isNotEqualTo(voter.nameKey(1))
+            .isNotEqualTo(voter.invitationKey(1))
             .isNotEqualTo(voter.id())
             .isNotEqualTo(voter(TOKEN, "another secret").ballotKey(1))
             .isNotEqualTo(voter("b".repeat(43), "secret").ballotKey(1));

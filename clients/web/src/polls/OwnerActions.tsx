@@ -3,6 +3,7 @@ import { flushSync } from 'react-dom';
 import { useNavigate } from 'react-router';
 import { closePoll, deletePoll, errorMessage } from '../api/client';
 import type { Poll } from '../api/types';
+import Confirmation from '../ui/Confirmation';
 import { useToast } from '../ui/Toasts';
 
 interface OwnerActionsProps {
@@ -96,33 +97,5 @@ export default function OwnerActions({ poll, onChange }: OwnerActionsProps) {
         />
       )}
     </section>
-  );
-}
-
-interface ConfirmationProps {
-  id: string;
-  question: string;
-  busy: boolean;
-  keep: string;
-  confirm: string;
-  tone: 'primary' | 'danger';
-  onKeep(): void;
-  onConfirm(): void;
-}
-
-/** Takes the focus, on the choice that changes nothing. */
-function Confirmation({ id, question, busy, keep, confirm, tone, onKeep, onConfirm }: ConfirmationProps) {
-  return (
-    <div className="confirm" role="alertdialog" aria-labelledby={id}>
-      <p id={id}>{question}</p>
-      <div className="button-row">
-        <button type="button" className="button secondary" disabled={busy} onClick={onKeep} autoFocus>
-          {keep}
-        </button>
-        <button type="button" className={`button ${tone}`} disabled={busy} onClick={onConfirm}>
-          {confirm}
-        </button>
-      </div>
-    </div>
   );
 }

@@ -14,6 +14,7 @@ the codebase as simple as it found it: add what the phase needs, no more.
 | 4 | Client rebuilt against it: one API module, three screens, mobile-first design, live and envelope ballots, tests |
 | 5 | MVP for groups: private polls shared by link or join code (`K7M-4QX`), optional voter names shown as a cloud under the results, polls deleted 30 days after creation; public polls off until accounts |
 | 5b | Ballots at scale, first step (see [Scale](#scale)): one row per ballot, tallies folded from a change log, deleted polls removed in batches, PostgreSQL supported and tested; 41 times faster on PostgreSQL, and as fast on a poll of 10 million ballots as on a new one |
+| 5c | Invitation polls: the creator sends each voter a link of their own, good for one ballot in the browser that first votes with it, and sees which links were used, never what anyone chose |
 
 ## Next
 
@@ -89,12 +90,12 @@ domain (Apple also needs a paid developer account).
   keep the secret out of backups.
 - **Keep the anonymous past.** At sign-in, move the anonymous voter's ballots
   and polls onto the account, in one transaction. Polls: update
-  `creator_id`. Ballots and names are keyed per poll, so re-key them: for
-  each poll still alive (30 days at most), look up the anonymous keys and
-  rewrite them as the account's. Where both identities voted on the same
-  poll, ballots record no time to tell which is newer: keep the one cast
-  from this browser, the one its voter just saw. Without this, ballots cast
-  before signing in are orphaned.
+  `creator_id`. Ballots, names and used invitations are keyed per poll, so
+  re-key them: for each poll still alive (30 days at most), look up the
+  anonymous keys and rewrite them as the account's. Where both identities
+  voted on the same poll, ballots record no time to tell which is newer:
+  keep the one cast from this browser, the one its voter just saw. Without
+  this, ballots cast before signing in are orphaned.
 - **A voter code, not a receipt.** Accounts answer "revise my ballot from
   another device". Before them, a code that restores the voter token
   elsewhere would do. It must never show the choices on its own, or someone
@@ -104,23 +105,6 @@ domain (Apple also needs a paid developer account).
   one ballot per account, not per browser. That raises the bar but does not
   close it, since anyone can open several accounts. Say so where the option
   is offered, as the creation form already says it of browsers.
-- **Invitation polls.** For votes that must count each person once, the
-  creator generates one link per voter and sends each to one person.
-  These polls don't need accounts and could come before them.
-  - Each link carries its own voter token, so it holds exactly one ballot,
-    which can be revised. The poll can't be joined by its share link or code.
-  - Each invitation is anonymous, or bears a pseudonym that the creator or
-    the voter gives.
-  - The creator answers for sending each link to the right person, and could
-    vote with a link they kept: the trust moves from the voters to the
-    creator. The form must say so.
-  - Keep invitations as unlinkable from ballots as browsers are today: a
-    ballot is keyed by the invitation's token, as by the cookie's.
-  - Whether to show the creator which invitations were used is the owner's
-    call. Showing it tells the creator who voted, though never what.
-  - Sending: one row per invitation with icons to share it (copy, QR code,
-    email, SMS, the usual messengers through `navigator.share`), and a way
-    to mark it sent. The native app makes this easier (phase 9).
 - **Restricted polls.** A `PRIVATE` visibility: only listed accounts (or
   a group) can open the poll. The check belongs in `PollService.find`, where
   visibility rules live.
@@ -154,7 +138,7 @@ Still to do:
   the app.
 - **Share links** built from the public web address, not the app's origin
   (`ShareButton` uses `window.location.origin` today).
-- **Sending invitations** (see phase 7): the system share sheet and the
+- **Sending invitations** (phase 5c): the system share sheet and the
   contacts picker, so a creator sends each voter their link in a tap or two.
 - The Android back button, the status bar colour, and the Capacitor share
   plugin where `navigator.share` is missing.
@@ -181,8 +165,9 @@ thousands of ballots a second. Next, in order:
   ballot key as the shard key) and fold per shard; the counters stay one
   small table per poll.
 - **Identity at scale.** One cookie per browser lets anyone vote twice by
-  clearing it. A billion-ballot poll needs accounts or invitations (phase 7),
-  or proof of personhood, and rate limits per network: of all the limits, this is the
+  clearing it, and invitations, which count each person once, are made by
+  hand. A billion-ballot poll needs accounts (phase 7) or proof of
+  personhood, and rate limits per network: of all the limits, this is the
   one technology alone does not remove.
 
 ## Questions for the owner
@@ -196,6 +181,11 @@ Choices that change results or meaning, deliberately left as they are:
    vote, which can anchor voters. "At close" exists now (below); "after
    voting" would be simple to add, but it shows a voter the tallies just
    before and after their own ballot.
+3. **The creator votes without an invitation.** On a poll that takes
+   invitations, its creator may vote without one, so there can be one more
+   ballot than invitations used. Making the creator invite themselves would
+   keep the count exact, at the price of opening their own link to vote
+   (one condition in `InvitationService`).
 
 Decided:
 
@@ -210,6 +200,11 @@ Decided:
 - Closing is final (2026-10-06): a closed poll cannot be reopened, and the
   creator confirms after a warning saying so. Final results stay final, and
   results kept for the closing cannot be peeked at.
+- Invitation polls (2026-10-08): for votes that must count each person once,
+  the creator sends each voter a link of their own, named or anonymous. The
+  creation form warns that otherwise zvote counts on good faith. The creator
+  sees which links were used (a used link says so to anyone opening it
+  anyway), never what anyone chose.
 
 - With an even number of ballots, the majority mention is the lower of the two
   middle mentions (classic majority judgment), so five `Excellent` and five

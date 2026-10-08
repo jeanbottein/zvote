@@ -118,9 +118,12 @@ class TallyFolding implements SmartLifecycle {
         return SmartLifecycle.DEFAULT_PHASE - 4096;
     }
 
+    /** The thread is told it runs before it starts: started first, it once ran, saw no folder, and stopped. */
     @Override
     public void start() {
-        folder = Thread.ofVirtual().name("tally-folding").start(this::run);
+        var thread = Thread.ofVirtual().name("tally-folding").unstarted(this::run);
+        folder = thread;
+        thread.start();
     }
 
     /**

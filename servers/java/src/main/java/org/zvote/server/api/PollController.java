@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestAttribute;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
@@ -67,13 +68,14 @@ public class PollController {
                                            @RequestAttribute(VoterIdentity.ATTRIBUTE) Voter voter) {
         var poll = creations.create(request, voter.id());
         return ResponseEntity.created(URI.create("/api/polls/" + poll.shareToken()))
-            .body(views.view(poll, voter));
+            .body(views.view(poll, voter, null));
     }
 
     @GetMapping("/{id}")
     public PollView get(@PathVariable String id,
+                        @RequestHeader(name = InvitationController.HEADER, required = false) String invitation,
                         @RequestAttribute(VoterIdentity.ATTRIBUTE) Voter voter) {
-        return views.view(polls.find(id), voter);
+        return views.view(polls.find(id), voter, invitation);
     }
 
     @PatchMapping("/{id}")
@@ -86,7 +88,7 @@ public class PollController {
         var poll = polls.close(id, voter.id());
         folding.fold(FINAL_FOLD);
         stream.changed(poll.id(), () -> views.update(poll.id()));
-        return views.view(poll, voter);
+        return views.view(poll, voter, null);
     }
 
     @DeleteMapping("/{id}")

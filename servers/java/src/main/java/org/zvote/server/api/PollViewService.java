@@ -12,6 +12,7 @@ import org.zvote.server.ballots.BallotBoxService;
 import org.zvote.server.ballots.Tally;
 import org.zvote.server.ballots.TallyService;
 import org.zvote.server.identity.Voter;
+import org.zvote.server.polls.InvitationService;
 import org.zvote.server.polls.Poll;
 import org.zvote.server.polls.PollOption;
 import org.zvote.server.polls.PollService;
@@ -38,17 +39,21 @@ import java.util.List;
 public class PollViewService {
 
     private final PollService polls;
+    private final InvitationService invitations;
     private final BallotBoxService ballotBox;
     private final TallyService tallies;
 
-    public PollViewService(PollService polls, BallotBoxService ballotBox, TallyService tallies) {
+    public PollViewService(PollService polls, InvitationService invitations, BallotBoxService ballotBox,
+                           TallyService tallies) {
         this.polls = polls;
+        this.invitations = invitations;
         this.ballotBox = ballotBox;
         this.tallies = tallies;
     }
 
+    /** invitation: the token from the invitation link the voter came with, if any. */
     @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
-    public PollView view(Poll poll, Voter voter) {
+    public PollView view(Poll poll, Voter voter, String invitation) {
         var options = polls.optionsOf(poll);
         var results = results(poll, options);
         return new PollView(
@@ -57,6 +62,7 @@ public class PollViewService {
             poll.title(),
             poll.votingSystem(),
             poll.visibility(),
+            poll.invitationOnly(),
             poll.showVoterNames(),
             poll.resultsShown(),
             poll.resultsAfterBallots(),
@@ -64,6 +70,7 @@ public class PollViewService {
             poll.closedAt(),
             polls.expiryOf(poll),
             poll.isCreatedBy(voter.id()),
+            invitations.admissionOf(poll, voter.id(), voter.invitationKey(poll.id()), invitation),
             results.totalBallots(),
             results.options(),
             results.voterNames(),

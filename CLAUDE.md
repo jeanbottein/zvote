@@ -13,8 +13,9 @@ that works. When those pull apart, pick YAGNI and simplicity: no ports and
 adapters, no interface per implementation, no mapper per boundary.
 
 The MVP is for groups deciding together: private polls shared by link or join
-code, optional voter names shown as a cloud, results live, delayed or at close
-(the creator's choice), ballots unlinkable at rest, polls deleted after 30 days,
+code, or by invitation (one link per voter, sent by the creator), optional
+voter names shown as a cloud, results live, delayed or at close (the
+creator's choice), ballots unlinkable at rest, polls deleted after 30 days,
 public polls off until accounts. Under it, one poll must scale to billions of
 ballots (docs/ROADMAP.md, "Scale"): never let a request's cost grow with a
 poll's size. Next phases (in order): deployment on
@@ -60,7 +61,8 @@ npm run build        # typecheck + production bundle
 Read `docs/ARCHITECTURE.md` for the reasoning; the essentials:
 
 **Server**: one Spring Modulith module per package under `org.zvote.server`:
-`polls` (the question; every poll rule is in `PollService`), `ballots` (one
+`polls` (the question; every poll rule is in `PollService`, who may vote in
+`InvitationService`), `ballots` (one
 row per ballot, one byte per option, for every voting system; the tallies,
 folded from a change log; `Mention`), `api` (controllers, `PollViewService`,
 DTOs, error mapping; the only module that knows both polls and ballots, and
@@ -194,10 +196,16 @@ shown to people as is: write it as a sentence for them.
   `UnexpectedFailureTest` and stole the stub. Tests call the job themselves.
 - **Voter names are per poll and go with the ballot**: a `PUT` without
   `voterName` makes the voter anonymous, and withdrawing forgets the name.
-  They never say who chose what: names and ballots are keyed apart
-  (`Voter.nameKey` / `Voter.ballotKey`, HMACs per poll under
-  `ZVOTE_VOTER_SECRET`). Never store them under the same key or the voter id,
-  never add a timestamp to either, and keep the name cloud alphabetical.
+  They never say who chose what: names, ballots and used invitations are
+  keyed apart (`Voter.nameKey` / `ballotKey` / `invitationKey`, HMACs per
+  poll under `ZVOTE_VOTER_SECRET`). Never store two of them under the same
+  key or the voter id, never add a timestamp to any, and keep the name cloud
+  alphabetical.
+- **An invitation's token never goes in a URL the server sees**: its link
+  carries it in the fragment (`/p/{id}#invitation=...`), and the client
+  sends it in the `Zvote-Invitation` header. The first ballot cast with it
+  binds it to that browser (`InvitationService.admit`): the creator holds
+  every link, and a used one must show them nothing.
 - **The server will not start without `ZVOTE_VOTER_SECRET`** (32+
   characters). `spring-boot:run` and `./dev.sh` get a development one from
   `pom.xml`, tests from `application-test.yml`; `java -jar`, a native image
@@ -227,6 +235,14 @@ shown to people as is: write it as a sentence for them.
   after renaming or removing a test.
 - **Never interrupt a thread that may be reading H2's file**: H2 closes the
   whole database. `TallyFolding.stop()` lets the current fold finish.
+- **A thread must be told it runs before it starts**: `TallyFolding`'s loop
+  runs while `folder` is set. Started first and assigned after, the thread
+  once ran before the assignment, stopped at once, and the server never
+  folded a ballot again (seen once, under load).
+- **A `-PnativeTest` run leaves AOT classes in `target/test-classes`**,
+  Spring Data's generated accessors among them. After changing an entity,
+  `./mvnw test` then fails with "No accessor to get property": delete
+  `target/test-classes` and `target/spring-aot`.
 - **PostgreSQL waits for locks forever unless told**: its URL carries
   `?options=-c%20lock_timeout%3D2s`, and its timeout (SQL state `55P03`),
   which Spring leaves uncategorized, is turned into a 409 in

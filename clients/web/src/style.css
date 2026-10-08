@@ -728,7 +728,8 @@ fieldset.field {
   content: "✓ ";
 }
 
-.results-count {
+.results-count,
+.invitation-count {
   color: var(--muted);
   font-size: 14px;
 }
@@ -835,14 +836,102 @@ fieldset.field {
   text-align: center;
 }
 
-.owner-actions .confirm {
+.confirm {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  margin-top: 16px;
   padding: 12px;
   border: 1px solid var(--danger-text);
   border-radius: var(--radius-small);
+}
+
+.owner-actions .confirm {
+  margin-top: 16px;
+}
+
+.invitations > .hint {
+  margin-bottom: 12px;
+}
+
+.invitation-list {
+  margin: 0 0 16px;
+  padding: 0;
+  list-style: none;
+}
+
+/* Name and status on the left, its buttons on the right; a confirmation below. */
+.invitation {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 0;
+  border-top: 1px solid var(--border);
+}
+
+.invitation:last-child {
+  border-bottom: 1px solid var(--border);
+}
+
+.invitation-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.invitation-name {
+  overflow: hidden;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.invitation-name[data-anonymous="true"] {
+  color: var(--muted);
+}
+
+.invitation-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.invitation[data-used="true"] .invitation-status {
+  color: var(--success);
+  font-weight: 600;
+}
+
+.invitation-status .icon {
+  width: 16px;
+  height: 16px;
+}
+
+.invitation .confirm {
+  flex-basis: 100%;
+  margin: 4px 0 6px;
+}
+
+.invite-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.invite-form > label {
+  font-weight: 700;
+}
+
+.invite-row {
+  display: flex;
+  gap: 8px;
+}
+
+.invite-row input {
+  flex: 1;
+  min-width: 0;
 }
 
 .dev-tool {

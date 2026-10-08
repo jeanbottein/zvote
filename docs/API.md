@@ -22,10 +22,11 @@ Send it back on every request (`fetch(..., { credentials: 'include' })`,
 counts as a brand new voter: your polls stop being yours and your ballots
 cannot be revised. A cookie the server could not have issued is replaced.
 
-The server never stores the token, and never sends voter ids back: `isMine`
-and `myBallot` are computed for the caller. It stores the polls you create
-under a hash of the token, and your ballot and name on each poll under two
-other keys, keyed with a server secret, that nothing else matches
+The server never stores the token, and never sends voter ids back: `isMine`,
+`admission` and `myBallot` are computed for the caller. It stores the polls
+you create under a hash of the token, and your ballot, your name and the
+invitation you used on each poll under other keys, keyed with a server
+secret, that nothing else matches
 (see [ARCHITECTURE.md](ARCHITECTURE.md#anonymity)).
 
 ## Endpoints
@@ -42,6 +43,9 @@ other keys, keyed with a server secret, that nothing else matches
 | `DELETE` | `/api/polls/{id}` | `204`: creator only |
 | `PUT` | `/api/polls/{id}/ballot` | `PollView`: cast, revise or withdraw the caller's ballot |
 | `GET` | `/api/polls/{id}/events` | `text/event-stream`: live updates |
+| `GET` | `/api/polls/{id}/invitations` | `InvitationView[]`: creator only, in the order they were made |
+| `POST` | `/api/polls/{id}/invitations` | `201` + `InvitationView`: creator only, `{"label": "Zoé"}` (the label is optional) |
+| `DELETE` | `/api/polls/{id}/invitations/{token}` | `204`: creator only, an invitation nobody voted with |
 | `GET` | `/actuator/health` | `{"status":"UP"}`: readiness probe |
 
 A poll's `id` is its **share token**: 22 url-safe characters, unguessable. It
@@ -67,6 +71,7 @@ A poll as the calling voter sees it.
   "title": "Where do we eat?",
   "votingSystem": "MAJORITY_JUDGMENT",   // or "APPROVAL"
   "visibility": "UNLISTED",              // or "PUBLIC"
+  "invitationOnly": false,               // chosen at creation: only invited people vote (see Invitations)
   "showVoterNames": true,                // chosen at creation
   "resultsShown": "AFTER_BALLOTS",       // chosen at creation: LIVE, AFTER_BALLOTS or AFTER_CLOSING
   "resultsAfterBallots": 3,              // AFTER_BALLOTS only: ballots before the tallies show
@@ -74,6 +79,7 @@ A poll as the calling voter sees it.
   "closedAt": null,                      // set once voting is closed, for good
   "expiresAt": "2026-10-24T13:58:35.129057Z", // when the server deletes it
   "isMine": true,                        // the caller created it
+  "admission": "ADMITTED",               // whether the caller may vote: ADMITTED, NOT_INVITED or INVITATION_USED
   "totalBallots": 2,                     // voters with a ballot on this poll
   "options": [
     {
@@ -146,7 +152,7 @@ tallies, a moment after they are cast (ARCHITECTURE.md,
 {
   "features": { "publicPolls": false, "unlistedPolls": true, "approvalVoting": true, "majorityJudgment": true },
   "limits": { "maxOptions": 20, "maxTitleLength": 200, "maxOptionLength": 100,
-              "maxVoterNameLength": 40, "pollLifetimeDays": 30 }
+              "maxVoterNameLength": 40, "maxInvitations": 1000, "pollLifetimeDays": 30 }
 }
 ```
 
@@ -158,13 +164,14 @@ enforces them when a poll is created.
 ```json
 POST /api/polls
 { "title": "Where do we eat?", "options": ["Ramen", "Tacos"],
-  "votingSystem": "MAJORITY_JUDGMENT", "visibility": "UNLISTED", "showVoterNames": true,
-  "resultsShown": "AFTER_BALLOTS", "resultsAfterBallots": 5 }
+  "votingSystem": "MAJORITY_JUDGMENT", "visibility": "UNLISTED", "invitationOnly": false,
+  "showVoterNames": true, "resultsShown": "AFTER_BALLOTS", "resultsAfterBallots": 5 }
 ```
 
-Every field is required but `showVoterNames` (false when left out),
-`resultsShown` (left out: `LIVE`, or `AFTER_CLOSING` if the poll shows
-names, since a name and a ballot arriving together show who chose what) and
+Every field is required but `invitationOnly` and `showVoterNames` (false
+when left out), `resultsShown` (left out: `LIVE`, or `AFTER_CLOSING` if the
+poll shows names or takes invitations, since a name appearing, or an
+invitation used, as a ballot arrives shows who chose what) and
 `resultsAfterBallots` (`AFTER_BALLOTS` only, and then at least 3: with
 fewer, the results are the ballots). Public
 polls are refused while `publicPolls` is off: they will need a signed-in
@@ -194,6 +201,8 @@ a second; then the next update does.
   overrides, zero widths) are refused. A poll that does not show names
   refuses one (`400`). Withdrawing forgets it.
 
+- On a poll that takes invitations, only its creator and invited voters can
+  cast a ballot (see [Invitations](#invitations)); anyone else gets `403`.
 - Majority judgment: options left out are graded `Bad`, so every ballot grades
   every option.
 - The shape must match the poll's voting system, every id must be an option of
@@ -203,6 +212,54 @@ a second; then the next update does.
   never counted after closing.
 - Two ballots sent by the same voter at the same instant are applied one after
   the other, or one of them gets `409`. Send it again.
+
+## Invitations
+
+A poll created with `"invitationOnly": true` counts each person once, as long
+as its creator hands out the links honestly. The creator makes one invitation
+per voter, and sends each its link: the poll's address with the invitation's
+token in the fragment.
+
+```
+POST /api/polls/{id}/invitations
+{ "label": "Zoé" }                               // whom it is for, shown to the creator only; optional
+
+201 { "token": "qWsD_0PPBuKgjv6h9yEQxA", "label": "Zoé", "used": false }
+
+https://zvote.example/p/{id}#invitation=qWsD_0PPBuKgjv6h9yEQxA
+```
+
+A client sends the token in a header, to read the poll and to cast a ballot,
+never in a URL: browsers do not send a fragment, so no server or proxy log
+keeps it.
+
+```
+Zvote-Invitation: qWsD_0PPBuKgjv6h9yEQxA
+```
+
+- The first ballot cast with an invitation makes it the caller's browser's
+  (their cookie). From then on, that browser votes on the poll without the
+  header, and no other browser can use the invitation: `409` "This
+  invitation was already used, in another browser or on another device."
+  A browser uses one invitation per poll; any other it brings stays unused.
+- `admission` in the `PollView` says where the caller stands:
+  - `ADMITTED`: they may vote. The poll is open to anyone, or they created
+    it (a creator votes without an invitation), or they bring or used an
+    invitation.
+  - `NOT_INVITED`: they bring no valid invitation. Casting answers `403`.
+  - `INVITATION_USED`: the invitation they bring was used in another
+    browser.
+- `GET /api/polls/{id}/invitations` answers the creator every invitation,
+  `[{ "token", "label", "used" }]`, in the order they were made: who has
+  voted, never with which ballot.
+- `DELETE /api/polls/{id}/invitations/{token}` takes back an invitation
+  nobody voted with, and its link stops working. Taking back one that was
+  used answers `409`: its ballot stays counted.
+- Labels follow the rules of names (see above). A poll takes at most
+  `maxInvitations` (`400` past that), none once closed (`409`), and none if
+  anyone may vote on it (`400`).
+- Anyone holding the poll's own link or code can still open it, and see its
+  results when they show: only voting needs an invitation.
 
 ## Live updates
 
@@ -249,9 +306,9 @@ the person using the app and can be shown as is.
 | Status | When |
 |---|---|
 | `400` | The request breaks a rule (the `detail` says which), or its JSON cannot be read |
-| `403` | Only the poll's creator can do that |
+| `403` | Only the poll's creator can do that, or only invited people can vote on this poll |
 | `404` | No poll has that id or join code (or it was deleted) |
-| `409` | The poll is closed, or the change collided with another made at the same moment (send it again) |
+| `409` | The poll is closed, the invitation was used, or the change collided with another made at the same moment (send it again) |
 | `500` | Something unexpected failed on the server; the `detail` says so and nothing more |
 
 ## Trying it with curl

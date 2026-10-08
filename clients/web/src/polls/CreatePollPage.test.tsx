@@ -38,6 +38,7 @@ describe('creating a poll', () => {
       options: ['Ramen', 'Tacos'],
       votingSystem: 'APPROVAL',
       visibility: 'UNLISTED',
+      invitationOnly: false,
       showVoterNames: true,
       resultsShown: 'AFTER_CLOSING',
       resultsAfterBallots: null,
@@ -79,10 +80,22 @@ describe('creating a poll', () => {
     expect(screen.getByText(/Results show once you close the poll/)).not.toHaveAttribute('data-tone');
   });
 
-  it('tells the creator that one ballot per person rests on good faith', async () => {
+  it('warns that anyone with the link can vote again from another browser, unless invited', async () => {
+    vi.mocked(createPoll).mockResolvedValue({ id: 'fresh' } as Poll);
     openForm();
+    await userEvent.type(await screen.findByLabelText('Question'), 'Who chairs?');
+    await userEvent.type(screen.getByLabelText('Option 1'), 'Ana');
+    await userEvent.type(screen.getByLabelText('Option 2'), 'Bob');
 
-    expect(await screen.findByText(/can vote more than once/)).toBeInTheDocument();
+    expect(screen.getByText(/zvote counts on good faith/)).toHaveAttribute('data-tone', 'warning');
+    await userEvent.click(screen.getByRole('radio', { name: 'Invited only' }));
+    expect(screen.getByText(/a link of their own/)).not.toHaveAttribute('data-tone');
+    await userEvent.click(screen.getByRole('button', { name: 'Create poll' }));
+
+    expect(createPoll).toHaveBeenCalledWith(expect.objectContaining({
+      invitationOnly: true,
+      resultsShown: 'AFTER_CLOSING',
+    }));
   });
 
   it('shows the results after a number of ballots, at least three', async () => {
