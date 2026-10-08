@@ -1,9 +1,13 @@
 package org.zvote.server.polls;
 
-/** No poll has that share token, or it has been deleted. */
+/** No poll has that share token or join code, or it was deleted. Its message is for people. */
 public class PollNotFoundException extends RuntimeException {
 
-    public PollNotFoundException() {
-        super("Poll not found");
+    PollNotFoundException() {
+        this("That poll does not exist. The link may be mistyped, or the poll was deleted.");
+    }
+
+    PollNotFoundException(String message) {
+        super(message);
     }
 }

@@ -24,19 +24,26 @@ public class BallotController {
     private final BallotService ballots;
     private final PollViewService views;
     private final PollStream stream;
+    private final TallyFolding folding;
 
-    public BallotController(BallotService ballots, PollViewService views, PollStream stream) {
+    BallotController(BallotService ballots, PollViewService views, PollStream stream, TallyFolding folding) {
         this.ballots = ballots;
         this.views = views;
         this.stream = stream;
+        this.folding = folding;
     }
 
-    /** Watchers hear of the ballot once it is committed, and the voter sees it at once. */
+    /**
+     * Watchers hear of the ballot once it is folded into the tallies, and of
+     * the voter's name once it is committed. The voter sees their ballot at
+     * once, and the tallies with it unless many ballots are arriving.
+     */
     @PutMapping
     public PollView cast(@PathVariable String id,
                          @RequestBody CastBallotRequest ballot,
                          @RequestAttribute(VoterIdentity.ATTRIBUTE) Voter voter) {
         var poll = ballots.cast(id, ballot, voter);
+        folding.fold();
         stream.changed(poll.id(), () -> views.update(poll.id()));
         return views.view(poll, voter);
     }

@@ -3,10 +3,10 @@ import { useNavigate } from 'react-router';
 import { createPoll, errorMessage } from '../api/client';
 import type { ResultsShown, Visibility, VotingSystem } from '../api/types';
 import { CloseIcon } from '../ui/icons';
+import { isEnter } from '../ui/keys';
 import SegmentedControl from '../ui/SegmentedControl';
 import {
-  checkPollForm, checkResultsAfterBallots, filledOptions, MIN_RESULTS_AFTER_BALLOTS, offeredVisibilities,
-  offeredVotingSystems, optionRows,
+  checkPollForm, filledOptions, MIN_RESULTS_AFTER_BALLOTS, offeredVisibilities, offeredVotingSystems, optionRows,
 } from './pollForm';
 import { useServerInfo } from './useServerInfo';
 
@@ -37,22 +37,12 @@ const RESULTS: { value: ResultsShown; label: string }[] = [
   { value: 'AFTER_CLOSING', label: 'At close' },
 ];
 
-/**
- * Results that move with each ballot show whoever watches them what each
- * voter chose: the creator is warned before choosing that.
- */
-function resultsHint(resultsShown: ResultsShown, showVoterNames: boolean) {
-  switch (resultsShown) {
-    case 'LIVE':
-      return showVoterNames
-        ? 'Careful: everyone sees the results move as each ballot arrives, along with the voter\'s name. In a small group, that shows who chose what.'
-        : 'Careful: everyone sees the results move as each ballot arrives. In a small group, that shows who chose what.';
-    case 'AFTER_BALLOTS':
-      return 'Results stay hidden until that many ballots are in, so the first voters are not exposed. After that they move with each new ballot, which can still show what a later voter chose.';
-    case 'AFTER_CLOSING':
-      return 'Results show once you close the poll. Until then, everyone sees how many have voted.';
-  }
-}
+/** Results that move with each ballot show whoever watches them what each voter chose: the creator is warned. */
+const RESULTS_HINTS: Record<ResultsShown, string> = {
+  LIVE: 'Careful: everyone sees the results move as each ballot arrives. In a small group, that shows who chose what.',
+  AFTER_BALLOTS: 'Results stay hidden until that many ballots are in, so the first voters are not exposed. After that they move with each new ballot, which can still show what a later voter chose.',
+  AFTER_CLOSING: 'Results show once you close the poll. Until then, everyone sees how many have voted.',
+};
 
 export default function CreatePollPage() {
   const navigate = useNavigate();
@@ -80,10 +70,8 @@ export default function CreatePollPage() {
   const chosenVisibility = visibilities.some((v) => v.value === visibility) ? visibility : visibilities[0]?.value;
 
   const rows = optionRows(options, limits.maxOptions);
-  const problems = showProblems ? checkPollForm(title, options, limits) : {};
-  const thresholdProblem = showProblems && resultsShown === 'AFTER_BALLOTS'
-    ? checkResultsAfterBallots(resultsAfterBallots)
-    : undefined;
+  const allProblems = checkPollForm({ title, options, resultsShown, resultsAfterBallots }, limits);
+  const problems = showProblems ? allProblems : {};
 
   function setOption(index: number, value: string) {
     setOptions((current) => {
@@ -102,7 +90,7 @@ export default function CreatePollPage() {
 
   /** Enter moves to the next row rather than submitting a half-written poll. */
   function focusRowOnEnter(event: KeyboardEvent<HTMLInputElement>, row: number) {
-    if (event.key !== 'Enter') {
+    if (!isEnter(event)) {
       return;
     }
     event.preventDefault();
@@ -115,9 +103,11 @@ export default function CreatePollPage() {
   async function submit(event: FormEvent) {
     event.preventDefault();
     setShowProblems(true);
-    const thresholdInvalid = resultsShown === 'AFTER_BALLOTS' && checkResultsAfterBallots(resultsAfterBallots);
-    if (Object.keys(checkPollForm(title, options, limits)).length > 0 || thresholdInvalid || !chosenSystem
-      || !chosenVisibility) {
+    if (Object.keys(allProblems).length > 0) {
+      return;
+    }
+    if (!chosenSystem || !chosenVisibility) {
+      setFailure('This server takes no new polls at the moment.');
       return;
     }
     setCreating(true);
@@ -225,7 +215,7 @@ export default function CreatePollPage() {
         value={resultsShown}
         options={RESULTS}
         onChange={(choice) => setChosenResultsShown(choice)}
-        hint={resultsHint(resultsShown, showVoterNames)}
+        hint={RESULTS_HINTS[resultsShown]}
         hintTone={resultsShown === 'AFTER_CLOSING' ? undefined : 'warning'}
       >
         {resultsShown === 'AFTER_BALLOTS' && (
@@ -238,11 +228,13 @@ export default function CreatePollPage() {
               min={MIN_RESULTS_AFTER_BALLOTS}
               step={1}
               value={resultsAfterBallots}
-              aria-invalid={thresholdProblem ? true : undefined}
-              aria-describedby={thresholdProblem ? `${ids}-results-after-problem` : undefined}
+              aria-invalid={problems.resultsAfterBallots ? true : undefined}
+              aria-describedby={problems.resultsAfterBallots ? `${ids}-results-after-problem` : undefined}
               onChange={(event) => setResultsAfterBallots(event.target.value)}
             />
-            {thresholdProblem && <p id={`${ids}-results-after-problem`} className="field-problem">{thresholdProblem}</p>}
+            {problems.resultsAfterBallots && (
+              <p id={`${ids}-results-after-problem`} className="field-problem">{problems.resultsAfterBallots}</p>
+            )}
           </div>
         )}
       </SegmentedControl>

@@ -13,7 +13,6 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Base64;
-import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
@@ -33,9 +32,14 @@ public class PollService {
     /** Join codes use no look-alikes (0 and O, 1 and I and L): 31 characters, 6 of them, about 887 million codes. */
     private static final String JOIN_CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
     private static final int JOIN_CODE_LENGTH = 6;
-    private static final Pattern CONTROL_CHARACTERS = Pattern.compile("\\p{Cntrl}");
-    private static final int MIN_RESULTS_AFTER_BALLOTS = 3;
-    private static final Comparator<Object> NAME_ORDER = Collator.getInstance(Locale.ROOT);
+    private static final Pattern NOT_IN_JOIN_CODES = Pattern.compile("[^A-Z0-9]");
+    /** Tabs, line breaks and every Unicode space: a name keeps single spaces between its words. */
+    private static final Pattern SPACES = Pattern.compile("[\\s\\p{Z}]+");
+    /** Controls and invisible format characters (bidi overrides, zero widths), but the joiner of emoji sequences. */
+    private static final Pattern INVISIBLE = Pattern.compile("[\\p{Cc}\\p{Cf}&&[^\\x{200D}]]");
+    private static final long MIN_RESULTS_AFTER_BALLOTS = 3;
+    /** A cloud of names says who took part; past a hundred, it would only be a list to scroll. */
+    private static final int SHOWN_NAMES = 100;
 
     private final PollRepository polls;
     private final PollOptionRepository options;
@@ -87,11 +91,14 @@ public class PollService {
     }
 
     /**
-     * The poll behind a join code, typed by a person: case, spaces and dashes
-     * do not matter. Like the link, knowing the code is what grants access.
+     * The poll behind a join code, typed or pasted by a person: case, spaces
+     * and dashes of any kind do not matter. Like the link, knowing the code is
+     * what grants access.
      */
-    public Optional<Poll> findByJoinCode(String joinCode) {
-        return polls.findByJoinCode(joinCode.toUpperCase(Locale.ROOT).replaceAll("[\\s-]", ""));
+    public Poll findByJoinCode(String joinCode) {
+        var code = NOT_IN_JOIN_CODES.matcher(joinCode.toUpperCase(Locale.ROOT)).replaceAll("");
+        return polls.findByJoinCode(code).orElseThrow(() -> new PollNotFoundException(
+            "No poll has this code. Check it with the person who shared it."));
     }
 
     /**
@@ -104,7 +111,7 @@ public class PollService {
     public Poll findOpen(String shareToken) {
         var poll = polls.findLockedByShareToken(shareToken).orElseThrow(PollNotFoundException::new);
         if (poll.isClosed()) {
-            throw PollClosedException.toBallots();
+            throw new PollClosedException();
         }
         return poll;
     }
@@ -130,27 +137,26 @@ public class PollService {
     }
 
     /**
-     * Closing stops new ballots and shows the results for good. It cannot be
-     * undone: reopening would let a creator read results kept for the closing,
-     * then watch the next ballots move them, and make "final" results change.
+     * Closing stops new ballots and shows the results, for good: reopening
+     * would let a creator read results kept for the closing, then watch the
+     * next ballots move them, and make "final" results change.
      */
     @Transactional
-    public Poll setClosed(String shareToken, String voterId, boolean closed) {
+    public Poll close(String shareToken, String voterId) {
         var poll = createdBy(shareToken, voterId);
-        if (poll.isClosed() == closed) {
-            return poll;
-        }
-        if (poll.isClosed()) {
-            throw PollClosedException.forGood();
-        }
-        return polls.save(poll.withClosedAt(now()));
+        return poll.isClosed() ? poll : polls.save(poll.withClosedAt(now()));
     }
 
-    /** The options and ballots go with it (ON DELETE CASCADE). */
+    /**
+     * The poll disappears at once, with its options (ON DELETE CASCADE). Its
+     * ballots and names can be billions: they are removed afterwards, in
+     * batches (see {@link #removedPolls()}).
+     */
     @Transactional
     public Poll delete(String shareToken, String voterId) {
         var poll = createdBy(shareToken, voterId);
         polls.delete(poll);
+        polls.scheduleRemoval(poll.id());
         return poll;
     }
 
@@ -159,12 +165,31 @@ public class PollService {
         return poll.createdAt().plus(lifetime());
     }
 
-    /** Deletes the polls that have outlived their lifetime, and returns them. */
+    /** Deletes the polls that have outlived their lifetime, like {@link #delete}, and returns their ids. */
     @Transactional
-    public List<Poll> deleteExpired() {
-        var expired = polls.findByCreatedAtBefore(now().minus(lifetime()));
-        polls.deleteAll(expired);
+    public List<Long> deleteExpired() {
+        var cutoff = now().minus(lifetime());
+        var expired = polls.findIdsCreatedBefore(cutoff);
+        polls.scheduleRemovalsCreatedBefore(cutoff);
+        polls.deleteCreatedBefore(cutoff);
         return expired;
+    }
+
+    /** Deleted polls whose ballots and names are still to be removed. */
+    public List<Long> removedPolls() {
+        return polls.findRemovals();
+    }
+
+    /** Removes up to {@code limit} names of a deleted poll; returns how many. */
+    @Transactional
+    public int removeSomeNames(long pollId, int limit) {
+        return voterNames.deleteSome(pollId, limit);
+    }
+
+    /** Everything of a deleted poll has gone. */
+    @Transactional
+    public void removalDone(long pollId) {
+        polls.removalDone(pollId);
     }
 
     /**
@@ -174,37 +199,41 @@ public class PollService {
      */
     @Transactional(propagation = Propagation.MANDATORY)
     public void nameVoter(Poll poll, String nameKey, String rawName) {
-        var name = rawName == null ? "" : rawName.strip();
+        var name = rawName == null ? "" : SPACES.matcher(rawName).replaceAll(" ").strip();
+        if (!poll.showVoterNames()) {
+            if (!name.isEmpty()) {
+                throw new InvalidRequestException("This poll does not show names: vote without one.");
+            }
+            return;
+        }
         if (name.isEmpty()) {
             voterNames.deleteName(poll.id(), nameKey);
             return;
-        }
-        if (!poll.showVoterNames()) {
-            throw new InvalidRequestException("This poll does not show names: vote without one.");
         }
         var max = settings.limits().maxVoterNameLength();
         if (name.length() > max) {
             throw new InvalidRequestException("A name can be at most " + max + " characters long.");
         }
-        if (CONTROL_CHARACTERS.matcher(name).find()) {
-            throw new InvalidRequestException("A name must fit on one line.");
+        if (INVISIBLE.matcher(name).find()) {
+            throw new InvalidRequestException("A name can only hold visible characters.");
         }
-        var named = voterNames.findByPollIdAndNameKey(poll.id(), nameKey)
-            .map(existing -> existing.renamed(name))
-            .orElseGet(() -> new VoterName(null, poll.id(), nameKey, name));
-        voterNames.save(named);
+        var existing = voterNames.findByPollIdAndNameKey(poll.id(), nameKey);
+        if (existing.isEmpty()) {
+            voterNames.save(new VoterName(null, poll.id(), nameKey, name));
+        } else if (!existing.get().name().equals(name)) {
+            voterNames.save(existing.get().renamed(name));
+        }
     }
 
     /**
-     * The names of those who took part, in alphabetical order: in the order
-     * they came, they would line up with the ballots as they landed. Empty if
-     * the poll does not show names.
+     * The first names of those who took part, in alphabetical order: in the
+     * order they came, they would line up with the ballots as they landed.
      */
-    public List<String> voterNamesOf(Poll poll) {
-        if (!poll.showVoterNames()) {
-            return List.of();
-        }
-        return voterNames.findByPollId(poll.id()).stream().map(VoterName::name).sorted(NAME_ORDER).toList();
+    public VoterNames voterNamesOf(Poll poll) {
+        var names = voterNames.findFirstNames(poll.id(), SHOWN_NAMES + 1);
+        return new VoterNames(
+            names.stream().limit(SHOWN_NAMES).sorted(Collator.getInstance(Locale.ROOT)).toList(),
+            names.size() > SHOWN_NAMES);
     }
 
     /** The name given on this poll under this name key, if any. */
@@ -237,7 +266,7 @@ public class PollService {
     }
 
     /** Below three ballots, the results are the ballots: two voters each read the other's. */
-    private static int validThreshold(Integer ballots) {
+    private static long validThreshold(Long ballots) {
         if (ballots == null || ballots < MIN_RESULTS_AFTER_BALLOTS) {
             throw new InvalidRequestException(
                 "Results shown after a number of ballots need at least " + MIN_RESULTS_AFTER_BALLOTS + " ballots.");

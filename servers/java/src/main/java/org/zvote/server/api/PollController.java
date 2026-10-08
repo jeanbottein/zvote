@@ -27,20 +27,29 @@ import org.zvote.server.polls.PollService;
 import org.zvote.server.polls.CreatePollRequest;
 
 import java.net.URI;
+import java.time.Duration;
 import java.util.List;
 
 @RestController
 @RequestMapping("/api/polls")
 public class PollController {
 
+    /** Closing waits for every ballot cast before it to be folded in: final results are final. */
+    private static final Duration FINAL_FOLD = Duration.ofSeconds(30);
+
     private final PollService polls;
+    private final PollCreationService creations;
     private final PollViewService views;
     private final PollStream stream;
+    private final TallyFolding folding;
 
-    public PollController(PollService polls, PollViewService views, PollStream stream) {
+    PollController(PollService polls, PollCreationService creations, PollViewService views, PollStream stream,
+                   TallyFolding folding) {
         this.polls = polls;
+        this.creations = creations;
         this.views = views;
         this.stream = stream;
+        this.folding = folding;
     }
 
     @GetMapping
@@ -56,7 +65,7 @@ public class PollController {
     @PostMapping
     public ResponseEntity<PollView> create(@RequestBody CreatePollRequest request,
                                            @RequestAttribute(VoterIdentity.ATTRIBUTE) Voter voter) {
-        var poll = polls.create(request, voter.id());
+        var poll = creations.create(request, voter.id());
         return ResponseEntity.created(URI.create("/api/polls/" + poll.shareToken()))
             .body(views.view(poll, voter));
     }
@@ -71,10 +80,11 @@ public class PollController {
     public PollView update(@PathVariable String id,
                            @RequestBody UpdatePollRequest request,
                            @RequestAttribute(VoterIdentity.ATTRIBUTE) Voter voter) {
-        if (request.closed() == null) {
-            throw new InvalidRequestException("Say whether the poll should be closed: {\"closed\": true}.");
+        if (!Boolean.TRUE.equals(request.closed())) {
+            throw new InvalidRequestException("A poll can only be closed, for good: send {\"closed\": true}.");
         }
-        var poll = polls.setClosed(id, voter.id(), request.closed());
+        var poll = polls.close(id, voter.id());
+        folding.fold(FINAL_FOLD);
         stream.changed(poll.id(), () -> views.update(poll.id()));
         return views.view(poll, voter);
     }

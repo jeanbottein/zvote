@@ -20,12 +20,15 @@ in, on a phone or a desktop, with nothing to install and no account needed.
 - **Live results**, pushed to everyone watching the poll.
 - **Revisable ballots**: change or withdraw your ballot until the poll closes.
   Vote *live* (every tap counts) or *in an envelope* (review, then submit).
-- **Public or unlisted polls**, shared by link, QR code or your phone's share
-  sheet.
-- **For the creator**: close and reopen voting, delete the poll, download the
+- **Private polls**, shared by link, join code (`K7M-4QX`), QR code or your
+  phone's share sheet. Public polls come back with accounts.
+- **For the creator**: close voting (for good), delete the poll, download the
   results.
-- **Private by design**: individual ballots are never shown to anyone else,
-  only the totals.
+- **Private by design**: nobody else sees a ballot, only the totals, which
+  the creator can keep back until a few ballots are in or the poll closes.
+  Stored ballots do not say who cast them.
+- **Built to scale**: a poll costs the same to read and to vote on at ten
+  million ballots as at ten, on PostgreSQL ([measured](docs/PERFORMANCE.md#ballots-at-scale)).
 - **Mobile first**: light and dark themes, and a colour-blind-friendly
   palette.
 
@@ -65,15 +68,15 @@ it elsewhere. The schema is migrated automatically at startup.
 
 | | |
 |---|---|
-| Server (`servers/java`) | Java 25, Spring Boot 4.1: Spring MVC on virtual threads, Spring Data JDBC, Spring Modulith, Flyway, H2. A REST API, plus server-sent events for live results. |
+| Server (`servers/java`) | Java 25, Spring Boot 4.1: Spring MVC on virtual threads, Spring Data JDBC, Spring Modulith, Flyway, H2 or PostgreSQL. A REST API, plus server-sent events for live results. |
 | Web app (`clients/web`) | React 19, TypeScript, Vite; Vitest and Testing Library; plain CSS. |
 
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): how it fits together, and why.
 - [docs/API.md](docs/API.md): the HTTP API.
-- [docs/ROADMAP.md](docs/ROADMAP.md): accounts and social sign-in, installable
-  app, Android, deployment.
+- [docs/ROADMAP.md](docs/ROADMAP.md): deployment, accounts and social sign-in,
+  installable app, Android, and billions of ballots per poll.
 - [docs/PERFORMANCE.md](docs/PERFORMANCE.md): the JVM, Leyden's AOT cache and
-  GraalVM native images, measured.
+  GraalVM native images, and ballots at scale, measured.
 
 <img src="docs/images/desktop-results.png" width="560" alt="Majority judgment results on a desktop, dark theme">
 

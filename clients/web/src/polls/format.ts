@@ -1,4 +1,5 @@
 import type { Visibility, VotingSystem } from '../api/types';
+import { formatCount } from '../utils/formatCount';
 
 export const VOTING_SYSTEM_NAMES: Record<VotingSystem, string> = {
   MAJORITY_JUDGMENT: 'Majority judgment',
@@ -17,8 +18,13 @@ export function formatJoinCode(code: string): string {
 
 /** "and 2 anonymous voters", or "1 anonymous voter" when nobody gave a name. */
 export function anonymousVoters(count: number, afterNames: boolean): string {
-  const voters = `${count} anonymous ${count === 1 ? 'voter' : 'voters'}`;
+  const voters = `${formatCount(count)} anonymous ${count === 1 ? 'voter' : 'voters'}`;
   return afterNames ? `and ${voters}` : voters;
+}
+
+/** "and 1,234 more voters": past the names shown, named or not. */
+export function moreVoters(count: number): string {
+  return `and ${formatCount(count)} more ${count === 1 ? 'voter' : 'voters'}`;
 }
 
 const longDate = new Intl.DateTimeFormat('en', { dateStyle: 'long' });
@@ -29,7 +35,7 @@ export function formatDate(isoDate: string): string {
 }
 
 export function ballotCount(count: number): string {
-  return `${count} ${count === 1 ? 'ballot' : 'ballots'}`;
+  return `${formatCount(count)} ${count === 1 ? 'ballot' : 'ballots'}`;
 }
 
 const relativeTime = new Intl.RelativeTimeFormat('en', { numeric: 'auto' });

@@ -13,14 +13,16 @@ export default function JoinForm() {
 
   async function join(event: FormEvent) {
     event.preventDefault();
-    if (code.trim() === '') {
+    // A code is letters and digits: dashes and spaces, whatever their kind, only help reading it.
+    const typed = code.replace(/[^a-z0-9]/gi, '').toUpperCase();
+    if (typed === '') {
       setProblem('Type the code you were given.');
       return;
     }
     setJoining(true);
     setProblem(null);
     try {
-      const poll = await joinPoll(code.trim());
+      const poll = await joinPoll(typed);
       navigate(`/p/${poll.id}`);
     } catch (error) {
       setProblem(errorMessage(error));
@@ -44,7 +46,7 @@ export default function JoinForm() {
           enterKeyHint="go"
           aria-invalid={problem ? true : undefined}
           aria-describedby={problem ? problemId : undefined}
-          onChange={(event) => setCode(event.target.value.toUpperCase())}
+          onChange={(event) => setCode(event.target.value)}
         />
         <button type="submit" className="button primary" disabled={joining}>
           {joining ? 'Joining…' : 'Join'}

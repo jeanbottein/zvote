@@ -6,6 +6,7 @@ import ApprovalBallot from '../features/VotingSystem/Approval/ApprovalBallot';
 import MajorityJudgmentBallot from '../features/VotingSystem/MajorityJudgment/MajorityJudgmentBallot';
 import MajorityJudgmentDropdownBallot from '../features/VotingSystem/MajorityJudgment/MajorityJudgmentDropdownBallot';
 import { usePreferences } from '../preferences/preferences';
+import { isEnter } from '../ui/keys';
 import { useToast } from '../ui/Toasts';
 import { useBallot, type SubmissionMode } from './useBallot';
 import { useServerInfo } from './useServerInfo';
@@ -35,6 +36,7 @@ function MajorityJudgmentBallotSection({ poll, onCast }: BallotSectionProps) {
     mode: submission,
     equals: sameJudgments,
     cast: async (judgments) => onCast(await castBallot(poll.id, { judgments, voterName: voter.forBallot })),
+    castChanged: voter.changedSinceCast,
     onError: (error) => showToast(errorMessage(error), 'error'),
   });
   const complete = poll.options.every((option) => ballot.ballot[option.id]);
@@ -44,6 +46,7 @@ function MajorityJudgmentBallotSection({ poll, onCast }: BallotSectionProps) {
     <BallotFrame
       mode={submission}
       counted={poll.myBallot !== null}
+      unsent={ballot.hasChanges}
       busy={ballot.busy}
       canSubmit={ballot.hasChanges && complete}
       submitLabel={complete ? 'Submit my ballot' : 'Rate every option to submit'}
@@ -52,7 +55,7 @@ function MajorityJudgmentBallotSection({ poll, onCast }: BallotSectionProps) {
       instructions={submission === 'live'
         ? 'Give every option a mention. Options you have not rated count as Bad.'
         : 'Give every option a mention, then submit your ballot.'}
-      nameField={poll.showVoterNames && <VoterNameField voter={voter} onCommit={ballot.recast} />}
+      nameField={poll.showVoterNames && <VoterNameField poll={poll} voter={voter} onCommit={ballot.recast} />}
     >
       <Ballot options={poll.options} ballot={ballot.ballot} onChange={ballot.change} />
     </BallotFrame>
@@ -67,7 +70,9 @@ function ApprovalBallotSection({ poll, onCast }: BallotSectionProps) {
     saved: poll.myBallot?.approvedOptionIds ?? NO_APPROVALS,
     mode: submission,
     equals: sameApprovals,
-    cast: async (approvedOptionIds) => onCast(await castBallot(poll.id, { approvedOptionIds, voterName: voter.forBallot })),
+    cast: async (approvedOptionIds) =>
+      onCast(await castBallot(poll.id, { approvedOptionIds, voterName: voter.forBallot })),
+    castChanged: voter.changedSinceCast,
     onError: (error) => showToast(errorMessage(error), 'error'),
   });
 
@@ -75,13 +80,14 @@ function ApprovalBallotSection({ poll, onCast }: BallotSectionProps) {
     <BallotFrame
       mode={submission}
       counted={poll.myBallot !== null}
+      unsent={ballot.hasChanges}
       busy={ballot.busy}
       canSubmit={ballot.hasChanges}
       submitLabel="Submit my ballot"
       onSubmit={ballot.submit}
       onWithdraw={() => ballot.withdraw(NO_APPROVALS)}
       instructions="Tick every option you would be happy with."
-      nameField={poll.showVoterNames && <VoterNameField voter={voter} onCommit={ballot.recast} />}
+      nameField={poll.showVoterNames && <VoterNameField poll={poll} voter={voter} onCommit={ballot.recast} />}
     >
       <ApprovalBallot options={poll.options} approved={ballot.ballot} onChange={ballot.change} />
     </BallotFrame>
@@ -92,6 +98,8 @@ interface BallotFrameProps {
   mode: SubmissionMode;
   /** The server holds a ballot from this voter. */
   counted: boolean;
+  /** Envelope mode: changes not submitted yet. */
+  unsent: boolean;
   busy: boolean;
   canSubmit: boolean;
   submitLabel: string;
@@ -106,24 +114,27 @@ interface BallotFrameProps {
 /**
  * A ballot counted before the page opened starts hidden: whoever looks at
  * this screen, over a shoulder or on a projector, does not see what the voter
- * chose. They open it to change it, and can hide it again.
+ * chose. They open it to change it, and can hide it again. A ballot the voter
+ * touches stays open, so that it does not vanish once counted.
  */
 function BallotFrame(props: BallotFrameProps) {
-  const { mode, counted, busy, canSubmit, submitLabel, onSubmit, onWithdraw, instructions, nameField, children } = props;
+  const {
+    mode, counted, unsent, busy, canSubmit, submitLabel, onSubmit, onWithdraw, instructions, nameField, children,
+  } = props;
   const titleId = useId();
   const body = useRef<HTMLDivElement>(null);
-  const [hidden, setHidden] = useState(counted);
-  const shown = !hidden || !counted;
+  const changeButton = useRef<HTMLButtonElement>(null);
+  const [revealed, setRevealed] = useState(false);
 
-  /** Opens the ballot and moves focus into it, where the button that opened it was. */
-  function open() {
-    flushSync(() => setHidden(false));
-    body.current?.querySelector<HTMLElement>('input, select')?.focus();
+  /** Focus goes to the voter's choices, not to the name field, which would open the keyboard on a phone. */
+  function reveal() {
+    flushSync(() => setRevealed(true));
+    body.current?.querySelector<HTMLElement>('input[type="radio"]:checked, input[type="checkbox"], select')?.focus();
   }
 
-  function withdraw() {
-    setHidden(false); // to vote again, the voter needs to see the ballot
-    onWithdraw();
+  function hide() {
+    flushSync(() => setRevealed(false));
+    changeButton.current?.focus();
   }
 
   return (
@@ -131,13 +142,13 @@ function BallotFrame(props: BallotFrameProps) {
       <div className="section-header">
         <h2 id={titleId}>Your ballot</h2>
         {counted && (
-          <button type="button" className="button link" disabled={busy} onClick={withdraw}>
+          <button type="button" className="button link" disabled={busy} onClick={onWithdraw}>
             Withdraw
           </button>
         )}
       </div>
-      {shown
-        ? <div className="ballot-body" ref={body}>
+      {revealed || !counted
+        ? <div className="ballot-body" ref={body} onChange={() => setRevealed(true)}>
           {nameField}
           <p className="hint">{instructions}</p>
           {children}
@@ -149,8 +160,8 @@ function BallotFrame(props: BallotFrameProps) {
           <p className="ballot-status" data-counted={counted}>
             {counted ? 'Your ballot is counted. You can change it until the poll closes.' : 'You have not voted yet.'}
           </p>
-          {counted && (
-            <button type="button" className="button link" onClick={() => setHidden(true)}>
+          {counted && !unsent && (
+            <button type="button" className="button link" onClick={hide}>
               Hide my ballot
             </button>
           )}
@@ -159,7 +170,7 @@ function BallotFrame(props: BallotFrameProps) {
           <p className="ballot-status" data-counted={true}>
             Your ballot is counted. It stays hidden here, so nobody looking at this screen sees your choices.
           </p>
-          <button type="button" className="button secondary wide" onClick={open}>
+          <button type="button" className="button secondary wide" ref={changeButton} onClick={reveal}>
             Change my ballot
           </button>
         </>}
@@ -181,26 +192,33 @@ function useVoterName(poll: Poll) {
   const trimmed = name.trim();
   return {
     name,
-    change(value: string) {
-      setName(value);
-      updatePreferences({ voterName: value.trim() });
+    change: setName,
+    /** Offers the name again on the next poll. */
+    remember() {
+      if (trimmed !== preferences.voterName) {
+        updatePreferences({ voterName: trimmed });
+      }
     },
     /** What the ballot carries: nothing at all on a poll that hides names. */
     forBallot: poll.showVoterNames ? trimmed || null : undefined,
-    /** The counted ballot carries another name: it needs casting again. */
     changedSinceCast: poll.myBallot !== null && trimmed !== (poll.myBallot.voterName ?? ''),
   };
 }
 
-function VoterNameField({ voter, onCommit }: { voter: VoterName; onCommit(): void }) {
+interface VoterNameFieldProps {
+  poll: Poll;
+  voter: VoterName;
+  onCommit(): void;
+}
+
+function VoterNameField({ poll, voter, onCommit }: VoterNameFieldProps) {
   const { limits } = useServerInfo();
   const inputId = useId();
   const hintId = useId();
 
   function commit() {
-    if (voter.changedSinceCast) {
-      onCommit();
-    }
+    voter.remember();
+    onCommit();
   }
 
   return (
@@ -217,12 +235,16 @@ function VoterNameField({ voter, onCommit }: { voter: VoterName; onCommit(): voi
         onChange={(event) => voter.change(event.target.value)}
         onBlur={commit}
         onKeyDown={(event) => {
-          if (event.key === 'Enter') {
+          if (isEnter(event)) {
             event.currentTarget.blur(); // commits
           }
         }}
       />
-      <p id={hintId} className="hint">Everyone on this poll sees the names given, never who chose what.</p>
+      <p id={hintId} className="hint">
+        {poll.resultsShown === 'AFTER_CLOSING'
+          ? 'Everyone on this poll sees the names given, never who chose what.'
+          : 'Everyone on this poll sees the names given. The results move as ballots arrive, so people watching may tell who chose what.'}
+      </p>
     </div>
   );
 }

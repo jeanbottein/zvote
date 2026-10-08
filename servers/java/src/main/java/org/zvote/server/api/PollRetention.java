@@ -2,28 +2,41 @@ package org.zvote.server.api;
 
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
+import org.zvote.server.ballots.BallotBoxService;
 import org.zvote.server.live.PollStream;
-import org.zvote.server.polls.Poll;
 import org.zvote.server.polls.PollService;
 
 /**
- * Deletes polls once their lifetime is over (zvote.limits.poll-lifetime-days),
- * every hour, and tells anyone still watching one. Tests turn it off
- * (zvote.retention-cron: "-"), so it never runs in the middle of one.
+ * Deletes polls once their lifetime is over (zvote.limits.poll-lifetime-days)
+ * and tells anyone still watching one, then removes the ballots and names of
+ * every deleted poll, a batch at a time, so that no transaction grows with
+ * the size of a poll. Runs every minute; tests turn it off
+ * (zvote.retention-cron: "-") and call it themselves.
  */
 @Component
 class PollRetention {
 
+    private static final int BATCH = 10_000;
+
     private final PollService polls;
+    private final BallotBoxService ballotBox;
     private final PollStream stream;
 
-    PollRetention(PollService polls, PollStream stream) {
+    PollRetention(PollService polls, BallotBoxService ballotBox, PollStream stream) {
         this.polls = polls;
+        this.ballotBox = ballotBox;
         this.stream = stream;
     }
 
-    @Scheduled(cron = "${zvote.retention-cron:0 7 * * * *}")
-    void deleteExpiredPolls() {
-        polls.deleteExpired().stream().map(Poll::id).forEach(stream::deleted);
+    @Scheduled(cron = "${zvote.retention-cron:0 * * * * *}")
+    void run() {
+        polls.deleteExpired().forEach(stream::deleted);
+        for (var pollId : polls.removedPolls()) {
+            int removed;
+            do {
+                removed = ballotBox.removeSome(pollId, BATCH) + polls.removeSomeNames(pollId, BATCH);
+            } while (removed > 0);
+            polls.removalDone(pollId);
+        }
     }
 }

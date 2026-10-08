@@ -15,5 +15,5 @@ public record CreatePollRequest(
     Poll.Visibility visibility,
     Boolean showVoterNames,
     Poll.ResultsShown resultsShown,
-    Integer resultsAfterBallots
+    Long resultsAfterBallots
 ) {}

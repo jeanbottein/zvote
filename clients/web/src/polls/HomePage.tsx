@@ -6,8 +6,8 @@ import { usePollLists } from './usePollLists';
 import { useServerInfo } from './useServerInfo';
 
 export default function HomePage() {
-  const { lists, error } = usePollLists();
   const { features } = useServerInfo();
+  const { lists, error } = usePollLists(features.publicPolls);
 
   return (
     <>

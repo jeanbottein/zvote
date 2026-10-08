@@ -21,7 +21,6 @@ import org.springframework.test.web.servlet.assertj.MockMvcTester;
 import org.springframework.test.web.servlet.assertj.MvcTestResult;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.zvote.server.identity.VoterIdentity;
-import org.zvote.server.polls.Poll;
 import org.zvote.server.polls.PollService;
 
 import java.io.UnsupportedEncodingException;
@@ -415,21 +414,10 @@ class PollApiTest {
             var reopened = patch(alice, "/api/polls/" + poll, "{\"closed\": false}");
             var closedAgain = patch(alice, "/api/polls/" + poll, "{\"closed\": true}");
 
-            assertThat(reopened).hasStatus(HttpStatus.CONFLICT);
-            assertThat(reopened).hasContentType(MediaType.APPLICATION_PROBLEM_JSON);
+            assertThat(reopened).hasStatus(HttpStatus.BAD_REQUEST);
             assertThat(reopened).bodyJson().extractingPath("$.detail")
-                .isEqualTo("A closed poll stays closed: its results are final.");
+                .isEqualTo("A poll can only be closed, for good: send {\"closed\": true}.");
             assertThat(closedAgain).bodyJson().extractingPath("$.closedAt").isEqualTo(closed);
-        }
-
-        @Test
-        void anOpenPollCanBeToldToStayOpen() {
-            var poll = createPoll(alice, "APPROVAL", "UNLISTED");
-
-            var result = patch(alice, "/api/polls/" + poll, "{\"closed\": false}");
-
-            assertThat(result).hasStatus(HttpStatus.OK);
-            assertThat(result).bodyJson().extractingPath("$.closedAt").isNull();
         }
 
         @Test
@@ -474,7 +462,7 @@ class PollApiTest {
         void theCodeLeadsToThePollHoweverItIsTyped() {
             var poll = createPoll(alice, "APPROVAL", "UNLISTED");
             var code = JsonPath.<String>read(body(get(alice, "/api/polls/" + poll)), "$.joinCode");
-            var typed = code.substring(0, 3).toLowerCase() + "- " + code.substring(3);
+            var typed = code.substring(0, 3).toLowerCase() + " \u2013 " + code.substring(3); // an en dash, pasted
 
             var result = get(bob, "/api/join/" + typed);
 
@@ -526,6 +514,20 @@ class PollApiTest {
         }
 
         @Test
+        void theCloudShowsTheFirstHundredNamesAlphabetically() {
+            for (int i = 100; i >= 0; i--) {
+                approve(Voter.random(), "Voter %03d".formatted(i));
+            }
+
+            var result = get(Voter.random(), "/api/polls/" + poll);
+
+            assertThat(JsonPath.<List<String>>read(body(result), "$.voterNames"))
+                .hasSize(100).startsWith("Voter 000").endsWith("Voter 099");
+            assertThat(result).bodyJson().extractingPath("$.moreVoterNames").isEqualTo(true);
+            assertThat(result).bodyJson().extractingPath("$.totalBallots").isEqualTo(101);
+        }
+
+        @Test
         void theVoterGetsTheirNameBackWithTheirBallot() {
             var result = approve(bob, "Bob");
 
@@ -555,12 +557,19 @@ class PollApiTest {
         }
 
         @Test
-        void aNameMustBeShortAndOnOneLine() {
+        void aNameMustBeShortAndVisible() {
             assertThat(approve(bob, "x".repeat(41))).bodyJson().extractingPath("$.detail")
                 .isEqualTo("A name can be at most 40 characters long.");
-            assertThat(approve(bob, "Bob\\nSmith")).bodyJson().extractingPath("$.detail")
-                .isEqualTo("A name must fit on one line.");
+            assertThat(approve(bob, "\\u202Eboj")).bodyJson().extractingPath("$.detail")
+                .isEqualTo("A name can only hold visible characters.");
             assertThat(get(bob, "/api/polls/" + poll)).bodyJson().extractingPath("$.myBallot").isNull();
+        }
+
+        @Test
+        void aNameKeepsSingleSpacesBetweenItsWords() {
+            assertThat(approve(bob, "Bob\\tSmith\\u2028Jr")).bodyJson().extractingPath("$.myBallot.voterName")
+                .isEqualTo("Bob Smith Jr");
+            assertThat(approve(alice, "\\u00A0")).bodyJson().extractingPath("$.myBallot.voterName").isNull();
         }
 
         @Test
@@ -589,10 +598,14 @@ class PollApiTest {
     class Retention {
 
         @Autowired
-        PollService pollService;
+        PollRetention retention;
 
         @Autowired
         JdbcClient jdbc;
+
+        Long idOf(String poll) {
+            return jdbc.sql("SELECT id FROM poll WHERE share_token = :token").param("token", poll).query(Long.class).single();
+        }
 
         @Test
         void aPollSaysWhenItWillBeDeleted() {
@@ -608,20 +621,41 @@ class PollApiTest {
             var old = createPoll(alice, "APPROVAL", "UNLISTED");
             var recent = createPoll(alice, "APPROVAL", "UNLISTED");
             put(bob, "/api/polls/" + old + "/ballot", "{\"approvedOptionIds\": [\"" + optionIds(old).getFirst() + "\"]}");
-            var oldId = jdbc.sql("SELECT id FROM poll WHERE share_token = :token").param("token", old)
-                .query(Long.class).single();
+            var oldId = idOf(old);
             jdbc.sql("UPDATE poll SET created_at = :createdAt WHERE share_token = :token")
                 .param("createdAt", OffsetDateTime.now(ZoneOffset.UTC).minusDays(31))
                 .param("token", old)
                 .update();
 
-            var deleted = pollService.deleteExpired();
+            retention.run();
 
-            assertThat(deleted).extracting(Poll::shareToken).contains(old).doesNotContain(recent);
             assertThat(get(bob, "/api/polls/" + old)).hasStatus(HttpStatus.NOT_FOUND);
             assertThat(get(bob, "/api/polls/" + recent)).hasStatus(HttpStatus.OK);
-            assertThat(jdbc.sql("SELECT COUNT(*) FROM approval WHERE poll_id = :poll")
-                .param("poll", oldId).query(Long.class).single()).isZero();
+            assertThat(rowsOf("ballot", oldId)).isZero();
+        }
+
+        @Test
+        void aDeletedPollGoesAtOnceAndItsBallotsAndNamesRightAfter() {
+            var poll = createPoll(alice, "APPROVAL", "UNLISTED", "\"showVoterNames\": true");
+            put(bob, "/api/polls/" + poll + "/ballot", """
+                {"approvedOptionIds": ["%s"], "voterName": "Bob"}
+                """.formatted(optionIds(poll).getFirst()));
+            var id = idOf(poll);
+
+            delete(alice, "/api/polls/" + poll);
+            assertThat(get(bob, "/api/polls/" + poll)).hasStatus(HttpStatus.NOT_FOUND);
+            assertThat(rowsOf("ballot", id)).isOne();
+
+            retention.run();
+
+            assertThat(rowsOf("ballot", id)).isZero();
+            assertThat(rowsOf("voter_name", id)).isZero();
+            assertThat(jdbc.sql("SELECT COUNT(*) FROM poll_removal").query(Long.class).single()).isZero();
+        }
+
+        long rowsOf(String table, long pollId) {
+            return jdbc.sql("SELECT COUNT(*) FROM " + table + " WHERE poll_id = :poll")
+                .param("poll", pollId).query(Long.class).single();
         }
     }
 
@@ -695,9 +729,64 @@ class PollApiTest {
                 .isEqualTo("Results shown after a number of ballots need at least 3 ballots.");
         }
 
+        @Test
+        void aThresholdCanBeBillionsOfBallots() {
+            var poll = createPoll(alice, "APPROVAL", "UNLISTED",
+                "\"resultsShown\": \"AFTER_BALLOTS\", \"resultsAfterBallots\": 5000000000");
+
+            assertThat(get(bob, "/api/polls/" + poll)).bodyJson().extractingPath("$.resultsAfterBallots")
+                .isEqualTo(5_000_000_000L);
+        }
+
         private String resultsShown(String choice) {
             return JsonPath.read(body(get(bob, "/api/polls/" + createPoll(alice, "APPROVAL", "UNLISTED", choice))),
                 "$.resultsShown");
+        }
+    }
+
+    /** Tallies are stored and folded from what ballots change: they must add up, whatever the order. */
+    @Nested
+    class Tallies {
+
+        @Autowired
+        JdbcClient jdbc;
+
+        @Test
+        void manyVotersRevisingAndWithdrawingAtOnceAddUpExactly() throws InterruptedException {
+            var poll = createPoll(alice, "MAJORITY_JUDGMENT", "UNLISTED");
+            var options = optionIds(poll);
+            var mentions = List.of("Bad", "Inadequate", "Passable", "Fair", "Good", "VeryGood", "Excellent");
+            var voters = IntStream.range(0, 60).mapToObj(v -> Thread.ofVirtual().start(() -> {
+                var voter = Voter.random();
+                for (int round = 0; round < 3; round++) {
+                    put(voter, "/api/polls/" + poll + "/ballot", """
+                        {"judgments": {"%s": "%s", "%s": "%s"}}
+                        """.formatted(options.get(0), mentions.get((v + round) % 7),
+                        options.get(1), mentions.get((3 * v + round) % 7)));
+                }
+                if (v % 5 == 0) {
+                    put(voter, "/api/polls/" + poll + "/ballot", "{\"judgments\": {}}");
+                }
+            })).toList();
+            for (var voter : voters) {
+                voter.join();
+            }
+
+            var result = get(bob, "/api/polls/" + poll);
+
+            var ballots = jdbc.sql("SELECT choices FROM ballot WHERE poll_id = (SELECT id FROM poll WHERE share_token = :token)")
+                .param("token", poll).query(byte[].class).list();
+            assertThat(ballots).hasSize(48);
+            assertThat(result).bodyJson().extractingPath("$.totalBallots").isEqualTo(48);
+            for (int position = 0; position < 2; position++) {
+                for (int rank = 0; rank < 7; rank++) {
+                    int option = position;
+                    int mention = rank;
+                    assertThat(result).bodyJson()
+                        .extractingPath("$.options[" + position + "].judgmentCounts." + mentions.get(rank))
+                        .isEqualTo((int) ballots.stream().filter(choices -> choices[option] == mention).count());
+                }
+            }
         }
     }
 
@@ -720,8 +809,8 @@ class PollApiTest {
                 }
             }
 
-            var lunchBallots = keys("SELECT ballot_key FROM approval", lunch);
-            var dinnerBallots = keys("SELECT ballot_key FROM approval", dinner);
+            var lunchBallots = keys("SELECT ballot_key FROM ballot", lunch);
+            var dinnerBallots = keys("SELECT ballot_key FROM ballot", dinner);
             var names = new HashSet<String>(keys("SELECT name_key FROM voter_name", lunch));
             names.addAll(keys("SELECT name_key FROM voter_name", dinner));
 
@@ -736,7 +825,7 @@ class PollApiTest {
         @Test
         void nothingRecordsWhenABallotOrANameWasGiven() {
             assertThat(timestampColumns("poll")).as("poll: created_at, closed_at").isEqualTo(2);
-            for (var table : List.of("approval", "judgment", "voter_name")) {
+            for (var table : List.of("ballot", "ballot_change", "tally", "ballot_count", "voter_name")) {
                 assertThat(timestampColumns(table)).as(table).isZero();
             }
         }
@@ -744,7 +833,7 @@ class PollApiTest {
         private long timestampColumns(String table) {
             return jdbc.sql("""
                     SELECT COUNT(*) FROM information_schema.columns
-                    WHERE LOWER(table_name) = :table AND data_type LIKE 'TIMESTAMP%'
+                    WHERE LOWER(table_name) = :table AND UPPER(data_type) LIKE 'TIMESTAMP%'
                     """)
                 .param("table", table).query(Long.class).single();
         }
@@ -769,7 +858,7 @@ class PollApiTest {
         void aBallotCastWhileThePollClosesIsRefused() throws InterruptedException {
             var poll = createPoll(alice, "APPROVAL", "UNLISTED");
 
-            var ballot = castWhile(poll, 300, () -> pollService.setClosed(poll, voterIdOf(alice), true));
+            var ballot = castWhile(poll, 300, () -> pollService.close(poll, voterIdOf(alice)));
 
             assertThat(ballot).hasStatus(HttpStatus.CONFLICT);
             assertThat(ballot).bodyJson().extractingPath("$.detail").asString().contains("closed");
@@ -789,7 +878,7 @@ class PollApiTest {
         void aBallotKeptWaitingTooLongIsToldToTryAgain() throws InterruptedException {
             var poll = createPoll(alice, "APPROVAL", "UNLISTED");
 
-            var ballot = castWhile(poll, 2500, () -> pollService.setClosed(poll, voterIdOf(alice), true));
+            var ballot = castWhile(poll, 2500, () -> pollService.close(poll, voterIdOf(alice)));
 
             assertThat(ballot).hasStatus(HttpStatus.CONFLICT);
             assertThat(ballot).bodyJson().extractingPath("$.detail").asString().contains("Please try again");

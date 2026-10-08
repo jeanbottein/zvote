@@ -45,9 +45,10 @@ public class VoterIdentityFilter extends OncePerRequestFilter {
     private final SecretKey secret;
 
     /**
-     * The secret keys every ballot's owner: changing it leaves every ballot
-     * counted but nobody able to revise theirs. It never has a default, so a
-     * server cannot run on a secret everybody knows.
+     * The secret keys every ballot's owner. Changing it orphans every ballot:
+     * still counted, but its voter is told they have not voted, and voting
+     * again counts them twice. It never has a default, so a server cannot run
+     * on a secret everybody knows.
      */
     public VoterIdentityFilter(@Value("${zvote.voter-secret:}") String secret) {
         if (secret.length() < MIN_SECRET_LENGTH) {

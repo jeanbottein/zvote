@@ -35,15 +35,14 @@ stand-in to type on a phone (`K7M-4QX`).
 ## Server
 
 Java 25, Spring Boot 4.1: Spring MVC on virtual threads, Spring Data JDBC,
-Flyway, H2 in file mode, Spring Modulith. About a thousand lines, in seven
-modules, one per package under `org.zvote.server`:
+Flyway, H2 in file mode or PostgreSQL, Spring Modulith. About 1,300 lines of
+code, in six modules, one per package under `org.zvote.server`:
 
 | Module | Uses | Holds |
 |---|---|---|
 | `polls` | `common` | `Poll`, `PollOption`, `PollService`: every rule about polls |
-| `approval` | nothing | approval ballots and their tallies |
-| `judgment` | nothing | majority judgment ballots, `Mention`, tallies |
-| `api` | everything | controllers, `PollViewService`, DTOs, error mapping |
+| `ballots` | nothing | ballots, one byte per option; their tallies (`TallyService`); `Mention` |
+| `api` | everything | controllers, the services that join polls and ballots, DTOs, error mapping |
 | `identity` | nothing | the voter cookie and `VoterIdentityFilter` |
 | `live` | nothing | `PollStream`: server-sent events |
 | `common` | nothing | `ZVoteProperties`, `InvalidRequestException` |
@@ -51,11 +50,12 @@ modules, one per package under `org.zvote.server`:
 Each module says what it is, and which modules it may use, in its
 `package-info.java` (`@ApplicationModule`). Its API is its root package; its
 sub-packages (`api.dto`) are its own. `ArchitectureTest` has Spring Modulith
-verify it all: polls ignore voting systems, the two voting systems ignore each
-other, nothing depends on `api`, `live` and `identity` know nothing about the
-domain, and there are no cycles. ArchUnit adds what a module declaration
-cannot say: repositories are package-private (so only the service beside one
-can use it), data classes are records, and nothing imports Reactor.
+verify it all: polls and ballots ignore each other (only `api` knows both, and
+what a ballot's bytes mean), nothing depends on `api`, `live` and `identity`
+know nothing about the domain, and there are no cycles. ArchUnit adds what a
+module declaration cannot say: repositories are package-private (so only the
+service beside one can use it), data classes are records, and nothing imports
+Reactor.
 
 ### Casting a ballot, step by step
 
@@ -63,17 +63,22 @@ can use it), data classes are records, and nothing imports Reactor.
    needed) and puts the `Voter` on the request.
 2. `BallotService`, in one transaction, asks `PollService.findOpen(id)` for
    the poll (404 if it does not exist, 409 if it is closed), checks that the
-   ballot has the right shape and only this poll's option ids, and hands it to
-   the voting system's service, which replaces the ballot stored under the
-   voter's ballot key for this poll: delete, then insert. The voter's name, on a poll that shows names, is part of the
-   ballot: `PollService.nameVoter` records it under the voter's name key, or
-   forgets it when the ballot is withdrawn or carries none.
+   ballot has the right shape and only this poll's option ids, and encodes it
+   as one byte per option, in the options' order (`BallotFormat`: a mention's
+   rank, or 1 for an approved option). `BallotBoxService` replaces the voter's
+   row (one per voter and poll, under their ballot key) and records what
+   changed, from what to what, in `ballot_change`. The voter's name, on a poll
+   that shows names, is part of the ballot: `PollService.nameVoter` records it
+   under the voter's name key, or forgets it when the ballot is withdrawn or
+   carries none.
 3. `findOpen` holds a shared lock on the poll until that transaction ends.
    Ballots do not wait for each other, but closing or deleting the poll waits
    for the ballots in flight, and a ballot arriving meanwhile waits, then
    finds the poll closed or gone: none is counted after closing.
-4. `PollStream.changed(...)` is told the poll moved. The caller gets the fresh
-   `PollView` straight away; watchers get an update a moment later.
+4. Once committed, the request asks `TallyFolding` to fold the change into
+   the tallies and waits for it, a quarter of a second at most (see
+   [Tallies](#tallies)). The caller then gets the fresh `PollView`, and
+   watchers an update a moment later.
 
 ### Identity
 
@@ -123,40 +128,48 @@ Who can tell what someone chose, and what stops them:
   happens. The design keeps nothing linkable at rest, but it does not hide
   ballots from the running server: that would take cryptographic voting
   (blind signatures, mix networks), well beyond deciding where to eat. The
-  operator is trusted, and the privacy notice says so.
+  operator is trusted, which the privacy page must say (roadmap, phase 6).
 
 The secret is `ZVOTE_VOTER_SECRET` (at least 32 characters). The server
 refuses to start without one; `spring-boot:run` sets a development secret in
 `pom.xml`, and the tests set their own. Changing it orphans every ballot:
-still counted, but nobody can revise theirs.
+still counted, but on an open poll its voter is told they have not voted,
+and voting again counts them twice (their name shows twice too). So never
+change it while polls are open, and give every server that shares a
+database, development runs included, the same one.
 
-#### Known limit: insertion order
+#### Known limit: what the database itself records
 
-Ballot rows and name rows share no key and no time, but both are written as
-voters come, in the same transaction. Ids count up; the database stores rows
-roughly in the order written; PostgreSQL also stamps each row with the
-transaction that wrote it (`xmin`) and logs every change, in order, in its
-write-ahead log. So a copy of the database could pair the n-th name given
-on a poll with the n-th ballot cast on it. Revisions, withdrawals and
-anonymous voters blur the pairing, and it takes a copy of the database, a
-poll that shows names and few voters.
+Ballot rows and name rows share no key and no time, but a voter's ballot
+and name are written in one transaction, as voters come.
 
-Neither random nor encrypted ids close it: both hide the id's value, not
-the order in which the rows were written, which the database keeps
-anyway. What would close it for the tables is giving names no order to
-read: one row per poll holding its names as a list, shuffled and rewritten
-with every ballot. The write-ahead log would still hold the successive
-versions until it is recycled, so archived logs must not outlive their
-use. Not worth it yet; revisit if names come to matter more (public polls,
-accounts).
+- **On PostgreSQL, exactly.** Every row carries the transaction that wrote
+  it (`xmin`), so whoever can query the live database, or holds a physical
+  copy of it (a base backup, a replica), can join a name to its ballot. A
+  name row is only rewritten when the name changes, so a revised ballot no
+  longer shares its name's transaction, but a first ballot does. That
+  reaches the operator, who is trusted anyway (above); backups stay
+  logical (`pg_dump`), which carry no `xmin`.
+- **In any copy, roughly.** Rows are stored about in the order written (and
+  names have ids that count up; ballots have none), so a dump can line up the
+  n-th name of a poll with the n-th ballot. Revisions, withdrawals and
+  anonymous voters blur that. The change log does keep ballots in order, but
+  only for the moment until they are folded.
+
+Neither random nor encrypted ids help: both hide an id's value, not when its
+row was written. What would close it is writing names apart from ballots,
+later and shuffled (a job that adds a poll's new names every minute, in
+random order), with the trade-off that a name shows up a minute late. Not
+worth it yet; revisit before names matter more (public polls, accounts).
 
 ### Names and join codes
 
 A creator can make a poll show names. Voters then may give one with their
 ballot; it is stored per poll (`voter_name`), never across polls, and it is
-shown to everyone on the poll as a cloud under the results. Its key matches
-no ballot row, and the cloud is alphabetical (see [Anonymity](#anonymity)).
-Withdrawing the ballot takes the name away.
+shown to everyone on the poll as a cloud under the results: the first 100
+names in alphabetical order, then how many more voted. Its key matches no
+ballot row (see [Anonymity](#anonymity)). Withdrawing the ballot takes the name
+away.
 
 A join code is drawn at random from 31 characters without look-alikes
 (887 million codes), unique among polls. It is shorter than the 128-bit share
@@ -166,16 +179,41 @@ rate limit at deployment.
 ### Retention
 
 `PollRetention` deletes polls `zvote.limits.poll-lifetime-days` (30) after
-their creation, every hour, and tells their watchers. Polls are for deciding,
+their creation, every minute, and tells their watchers. Polls are for deciding,
 not archiving, and keeping them briefly keeps little personal data around.
 Tests switch the job off (`zvote.retention-cron: "-"`) and call it themselves.
 
+A deleted poll (by its creator or by retention) disappears at once, with its
+options and tallies, but its ballots and names can be billions: they have no
+foreign key to the poll, and the same job removes them afterwards, 10,000 per
+transaction, from the list of deleted polls (`poll_removal`) that the deletion
+wrote in its own transaction. No transaction grows with the size of a poll,
+and nothing is left behind.
+
 ### Tallies
 
-Counts are never stored. One `GROUP BY` per poll derives them from the ballot
-rows, so there is no second source of truth to keep in sync. A view's queries
-share one snapshot (a read-only, repeatable-read transaction), so its tallies
-and its ballot count always agree. The server sends
+Tallies are stored, so that reading them costs the same at any size: a few
+counters per option (`tally`) and the number of ballots (`ballot_count`),
+created with the poll (`PollCreationService`, in the poll's transaction).
+Ballots never update them: each ballot only inserts what it changed into
+`ballot_change`, and `TallyFolding`, a thread of its own, folds those changes
+into the counters in batches of up to 10,000 (`TallyService.fold`), then tells
+the polls' watchers. That keeps the hot path insert-only: no ballot ever waits
+for another on a counter.
+
+- **Exact.** A fold takes its changes, adds them up and deletes them in one
+  transaction, so each is counted once. `FOR UPDATE SKIP LOCKED` lets several
+  servers fold side by side, and counters are always updated in the same
+  order, so two folds never deadlock.
+- **A moment behind.** A ballot's request waits for its fold (250 ms at most,
+  `zvote.fold-patience`): with few ballots, its answer counts it; with many,
+  it shows in the next update. Closing waits for every fold, so final results
+  are final.
+- **Rebuildable.** Folding only adds and subtracts, so the counters can always
+  be recomputed from the ballots (`PollApiTest.Tallies` does).
+
+A view's queries share one snapshot (a read-only, repeatable-read
+transaction), so its tallies and its ballot count always agree. The server sends
 counts, not rankings: majority judgment is ranked by the client
 (`utils/majorityJudgment.ts`). An option's majority mention is the best mention
 that more than half of the voters give it or better; with an even number of
@@ -209,19 +247,52 @@ virtual.
   open requests, and a stream never finishes on its own: without this, any
   open results page delayed every restart by 30 seconds.
 
-This works on one server. A second instance will need a shared channel
-(PostgreSQL `LISTEN/NOTIFY` or Redis) to relay `changed` calls between nodes.
+Updates come from the folds: each fold tells `PollStream` which polls moved.
+Ballots are folded side by side on several servers already, but watchers only
+hear of the folds of their own server: a second instance will need a shared
+channel (PostgreSQL `LISTEN/NOTIFY` or Redis) to relay `changed` calls between
+nodes.
 
 ### Persistence
 
 Flyway owns the schema (`src/main/resources/db/migration`). The SQL is portable
-(`GENERATED BY DEFAULT AS IDENTITY`, `TIMESTAMP WITH TIME ZONE`) so that it
-runs unchanged on PostgreSQL. Table names are singular and unquoted and entities
-have no `@Table`: see the note at the top of `V1__init.sql`. Deleting a poll
-deletes its options and ballots (`ON DELETE CASCADE`). `V1` has never been
-released and was rewritten in place; `V2` was added instead, so that
-development databases migrate. From the first deployment on, only add
-migrations.
+(`GENERATED BY DEFAULT AS IDENTITY`, `TIMESTAMP WITH TIME ZONE`, `BYTEA`,
+`LIMIT`, `FOR UPDATE SKIP LOCKED`), and the whole test suite passes on both
+databases: H2 in development, PostgreSQL in production
+(`SPRING_DATASOURCE_URL=jdbc:postgresql://...`; see the server's README). Table
+names are singular and unquoted and entities have no `@Table`: see the note at
+the top of `V1__init.sql`. Ballots, the change log and tallies are written with
+`JdbcClient` rather than entities: a ballot's key is two columns, and folding
+updates counters in batches. `V1` has never been released and was rewritten in
+place; `V2` and `V3` were added instead, so that development databases migrate.
+From the first deployment on, only add migrations.
+
+On PostgreSQL, give the connection a lock timeout
+(`?options=-c%20lock_timeout%3D2s`), as H2 has by default: a ballot that waits
+longer than that for a poll being changed is then told to try again (409)
+instead of waiting for as long as it takes. Spring leaves PostgreSQL's
+timeout uncategorized; `ApiExceptionHandler` recognises it.
+
+### Scale
+
+Measured on a laptop (Apple M1, 8 GB, PostgreSQL 14), majority judgment, in
+[PERFORMANCE.md](PERFORMANCE.md#ballots-at-scale):
+
+- 2,400 to 3,700 ballots per second end to end over HTTP, 64 voters at a
+  time, with a median answer of 17 to 23 ms, and the same rate at 200,000
+  ballots as at 50,000. The previous design, which recounted the whole poll
+  on every ballot, did 58 per second at 50,000 ballots, a median of 0.8 s.
+- On a poll of 10 million ballots, loading the page takes 3 ms and a ballot,
+  folded in, 3 to 10 ms.
+- A ballot takes 183 bytes, about 180 GB per billion.
+
+A billion ballots in a day is about 11,600 per second. The database alone
+records over 11,000 per second on this laptop; a production server would
+add CPU. Beyond one PostgreSQL server, ballots split by voter (Citus, or a
+shard key) with folds on each shard. What else stands between zvote and a
+billion-ballot poll is in [ROADMAP.md](ROADMAP.md#scale): live updates across
+servers, results through a CDN for millions of watchers, and, above all,
+identity: one cookie per browser cannot stop anyone from voting twice.
 
 ### Errors
 
@@ -236,19 +307,23 @@ is logged in full and answered 500 with a plain sentence and no details.
 
 - `ArchitectureTest`: the boundaries above.
 - `PollApiTest`: the HTTP contract through MockMvc, on an in-memory H2
-  migrated by Flyway: creation and validation, finding polls, both voting
-  systems, revising and withdrawing, simultaneous ballots, closing, deleting,
-  identity, error documents.
-- `ServerFeaturesTest`: a server configured to offer less says so and refuses
-  the rest.
+  migrated by Flyway: creation and validation, finding and joining polls,
+  both voting systems, revising and withdrawing, simultaneous ballots, tallies
+  that add up when 60 voters revise at once, results kept back, names,
+  closing, deleting, retention, anonymity, identity, error documents.
+- `ServerFeaturesTest`: a server configured to offer more or less says so and
+  refuses the rest.
 - `PollStreamTest`: the stream's rules without a server: who receives what, in
   which order (the joining race, coalescing, dropped watchers, deletion,
   heartbeat, shutdown).
 - `PollEventsTest`: the live stream over a real socket: first event,
-  coalescing, closing, deletion, unknown poll.
+  coalescing, names, results shown at closing, deletion, unknown poll.
+- Unit tests for what needs no server: the ballot format (`BallotFormatTest`),
+  a voter's keys, the mentions, the configuration's limits, the error mapping.
 
-`./mvnw test -Pcoverage` adds a JaCoCo report. Tests log warnings only, so a
-green run prints nothing.
+The same suite runs on PostgreSQL (see the server's README) and as a native
+image (`./mvnw -PnativeTest test`). `./mvnw test -Pcoverage` adds a JaCoCo
+report. Tests log warnings only, so a green run prints nothing.
 
 ## Client
 
@@ -266,8 +341,9 @@ src/
     MajorityJudgment/  ballots (colour scale, dropdowns), results, mention names
     Approval/          ballot, results, ranking
   preferences/         theme, palette, ballot style, live/envelope submission
-  ui/                  small shared pieces: dialog, segmented control, toasts, icons
-  utils/               majorityJudgment.ts: the GMJ ranking math
+  ui/                  shared pieces: dialog, segmented control, toasts, icons, keys
+  utils/               majorityJudgment.ts: the GMJ ranking math; formatCount.ts
+  test/                the test setup, rendering helpers and shared fixtures
   style.css            tokens, layout, shared components
 ```
 
@@ -282,6 +358,7 @@ the same way `api` composes polls and ballots on the server.
 | `/` | join with a code, your polls, and public polls if the server offers them |
 | `/new` | create a poll |
 | `/p/:id` | a poll: your ballot, the live results, and the creator's controls |
+| `/about` | how results are decided, the research behind it, the source code |
 
 A poll's page address is its share link.
 
@@ -310,9 +387,15 @@ have been deleted.
   stay there if submitting fails.
 
 Withdrawing, in either mode, goes through the live queue: it cannot overtake a
-ballot that is still on its way. Renaming yourself on a counted ballot casts it
-again (`recast`): through the live queue in live mode, and without the unsent
-changes in envelope mode.
+ballot that is still on its way. The voter's name goes with the ballot: in
+live mode, renaming yourself casts the ballot again (`recast`), after any on
+its way and always with the latest name; in envelope mode it is one more change
+to submit.
+
+A ballot counted before the page opened starts hidden behind "Change my
+ballot", and a ballot the voter touches stays open. While a poll keeps its
+results back, the server sends no tallies, and the results section says when
+they will show.
 
 ### The results visualisation
 
@@ -364,7 +447,8 @@ Playwright is on the roadmap.
 | Spring Data JDBC, not JPA | No lazy loading or dirty checking, and it maps Java records, which JPA cannot. |
 | REST + server-sent events, not GraphQL or WebSockets | Plain HTTP and one-way pushes cover every need, with nothing to negotiate. |
 | H2 in file mode | No database to install or configure; the data file moves between machines. PostgreSQL arrives with deployment. |
-| Tallies derived, never stored | One source of truth. |
+| Tallies stored and folded from a change log, rebuildable from the ballots | Reading them costs the same at any size, and ballots never wait for each other on a counter. |
+| One row per ballot, one byte per option | 183 bytes a ballot, and one row to replace when it changes. |
 | Ranking in the client | Majority judgment math lives in one tested module, next to the visualisation. |
 | `PUT` for ballots | One ballot per voter per poll; cast, revise and withdraw are one operation, and retries are safe. |
 | Share token as the only id | One identifier, unguessable, that doubles as the unlisted-poll secret. |
@@ -383,5 +467,5 @@ Playwright is on the roadmap.
 - **Anonymous identity is per browser.** Clearing cookies, or another browser,
   is another voter. Fine among friends; not for decisions that must resist
   ballot stuffing, which need accounts.
-- **Live updates are single-node** (see above).
+- **Live updates are single-node** (see above), though folding is not.
 - **Lists are capped** (50 public polls, 100 of your own) and not paginated.

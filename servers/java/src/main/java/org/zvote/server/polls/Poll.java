@@ -26,8 +26,7 @@ public record Poll(
     Visibility visibility,
     boolean showVoterNames,
     ResultsShown resultsShown,
-    /** AFTER_BALLOTS only: how many ballots must be in. */
-    Integer resultsAfterBallots,
+    Long resultsAfterBallots,
     Instant createdAt,
     Instant closedAt
 ) {
@@ -43,7 +42,8 @@ public record Poll(
     /**
      * When the results show while the poll is open; once closed, they always
      * do. Tallies that move as people vote show what each of them chose:
-     * AFTER_BALLOTS spares the first voters, AFTER_CLOSING everyone.
+     * AFTER_BALLOTS spares the first voters (resultsAfterBallots of them),
+     * AFTER_CLOSING everyone.
      */
     public enum ResultsShown { LIVE, AFTER_BALLOTS, AFTER_CLOSING }
 

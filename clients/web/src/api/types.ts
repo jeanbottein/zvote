@@ -54,13 +54,15 @@ export interface Poll {
   isMine: boolean;
   totalBallots: number;
   options: PollOption[];
-  /** Polls that show names: the names voters gave, in alphabetical order. Never what they chose. */
+  /** Polls that show names: the first names voters gave, in alphabetical order. Never what they chose. */
   voterNames: string[] | null;
+  /** More voters gave a name than voterNames holds. */
+  moreVoterNames: boolean;
   myBallot: MyBallot | null;
 }
 
 /** What a poll's watchers receive live: what changes, the same for every watcher. */
-export type PollUpdate = Pick<Poll, 'closedAt' | 'totalBallots' | 'options' | 'voterNames'>;
+export type PollUpdate = Pick<Poll, 'closedAt' | 'totalBallots' | 'options' | 'voterNames' | 'moreVoterNames'>;
 
 export type PollSummary = Pick<
   Poll,

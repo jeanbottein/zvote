@@ -50,7 +50,7 @@ public class Load {
                     {"title":"Load","options":["A","B","C","D","E"],"votingSystem":"MAJORITY_JUDGMENT","visibility":"UNLISTED"}
                     """)).build(),
             HttpResponse.BodyHandlers.ofString()).body();
-        var poll = created.replaceAll(".*\"id\":\"([^\"]+)\",\"title\".*", "$1");
+        var poll = created.replaceFirst("^\\{\"id\":\"([^\"]+)\".*", "$1"); // a PollView starts with its id
         var options = OPTION_ID.matcher(created).results().map(m -> m.group(1)).toList();
 
         // The viewers: each follows the stream and notes when it first sees the final count.

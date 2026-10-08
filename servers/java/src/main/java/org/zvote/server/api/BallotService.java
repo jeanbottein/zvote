@@ -3,11 +3,10 @@ package org.zvote.server.api;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.zvote.server.api.dto.CastBallotRequest;
-import org.zvote.server.approval.ApprovalBallotService;
+import org.zvote.server.ballots.BallotBoxService;
+import org.zvote.server.ballots.Mention;
 import org.zvote.server.common.InvalidRequestException;
 import org.zvote.server.identity.Voter;
-import org.zvote.server.judgment.JudgmentBallotService;
-import org.zvote.server.judgment.Mention;
 import org.zvote.server.polls.Poll;
 import org.zvote.server.polls.PollOption;
 import org.zvote.server.polls.PollService;
@@ -16,13 +15,12 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
  * Casts a ballot in the poll's voting system, after checking it has the right
- * shape and only this poll's options.
+ * shape and only this poll's options, and writes it as {@link BallotFormat}
+ * says.
  *
  * One transaction holds the poll's lock from the check that it is open to the
  * saved ballot, so a poll closed or deleted at the same moment either waits
@@ -32,18 +30,18 @@ import java.util.stream.Collectors;
 @Service
 public class BallotService {
 
+    private static final byte[] WITHDRAWN = {};
+
     private static final String MENTIONS = Arrays.stream(Mention.values())
         .map(Mention::wireName)
         .collect(Collectors.joining(", "));
 
     private final PollService polls;
-    private final ApprovalBallotService approvals;
-    private final JudgmentBallotService judgments;
+    private final BallotBoxService ballotBox;
 
-    public BallotService(PollService polls, ApprovalBallotService approvals, JudgmentBallotService judgments) {
+    public BallotService(PollService polls, BallotBoxService ballotBox) {
         this.polls = polls;
-        this.approvals = approvals;
-        this.judgments = judgments;
+        this.ballotBox = ballotBox;
     }
 
     /**
@@ -53,54 +51,47 @@ public class BallotService {
     @Transactional
     public Poll cast(String shareToken, CastBallotRequest ballot, Voter voter) {
         var poll = polls.findOpen(shareToken);
-        var optionIds = polls.optionsOf(poll).stream().map(PollOption::id).toList();
-        var ballotKey = voter.ballotKey(poll.id());
-
-        var withdrawn = switch (poll.votingSystem()) {
-            case APPROVAL -> {
-                var approved = approvedOptions(ballot, optionIds);
-                approvals.cast(poll.id(), ballotKey, approved);
-                yield approved.isEmpty();
-            }
-            case MAJORITY_JUDGMENT -> {
-                var mentions = mentions(ballot, optionIds);
-                judgments.cast(poll.id(), ballotKey, mentions, optionIds);
-                yield mentions.isEmpty();
-            }
+        var options = polls.optionsOf(poll);
+        var choices = switch (poll.votingSystem()) {
+            case APPROVAL -> approvals(ballot, options);
+            case MAJORITY_JUDGMENT -> judgments(ballot, options);
         };
-        polls.nameVoter(poll, voter.nameKey(poll.id()), withdrawn ? null : ballot.voterName());
+        ballotBox.cast(poll.id(), voter.ballotKey(poll.id()), choices);
+        polls.nameVoter(poll, voter.nameKey(poll.id()), choices.length == 0 ? null : ballot.voterName());
         return poll;
     }
 
-    private static Set<Long> approvedOptions(CastBallotRequest ballot, List<Long> optionIds) {
+    /** Approving nothing withdraws. */
+    private static byte[] approvals(CastBallotRequest ballot, List<PollOption> options) {
         if (ballot.approvedOptionIds() == null || ballot.judgments() != null) {
             throw new InvalidRequestException(
                 "This is an approval poll: send the approved options as \"approvedOptionIds\".");
         }
         var approved = new HashSet<Long>();
         for (var optionId : ballot.approvedOptionIds()) {
-            approved.add(optionOf(optionId, optionIds));
+            approved.add(optionOf(optionId, options));
         }
-        return approved;
+        return approved.isEmpty() ? WITHDRAWN : BallotFormat.encodeApprovals(approved, options);
     }
 
-    private static Map<Long, Mention> mentions(CastBallotRequest ballot, List<Long> optionIds) {
+    /** An empty ballot withdraws. */
+    private static byte[] judgments(CastBallotRequest ballot, List<PollOption> options) {
         if (ballot.judgments() == null || ballot.approvedOptionIds() != null) {
             throw new InvalidRequestException(
                 "This is a majority judgment poll: send one mention per option as \"judgments\".");
         }
         var mentions = new HashMap<Long, Mention>();
         ballot.judgments().forEach((optionId, mention) -> mentions.put(
-            optionOf(optionId, optionIds),
+            optionOf(optionId, options),
             Mention.fromWireName(mention).orElseThrow(() -> new InvalidRequestException(
                 "\"" + mention + "\" is not a mention. Use one of: " + MENTIONS + "."))));
-        return mentions;
+        return mentions.isEmpty() ? WITHDRAWN : BallotFormat.encodeJudgments(mentions, options);
     }
 
-    private static Long optionOf(String optionId, List<Long> optionIds) {
+    private static Long optionOf(String optionId, List<PollOption> options) {
         try {
             var id = Long.valueOf(optionId);
-            if (optionIds.contains(id)) {
+            if (options.stream().anyMatch(option -> option.id().equals(id))) {
                 return id;
             }
         } catch (NumberFormatException notANumber) {

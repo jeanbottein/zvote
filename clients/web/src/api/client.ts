@@ -71,7 +71,7 @@ export const listMyPolls = () => request<PollSummary[]>('GET', '/api/polls/mine'
 
 export const getPoll = (id: string) => request<Poll>('GET', pollPath(id));
 
-/** The poll behind a join code, however it was typed. */
+/** The poll behind a join code: its letters and digits. */
 export const joinPoll = (code: string) => request<PollSummary>('GET', `/api/join/${encodeURIComponent(code)}`);
 
 export const createPoll = (poll: NewPoll) => request<Poll>('POST', '/api/polls', poll);
@@ -79,8 +79,8 @@ export const createPoll = (poll: NewPoll) => request<Poll>('POST', '/api/polls',
 export const castBallot = (id: string, ballot: BallotRequest) =>
   request<Poll>('PUT', `${pollPath(id)}/ballot`, ballot);
 
-export const setPollClosed = (id: string, closed: boolean) =>
-  request<Poll>('PATCH', pollPath(id), { closed });
+/** For good: a closed poll cannot be reopened. */
+export const closePoll = (id: string) => request<Poll>('PATCH', pollPath(id), { closed: true });
 
 export const deletePoll = (id: string) => request<void>('DELETE', pollPath(id));
 

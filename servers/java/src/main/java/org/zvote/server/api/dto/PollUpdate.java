@@ -8,12 +8,14 @@ import java.util.List;
  *
  * It is the same for every watcher, so a client merges it straight into its
  * PollView and keeps its own isMine and myBallot. voterNames is null unless
- * the poll shows names: then it holds the names voters chose to give, which
- * say who took part, never what they chose.
+ * the poll shows names: then it holds the first names voters chose to give,
+ * alphabetically, which say who took part, never what they chose;
+ * moreVoterNames says whether there are more than these.
  */
 public record PollUpdate(
     Instant closedAt,
     long totalBallots,
     List<OptionView> options,
-    List<String> voterNames
+    List<String> voterNames,
+    boolean moreVoterNames
 ) {}

@@ -1,15 +1,25 @@
 # zvote: handoff
 
-**Updated 2026-09-26.** For whoever picks this up next, human or agent. Read
+**Updated 2026-10-07.** For whoever picks this up next, human or agent. Read
 `CLAUDE.md` first (conventions and traps), then `docs/ARCHITECTURE.md` and
 `docs/ROADMAP.md`. This file only says where things stand.
 
 ## State
 
-The migration away from SpacetimeDB is complete: one backend, the Java server,
-and a web client rebuilt against it, mobile first, on `main`. Phases 0 to 4 of
-the roadmap are done, followed by a cleanup pass and a Spring Boot review
-(below). **Phase 5, accounts and social sign-in, is next.**
+Phases 0 to 5 of the roadmap are done, and the first step of [Scale](docs/ROADMAP.md#scale)
+(5b), on the branch `feat/groups-and-anonymous-ballots`:
+
+- **Groups (5)**: private polls by link or join code, optional voter names,
+  polls deleted after 30 days, results live, delayed or at close, closing for
+  good.
+- **Anonymous ballots**: ballots and names stored under per-poll HMAC keys
+  that nothing else matches (docs/ARCHITECTURE.md, "Anonymity").
+- **Ballots at scale (5b)**: one row per ballot; tallies stored and folded
+  from a change log; deleted polls' ballots removed in batches; PostgreSQL
+  supported, the tests pass on it. Measured in docs/PERFORMANCE.md.
+
+**Phase 6, deployment on OVHcloud, is next.** The sections below are the
+history of 2026-09-26.
 
 ## Cleanup pass (2026-09-26)
 

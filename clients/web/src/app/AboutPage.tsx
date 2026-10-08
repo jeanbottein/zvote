@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { useServerInfo } from '../polls/useServerInfo';
 
 export const SOURCE_CODE_URL = 'https://github.com/jeanbottein/zvote';
 
@@ -82,6 +83,7 @@ const REFERENCES: Reference[] = [
 
 /** What zvote is, how it decides, the research it rests on, and who makes it. */
 export default function AboutPage() {
+  const { limits } = useServerInfo();
   return (
     <>
       <title>About · zvote</title>
@@ -89,7 +91,8 @@ export default function AboutPage() {
         <h1>About zvote</h1>
         <p>
           A free, open-source way for a group to decide together: where to eat, where to go, what to
-          pick. No account, no ads, no tracking. Polls are deleted 30 days after they are created.
+          pick. No account, no ads, no tracking. Polls are deleted {limits.pollLifetimeDays} days after they
+          are created.
         </p>
       </section>
 

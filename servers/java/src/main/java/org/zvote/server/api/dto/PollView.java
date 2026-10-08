@@ -21,7 +21,7 @@ public record PollView(
     Poll.Visibility visibility,
     boolean showVoterNames,
     Poll.ResultsShown resultsShown,
-    Integer resultsAfterBallots,
+    Long resultsAfterBallots,
     Instant createdAt,
     Instant closedAt,
     Instant expiresAt,
@@ -29,5 +29,6 @@ public record PollView(
     long totalBallots,
     List<OptionView> options,
     List<String> voterNames,
+    boolean moreVoterNames,
     MyBallotView myBallot
 ) {}

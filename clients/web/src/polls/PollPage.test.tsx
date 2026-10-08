@@ -3,9 +3,10 @@ import userEvent from '@testing-library/user-event';
 import type { InitialEntry } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
-  ApiError, castBallot, deletePoll, getPoll, setPollClosed, watchPoll, type PollWatcher,
+  ApiError, castBallot, closePoll, deletePoll, getPoll, watchPoll, type PollWatcher,
 } from '../api/client';
 import type { Poll } from '../api/types';
+import { lunchPoll, NO_JUDGMENTS } from '../test/fixtures';
 import { renderAt } from '../test/render';
 import PollPage from './PollPage';
 import { RETRY_DELAY } from './usePoll';
@@ -15,33 +16,11 @@ vi.mock('../api/client', async (importOriginal) => ({
   getPoll: vi.fn(),
   watchPoll: vi.fn(),
   castBallot: vi.fn(),
-  setPollClosed: vi.fn(),
+  closePoll: vi.fn(),
   deletePoll: vi.fn(),
 }));
 
-const noJudgments = { Bad: 0, Inadequate: 0, Passable: 0, Fair: 0, Good: 0, VeryGood: 0, Excellent: 0 };
-
-const lunch: Poll = {
-  id: 'abc',
-  joinCode: 'K7M4QX',
-  title: 'Where do we eat?',
-  votingSystem: 'MAJORITY_JUDGMENT',
-  visibility: 'UNLISTED',
-  showVoterNames: false,
-  resultsShown: 'LIVE',
-  resultsAfterBallots: null,
-  createdAt: '2026-09-24T10:00:00Z',
-  closedAt: null,
-  expiresAt: '2026-10-24T10:00:00Z',
-  isMine: false,
-  totalBallots: 0,
-  options: [
-    { id: '1', label: 'Ramen', approvalCount: null, judgmentCounts: noJudgments },
-    { id: '2', label: 'Tacos', approvalCount: null, judgmentCounts: noJudgments },
-  ],
-  voterNames: null,
-  myBallot: null,
-};
+const lunch = lunchPoll();
 
 let watcher: PollWatcher;
 
@@ -72,9 +51,10 @@ describe('a poll page', () => {
       closedAt: null,
       totalBallots: 3,
       voterNames: null,
+      moreVoterNames: false,
       options: [
-        { ...lunch.options[0], judgmentCounts: { ...noJudgments, Excellent: 3 } },
-        { ...lunch.options[1], judgmentCounts: { ...noJudgments, Bad: 3 } },
+        { ...lunch.options[0], judgmentCounts: { ...NO_JUDGMENTS, Excellent: 3 } },
+        { ...lunch.options[1], judgmentCounts: { ...NO_JUDGMENTS, Bad: 3 } },
       ],
     }));
 
@@ -209,37 +189,29 @@ describe('managing a poll', () => {
   });
 
   it('closes voting for good, once the creator confirms', async () => {
-    vi.mocked(setPollClosed).mockResolvedValueOnce({ ...mine, closedAt: '2026-09-24T11:00:00Z' });
+    vi.mocked(closePoll).mockResolvedValueOnce({ ...mine, closedAt: '2026-09-24T11:00:00Z' });
     openPoll();
 
     await userEvent.click(await screen.findByRole('button', { name: 'Close voting' }));
     expect(screen.getByRole('alertdialog')).toHaveTextContent('A closed poll cannot be reopened.');
-    expect(setPollClosed).not.toHaveBeenCalled();
+    expect(closePoll).not.toHaveBeenCalled();
     await userEvent.click(screen.getByRole('button', { name: 'Close for good' }));
 
-    expect(setPollClosed).toHaveBeenCalledWith('abc', true);
+    expect(closePoll).toHaveBeenCalledWith('abc');
     expect(await screen.findByText(/These are the final results/)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /voting/ })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Delete poll' })).toBeInTheDocument();
   });
 
-  it('keeps voting open when the creator thinks better of it', async () => {
+  it('keeps voting open when the creator thinks better of it, and the focus where it was', async () => {
     openPoll();
 
     await userEvent.click(await screen.findByRole('button', { name: 'Close voting' }));
+    expect(screen.getByRole('button', { name: 'Keep it open' })).toHaveFocus();
     await userEvent.click(screen.getByRole('button', { name: 'Keep it open' }));
 
-    expect(setPollClosed).not.toHaveBeenCalled();
-    expect(screen.getByRole('button', { name: 'Close voting' })).toBeInTheDocument();
-  });
-
-  it('warns that closing shows results kept until then', async () => {
-    vi.mocked(getPoll).mockResolvedValue({ ...mine, resultsShown: 'AFTER_CLOSING' });
-    openPoll();
-
-    await userEvent.click(await screen.findByRole('button', { name: 'Close voting' }));
-
-    expect(screen.getByRole('alertdialog')).toHaveTextContent('everyone sees the final results');
+    expect(closePoll).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: 'Close voting' })).toHaveFocus();
   });
 
   it('deletes the poll once the creator confirms', async () => {
@@ -266,7 +238,7 @@ describe('managing a poll', () => {
   });
 
   it('says why a change failed', async () => {
-    vi.mocked(setPollClosed).mockRejectedValue(new ApiError(403, "Only the poll's creator can do that."));
+    vi.mocked(closePoll).mockRejectedValue(new ApiError(403, "Only the poll's creator can do that."));
     openPoll();
 
     await userEvent.click(await screen.findByRole('button', { name: 'Close voting' }));
@@ -350,9 +322,10 @@ describe('results kept back', () => {
       closedAt: '2026-09-24T11:00:00Z',
       totalBallots: 2,
       voterNames: null,
+      moreVoterNames: false,
       options: [
-        { ...lunch.options[0], judgmentCounts: { ...noJudgments, Excellent: 2 } },
-        { ...lunch.options[1], judgmentCounts: { ...noJudgments, Bad: 2 } },
+        { ...lunch.options[0], judgmentCounts: { ...NO_JUDGMENTS, Excellent: 2 } },
+        { ...lunch.options[1], judgmentCounts: { ...NO_JUDGMENTS, Bad: 2 } },
       ],
     }));
 
@@ -370,7 +343,8 @@ describe('results kept back', () => {
       closedAt: null,
       totalBallots: 3,
       voterNames: null,
-      options: lunch.options.map((option) => ({ ...option, judgmentCounts: { ...noJudgments, Good: 3 } })),
+      moreVoterNames: false,
+      options: lunch.options.map((option) => ({ ...option, judgmentCounts: { ...NO_JUDGMENTS, Good: 3 } })),
     }));
 
     expect(screen.queryByText(/The results show once/)).not.toBeInTheDocument();
@@ -410,6 +384,27 @@ describe('a counted ballot', () => {
 
     await userEvent.click(screen.getByRole('button', { name: 'Hide my ballot' }));
     expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Change my ballot' })).toHaveFocus();
+  });
+
+  it('opens on the choices, not on the name, which would bring up a phone\'s keyboard', async () => {
+    vi.mocked(getPoll).mockResolvedValue({ ...voted, showVoterNames: true, voterNames: [] });
+    openPoll();
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Change my ballot' }));
+
+    expect(screen.getByRole('checkbox', { name: 'Ramen' })).toHaveFocus();
+  });
+
+  it('cannot be hidden with changes not submitted yet', async () => {
+    localStorage.setItem('zvote.preferences', JSON.stringify({ submission: 'envelope' }));
+    openPoll();
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Change my ballot' }));
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Ramen' }));
+
+    expect(screen.queryByRole('button', { name: 'Hide my ballot' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Submit my ballot' })).toBeEnabled();
   });
 
   it('opens once withdrawn, to vote again', async () => {
@@ -494,6 +489,34 @@ describe('names', () => {
     expect(castBallot).toHaveBeenCalledWith('abc', { approvedOptionIds: ['1'], voterName: 'Sammy' });
   });
 
+  it('warn that live results can tell who chose what', async () => {
+    vi.mocked(getPoll).mockResolvedValue(trip);
+    openPoll();
+
+    expect(await screen.findByText(/people watching may tell who chose what/)).toBeInTheDocument();
+  });
+
+  it('are offered again on the next poll once the voter is done typing', async () => {
+    vi.mocked(getPoll).mockResolvedValue(trip);
+    openPoll();
+
+    const name = await screen.findByLabelText('Your name');
+    await userEvent.type(name, 'Zo');
+    expect(localStorage.getItem('zvote.preferences') ?? '').not.toContain('Zo');
+    await userEvent.type(name, 'é{Enter}');
+
+    expect(JSON.parse(localStorage.getItem('zvote.preferences')!).voterName).toBe('Zoé');
+  });
+
+  it('show the first hundred, then how many more voted', async () => {
+    vi.mocked(getPoll).mockResolvedValue({ ...trip, totalBallots: 1_234_567, moreVoterNames: true });
+    openPoll();
+
+    const whoVoted = (await screen.findByRole('heading', { name: 'Who voted' })).closest('section')!;
+    expect(within(whoVoted).getByText('and 1,234,565 more voters')).toBeInTheDocument();
+    expect(screen.getByText('1,234,567 ballots')).toBeInTheDocument();
+  });
+
   it('show under the results, with those who stayed anonymous', async () => {
     vi.mocked(getPoll).mockResolvedValue(trip);
     openPoll();
@@ -502,7 +525,9 @@ describe('names', () => {
     expect(within(whoVoted).getAllByRole('listitem').map((item) => item.textContent)).toEqual(['Zoé', 'Sam']);
     expect(within(whoVoted).getByText('and 1 anonymous voter')).toBeInTheDocument();
 
-    act(() => watcher.onUpdate({ closedAt: null, totalBallots: 4, options: trip.options, voterNames: ['Zoé', 'Sam', 'Ana'] }));
+    act(() => watcher.onUpdate({
+      closedAt: null, totalBallots: 4, options: trip.options, voterNames: ['Zoé', 'Sam', 'Ana'], moreVoterNames: false,
+    }));
 
     expect(within(whoVoted).getAllByRole('listitem')).toHaveLength(3);
   });

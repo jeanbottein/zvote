@@ -1,9 +1,9 @@
-import { useId, useState } from 'react';
+import { useId, useRef, useState } from 'react';
+import { flushSync } from 'react-dom';
 import { useNavigate } from 'react-router';
-import { deletePoll, errorMessage, setPollClosed } from '../api/client';
+import { closePoll, deletePoll, errorMessage } from '../api/client';
 import type { Poll } from '../api/types';
 import { useToast } from '../ui/Toasts';
-import { showsResults } from './showsResults';
 
 interface OwnerActionsProps {
   poll: Poll;
@@ -17,7 +17,8 @@ export default function OwnerActions({ poll, onChange }: OwnerActionsProps) {
   const titleId = useId();
   const [busy, setBusy] = useState(false);
   const [confirming, setConfirming] = useState<'close' | 'delete' | null>(null);
-  const closed = poll.closedAt !== null;
+  const closeButton = useRef<HTMLButtonElement>(null);
+  const deleteButton = useRef<HTMLButtonElement>(null);
 
   async function run(action: () => Promise<void>) {
     setBusy(true);
@@ -30,9 +31,16 @@ export default function OwnerActions({ poll, onChange }: OwnerActionsProps) {
     }
   }
 
+  /** Back to the button that asked, so that keyboard and screen reader users keep their place. */
+  function keep() {
+    const asked = confirming === 'close' ? closeButton : deleteButton;
+    flushSync(() => setConfirming(null));
+    asked.current?.focus();
+  }
+
   // No toast: the page itself shows the poll closing.
   const close = () => run(async () => {
-    onChange(await setPollClosed(poll.id, true));
+    onChange(await closePoll(poll.id));
     setConfirming(null);
   });
 
@@ -47,12 +55,18 @@ export default function OwnerActions({ poll, onChange }: OwnerActionsProps) {
       <h2 id={titleId}>Manage your poll</h2>
       {confirming === null && (
         <div className="button-row">
-          {!closed && (
-            <button type="button" className="button secondary" disabled={busy} onClick={() => setConfirming('close')}>
+          {poll.closedAt === null && (
+            <button
+              type="button" className="button secondary" ref={closeButton} disabled={busy}
+              onClick={() => setConfirming('close')}
+            >
               Close voting
             </button>
           )}
-          <button type="button" className="button danger" disabled={busy} onClick={() => setConfirming('delete')}>
+          <button
+            type="button" className="button danger" ref={deleteButton} disabled={busy}
+            onClick={() => setConfirming('delete')}
+          >
             Delete poll
           </button>
         </div>
@@ -60,14 +74,12 @@ export default function OwnerActions({ poll, onChange }: OwnerActionsProps) {
       {confirming === 'close' && (
         <Confirmation
           id={`${titleId}-confirm`}
-          question={showsResults(poll)
-            ? 'Close voting for good? Nobody can vote or change their ballot any more, and the results become final. A closed poll cannot be reopened.'
-            : 'Close voting for good? Nobody can vote or change their ballot any more, and everyone sees the final results. A closed poll cannot be reopened.'}
+          question="Close voting for good? Nobody can vote or change their ballot any more, and everyone sees the final results. A closed poll cannot be reopened."
           busy={busy}
           keep="Keep it open"
           confirm="Close for good"
           tone="primary"
-          onKeep={() => setConfirming(null)}
+          onKeep={keep}
           onConfirm={close}
         />
       )}
@@ -79,7 +91,7 @@ export default function OwnerActions({ poll, onChange }: OwnerActionsProps) {
           keep="Keep it"
           confirm="Delete for good"
           tone="danger"
-          onKeep={() => setConfirming(null)}
+          onKeep={keep}
           onConfirm={remove}
         />
       )}
@@ -98,12 +110,13 @@ interface ConfirmationProps {
   onConfirm(): void;
 }
 
+/** Takes the focus, on the choice that changes nothing. */
 function Confirmation({ id, question, busy, keep, confirm, tone, onKeep, onConfirm }: ConfirmationProps) {
   return (
     <div className="confirm" role="alertdialog" aria-labelledby={id}>
       <p id={id}>{question}</p>
       <div className="button-row">
-        <button type="button" className="button secondary" disabled={busy} onClick={onKeep}>
+        <button type="button" className="button secondary" disabled={busy} onClick={onKeep} autoFocus>
           {keep}
         </button>
         <button type="button" className={`button ${tone}`} disabled={busy} onClick={onConfirm}>

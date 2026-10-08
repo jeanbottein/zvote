@@ -18,6 +18,8 @@ export type JudgmentCounts = {
 export type MJAnalysis = {
   majorityMention: keyof JudgmentCounts;
   gmdScore: number;
+  /** The same score as an exact fraction, (above - below) / at, which ranks options without rounding. */
+  gmdFraction: { numerator: number; denominator: number };
   rank: number;
   isWinner: boolean;
   isExAequo: boolean;
@@ -56,12 +58,13 @@ function calculateMedian(counts: JudgmentCounts): keyof JudgmentCounts {
 /**
  * Calculate GMJ's Usual score: (pc - qc) / rc
  *
- * The proportions share the same denominator, so the score is computed from
- * the counts, (above - below) / at: one division of whole numbers. Two options
- * whose scores are equal then get exactly equal numbers, and stay ex aequo;
- * dividing proportions let rounding separate them (0.5000000000000001 vs 0.5).
+ * The proportions share the same denominator, so the score is the fraction of
+ * whole counts (above - below) / at, and options are ranked by comparing those
+ * fractions exactly. Equal scores stay ex aequo, which dividing proportions
+ * broke (0.5000000000000001 vs 0.5), and different scores stay apart, which
+ * dividing counts breaks past about 70 million ballots.
  */
-function calculateGMJScore(counts: JudgmentCounts): number {
+function calculateGMJScore(counts: JudgmentCounts): { numerator: number; denominator: number } {
   const mentions: (keyof JudgmentCounts)[] = [
     'Excellent', 'VeryGood', 'Good', 'Fair', 'Passable', 'Inadequate', 'Bad'
   ];
@@ -69,7 +72,7 @@ function calculateGMJScore(counts: JudgmentCounts): number {
   const median = calculateMedian(counts);
   const total = Object.values(counts).reduce((sum, count) => sum + count, 0);
   
-  if (total === 0) return 0;
+  if (total === 0) return { numerator: 0, denominator: 1 };
   
   const medianIndex = mentions.indexOf(median);
   
@@ -88,12 +91,8 @@ function calculateGMJScore(counts: JudgmentCounts): number {
   // rc: proportion exactly at median
   const atCount = counts[median];
   
-  // Handle division by zero when rc = 0: pc - qc
-  if (atCount === 0) {
-    return (aboveCount - belowCount) / total;
-  }
-  
-  return (aboveCount - belowCount) / atCount;
+  // When rc = 0, the score is pc - qc: (above - below) / total
+  return { numerator: aboveCount - belowCount, denominator: atCount === 0 ? total : atCount };
 }
 
 /**
@@ -101,11 +100,12 @@ function calculateGMJScore(counts: JudgmentCounts): number {
  */
 export function computeMJAnalysis(judgmentCounts: JudgmentCounts): MJAnalysis {
   const majorityMention = calculateMedian(judgmentCounts);
-  const gmdScore = calculateGMJScore(judgmentCounts);
+  const gmdFraction = calculateGMJScore(judgmentCounts);
   
   return {
     majorityMention,
-    gmdScore,
+    gmdScore: gmdFraction.numerator / gmdFraction.denominator,
+    gmdFraction,
     rank: 1, // Will be set during ranking
     isWinner: false, // Will be set during ranking
     isExAequo: false // Will be set during ranking
@@ -129,8 +129,11 @@ function compareMJ(analysisA: MJAnalysis, analysisB: MJAnalysis): number {
     return valueB - valueA; // Higher mention wins
   }
   
-  // If same mention, compare by GMJ score (higher is better)
-  return analysisB.gmdScore - analysisA.gmdScore;
+  // If same mention, compare by GMJ score (higher is better), as fractions:
+  // past about 70 million ballots, two different scores can round to the same number.
+  const scoreB = BigInt(analysisB.gmdFraction.numerator) * BigInt(analysisA.gmdFraction.denominator);
+  const scoreA = BigInt(analysisA.gmdFraction.numerator) * BigInt(analysisB.gmdFraction.denominator);
+  return scoreB === scoreA ? 0 : scoreB > scoreA ? 1 : -1;
 }
 
 /**

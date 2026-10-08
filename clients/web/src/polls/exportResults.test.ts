@@ -1,30 +1,16 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { Poll } from '../api/types';
+import { lunchPoll, NO_JUDGMENTS } from '../test/fixtures';
 import { downloadResults, resultsDocument } from './exportResults';
 
-const none = { Bad: 0, Inadequate: 0, Passable: 0, Fair: 0, Good: 0, VeryGood: 0, Excellent: 0 };
-
-const lunch: Poll = {
-  id: 'abc',
-  joinCode: 'K7M4QX',
-  title: 'Where do we eat?',
-  votingSystem: 'MAJORITY_JUDGMENT',
-  visibility: 'UNLISTED',
-  showVoterNames: false,
-  resultsShown: 'LIVE',
-  resultsAfterBallots: null,
-  createdAt: '2026-09-24T10:00:00Z',
+const lunch = lunchPoll({
   closedAt: '2026-09-24T12:00:00Z',
-  expiresAt: '2026-10-24T10:00:00Z',
   isMine: true,
   totalBallots: 3,
   options: [
-    { id: '1', label: 'Ramen', approvalCount: null, judgmentCounts: { ...none, Fair: 2, Bad: 1 } },
-    { id: '2', label: 'Tacos', approvalCount: null, judgmentCounts: { ...none, Excellent: 2, Good: 1 } },
+    { id: '1', label: 'Ramen', approvalCount: null, judgmentCounts: { ...NO_JUDGMENTS, Fair: 2, Bad: 1 } },
+    { id: '2', label: 'Tacos', approvalCount: null, judgmentCounts: { ...NO_JUDGMENTS, Excellent: 2, Good: 1 } },
   ],
-  voterNames: null,
-  myBallot: null,
-};
+});
 
 describe('the results document', () => {
   it('ranks majority judgment options with their majority mention and GMJ score', () => {

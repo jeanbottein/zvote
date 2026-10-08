@@ -227,11 +227,29 @@ describe('Simplified Majority Judgment', () => {
     });
   });
 
+  describe('At scale', () => {
+    it('should keep apart scores closer than a double can tell, with a billion ballots', () => {
+      // Both have Good as their majority mention; their scores differ by about 1e-18.
+      const a = { Bad: 0, Inadequate: 0, Passable: 0, Fair: 0, Good: 1_000_000_000, VeryGood: 333_333_333, Excellent: 0 };
+      const b = { Bad: 0, Inadequate: 0, Passable: 0, Fair: 0, Good: 1_000_000_003, VeryGood: 333_333_334, Excellent: 0 };
+      expect(computeMJAnalysis(a).gmdScore).toBe(computeMJAnalysis(b).gmdScore);
+
+      const ranked = rankOptions([
+        { id: 'a', label: 'A', judgment_counts: a, total_judgments: 1_333_333_333 },
+        { id: 'b', label: 'B', judgment_counts: b, total_judgments: 1_333_333_337 },
+      ]);
+
+      expect(ranked.map((option) => [option.id, option.mjAnalysis.rank])).toEqual([['b', 1], ['a', 2]]);
+      expect(ranked.some((option) => option.mjAnalysis.isExAequo)).toBe(false);
+    });
+  });
+
   describe('createDisplaySummary', () => {
     it('should create correct display summary', () => {
       const analysis: MJAnalysis = {
         majorityMention: 'Good',
         gmdScore: 0.25,
+        gmdFraction: { numerator: 1, denominator: 4 },
         rank: 1,
         isWinner: true,
         isExAequo: false

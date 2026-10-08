@@ -1,22 +1,21 @@
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { ApiError, createPoll, getServerInfo } from '../api/client';
+import { ApiError, createPoll } from '../api/client';
 import type { Poll } from '../api/types';
+import { serverInfo } from '../test/fixtures';
 import { renderAt } from '../test/render';
 import CreatePollPage from './CreatePollPage';
+import { useServerInfo } from './useServerInfo';
 
 vi.mock('../api/client', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../api/client')>()),
   createPoll: vi.fn(),
-  getServerInfo: vi.fn(),
 }));
+vi.mock('./useServerInfo', () => ({ useServerInfo: vi.fn() }));
 
 beforeEach(() => {
-  vi.mocked(getServerInfo).mockResolvedValue({
-    features: { publicPolls: true, unlistedPolls: true, approvalVoting: true, majorityJudgment: true },
-    limits: { maxOptions: 20, maxTitleLength: 200, maxOptionLength: 100, maxVoterNameLength: 40, pollLifetimeDays: 30 },
-  });
+  vi.mocked(useServerInfo).mockReturnValue(serverInfo({ publicPolls: true }));
 });
 
 const openForm = () => renderAt('/new', [{ path: '/new', element: <CreatePollPage /> }]);
@@ -54,10 +53,22 @@ describe('creating a poll', () => {
     expect(screen.getByRole('radio', { name: 'At close' })).toBeChecked();
 
     await userEvent.click(screen.getByRole('radio', { name: 'Live' }));
-    expect(screen.getByText(/along with the voter's name/)).toBeInTheDocument();
     await userEvent.click(screen.getByRole('radio', { name: 'Anonymous' }));
     await userEvent.click(screen.getByRole('radio', { name: 'Show names' }));
     expect(screen.getByRole('radio', { name: 'Live' })).toBeChecked();
+  });
+
+  it('says so when the server takes no new polls', async () => {
+    vi.mocked(useServerInfo).mockReturnValue(serverInfo({ unlistedPolls: false }));
+    openForm();
+    await userEvent.type(await screen.findByLabelText('Question'), 'Lunch?');
+    await userEvent.type(screen.getByLabelText('Option 1'), 'Ramen');
+    await userEvent.type(screen.getByLabelText('Option 2'), 'Tacos');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Create poll' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('This server takes no new polls at the moment.');
+    expect(createPoll).not.toHaveBeenCalled();
   });
 
   it('warns the creator about live results', async () => {
@@ -82,7 +93,7 @@ describe('creating a poll', () => {
     await userEvent.type(ballots, '2');
     await userEvent.click(screen.getByRole('button', { name: 'Create poll' }));
 
-    expect(screen.getByText('Choose at least 3 ballots.')).toBeInTheDocument();
+    expect(screen.getByText('Choose a whole number of ballots, at least 3.')).toBeInTheDocument();
     expect(createPoll).not.toHaveBeenCalled();
 
     await userEvent.clear(ballots);

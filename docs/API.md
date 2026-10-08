@@ -37,8 +37,8 @@ other keys, keyed with a server secret, that nothing else matches
 | `GET` | `/api/polls/mine` | `PollSummary[]`: the caller's polls, newest first |
 | `POST` | `/api/polls` | `201` + `PollView`, `Location: /api/polls/{id}` |
 | `GET` | `/api/polls/{id}` | `PollView` |
-| `GET` | `/api/join/{code}` | `PollSummary`: the poll behind a join code (case, spaces and dashes ignored) |
-| `PATCH` | `/api/polls/{id}` | `PollView`: creator only, `{"closed": true}`, for good: reopening answers `409` |
+| `GET` | `/api/join/{code}` | `PollSummary`: the poll behind a join code (only its letters and digits count, in any case) |
+| `PATCH` | `/api/polls/{id}` | `PollView`: creator only, `{"closed": true}` closes it for good; anything else answers `400` |
 | `DELETE` | `/api/polls/{id}` | `204`: creator only |
 | `PUT` | `/api/polls/{id}/ballot` | `PollView`: cast, revise or withdraw the caller's ballot |
 | `GET` | `/api/polls/{id}/events` | `text/event-stream`: live updates |
@@ -87,7 +87,8 @@ A poll as the calling voter sees it.
       }
     }
   ],
-  "voterNames": ["Sam", "Zoé"],          // null unless showVoterNames: names given, alphabetical
+  "voterNames": ["Sam", "Zoé"],          // null unless showVoterNames: the first 100 names given, alphabetical
+  "moreVoterNames": false,               // more voters gave a name than voterNames holds
   "myBallot": {                          // null until the caller votes
     "approvedOptionIds": null,           // approval polls, in the poll's order
     "judgments": { "1": "Excellent" },   // majority judgment: option id -> mention
@@ -127,11 +128,17 @@ Bad, Inadequate, Passable, Fair, Good, VeryGood, Excellent
 ### PollUpdate
 
 What watchers receive live: `{ "closedAt", "totalBallots", "options",
-"voterNames" }`. It is the same for every watcher, so a client can merge it
-straight into its `PollView` and keep its own `isMine` and `myBallot`. The
-names say who took part, by their own choice, never what they chose; voters
-who gave none count in `totalBallots` only. They come in alphabetical order:
-in the order given, they would line up with the ballots as they landed.
+"voterNames", "moreVoterNames" }`. It is the same for every watcher, so a
+client can merge it straight into its `PollView` and keep its own `isMine` and
+`myBallot`. The names say who took part, by their own choice, never what they
+chose; voters who gave none count in `totalBallots` only. They come in
+alphabetical order (in the order given, they would line up with the ballots as
+they landed), the first 100 of them: past that, a cloud is a list to scroll,
+and a poll can have millions.
+
+Tallies and `totalBallots` are as of the last fold of the ballots into the
+tallies, a moment after they are cast (ARCHITECTURE.md,
+[Tallies](ARCHITECTURE.md#tallies)): updates follow the folds.
 
 ### ServerInfo
 
@@ -168,7 +175,10 @@ the same (ignoring case).
 ## Casting a ballot
 
 `PUT` replaces the caller's whole ballot. Casting, revising and withdrawing are
-the same operation, so retrying is always safe.
+the same operation, so retrying is always safe. The answer is the poll as the
+caller now sees it: their ballot (`myBallot`) always, and tallies that count it
+too, unless so many ballots are arriving that it takes more than a quarter of
+a second; then the next update does.
 
 ```jsonc
 { "judgments": { "1": "Excellent", "2": "Good" } }   // majority judgment
@@ -179,8 +189,10 @@ the same operation, so retrying is always safe.
 
 - The name is part of the ballot, on polls that show names: left out, null or
   blank, the voter takes part anonymously (and a name given before is
-  forgotten). At most `maxVoterNameLength` characters, on one line. A poll
-  that does not show names refuses one (`400`). Withdrawing forgets it.
+  forgotten). Spaces, tabs and line breaks become single spaces; at most
+  `maxVoterNameLength` characters; invisible characters (controls, bidi
+  overrides, zero widths) are refused. A poll that does not show names
+  refuses one (`400`). Withdrawing forgets it.
 
 - Majority judgment: options left out are graded `Bad`, so every ballot grades
   every option.
@@ -239,7 +251,7 @@ the person using the app and can be shown as is.
 | `400` | The request breaks a rule (the `detail` says which), or its JSON cannot be read |
 | `403` | Only the poll's creator can do that |
 | `404` | No poll has that id or join code (or it was deleted) |
-| `409` | The poll is closed (to ballots, and to reopening), or the change collided with another made at the same moment (send it again) |
+| `409` | The poll is closed, or the change collided with another made at the same moment (send it again) |
 | `500` | Something unexpected failed on the server; the `detail` says so and nothing more |
 
 ## Trying it with curl

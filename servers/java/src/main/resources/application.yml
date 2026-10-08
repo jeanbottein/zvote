@@ -47,5 +47,6 @@ zvote:
   # Keys who owns each ballot, so that the database never says (see Voter.java).
   # No default: a server must not run on a secret everyone can read here.
   # ./mvnw spring-boot:run (and so ./dev.sh) sets a development one, in pom.xml.
-  # Changing it leaves every ballot counted, but nobody can revise theirs.
+  # Never change it while polls are open: their voters would be told they have
+  # not voted, and voting again would count them twice.
   voter-secret: ${ZVOTE_VOTER_SECRET:}

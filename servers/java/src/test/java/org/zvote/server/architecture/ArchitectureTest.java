@@ -15,8 +15,8 @@ import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
  * Executable architecture rules.
  *
  * Each package under org.zvote.server is a module, and its package-info.java
- * says which modules it may depend on: polls on common only; approval,
- * judgment, identity, live and common on none; the api on all of them.
+ * says which modules it may depend on: polls on common only; ballots,
+ * identity, live and common on none; the api on all of them.
  * Spring Modulith verifies those declarations, that no module reaches into
  * another's sub-packages, and that there are no cycles. The rules below are
  * the ones a module declaration cannot state.
@@ -58,7 +58,7 @@ class ArchitectureTest {
         // Entities are recognised structurally: everything in the domain modules
         // that is not a service, a repository, an exception or an enum.
         classes()
-            .that().resideInAnyPackage("..polls..", "..approval..", "..judgment..")
+            .that().resideInAnyPackage("..polls..", "..ballots..")
             .and().areTopLevelClasses()   // skips synthetic switch-map classes
             .and().areNotInterfaces()     // repositories, and package-info
             .and().areNotEnums()

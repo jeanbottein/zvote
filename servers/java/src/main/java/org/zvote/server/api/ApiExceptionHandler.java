@@ -11,6 +11,7 @@ import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.jdbc.UncategorizedSQLException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
@@ -30,10 +31,11 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
 
     private static final Logger log = LoggerFactory.getLogger(ApiExceptionHandler.class);
 
+    private static final String LOCK_NOT_AVAILABLE = "55P03";
+
     @ExceptionHandler
     ProblemDetail pollNotFound(PollNotFoundException e) {
-        return problem(HttpStatus.NOT_FOUND,
-            "That poll does not exist. The link may be mistyped, or the poll was deleted.");
+        return problem(HttpStatus.NOT_FOUND, e.getMessage());
     }
 
     @ExceptionHandler
@@ -57,23 +59,33 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
      * waited too long for a poll being changed. Trying again is safe.
      */
     @ExceptionHandler({DataIntegrityViolationException.class, TransientDataAccessException.class,
-        DbActionExecutionException.class})
+        DbActionExecutionException.class, UncategorizedSQLException.class})
     ProblemDetail collision(RuntimeException e) {
         if (!isCollision(e) && !isCollision(e.getCause())) {
             return unexpected(e);
         }
-        return problem(HttpStatus.CONFLICT, "That change collided with another one made at the same moment. Please try again.");
+        return problem(HttpStatus.CONFLICT,
+            "That change collided with another one made at the same moment. Please try again.");
     }
 
     /** Anything else is a bug, or the database away: logged in full, and told without details. */
     @ExceptionHandler
     ProblemDetail unexpected(RuntimeException e) {
         log.error("Unexpected failure", e);
-        return problem(HttpStatus.INTERNAL_SERVER_ERROR, "Something went wrong on our side. Please try again in a moment.");
+        return problem(HttpStatus.INTERNAL_SERVER_ERROR,
+            "Something went wrong on our side. Please try again in a moment.");
     }
 
     private static boolean isCollision(Throwable e) {
-        return e instanceof DataIntegrityViolationException || e instanceof TransientDataAccessException;
+        return e instanceof DataIntegrityViolationException || e instanceof TransientDataAccessException
+            || isLockTimeout(e);
+    }
+
+    /** PostgreSQL's lock_timeout running out, which Spring leaves uncategorized. */
+    private static boolean isLockTimeout(Throwable e) {
+        return e instanceof UncategorizedSQLException uncategorized
+            && uncategorized.getSQLException() != null
+            && LOCK_NOT_AVAILABLE.equals(uncategorized.getSQLException().getSQLState());
     }
 
     @Override

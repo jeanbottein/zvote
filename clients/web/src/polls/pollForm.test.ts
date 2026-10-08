@@ -3,13 +3,20 @@ import { checkPollForm, filledOptions, offeredVotingSystems, optionRows } from '
 
 const limits = { maxOptions: 4, maxTitleLength: 10, maxOptionLength: 6, maxVoterNameLength: 40, pollLifetimeDays: 30 };
 
+const form = (title: string, options: string[], resultsAfterBallots?: string) => ({
+  title,
+  options,
+  resultsShown: resultsAfterBallots === undefined ? 'LIVE' as const : 'AFTER_BALLOTS' as const,
+  resultsAfterBallots: resultsAfterBallots ?? '',
+});
+
 describe('checkPollForm', () => {
   it('accepts a title and two distinct options', () => {
-    expect(checkPollForm('Lunch?', ['Ramen', 'Tacos'], limits)).toEqual({});
+    expect(checkPollForm(form('Lunch?', ['Ramen', 'Tacos']), limits)).toEqual({});
   });
 
   it('ignores blank rows', () => {
-    expect(checkPollForm('Lunch?', ['Ramen', ' ', 'Tacos', ''], limits)).toEqual({});
+    expect(checkPollForm(form('Lunch?', ['Ramen', ' ', 'Tacos', '']), limits)).toEqual({});
     expect(filledOptions([' Ramen ', '', 'Tacos'])).toEqual(['Ramen', 'Tacos']);
   });
 
@@ -21,7 +28,18 @@ describe('checkPollForm', () => {
     ['Lunch?', ['Ramen', 'Burritos'], { options: 'An option can be at most 6 characters long.' }],
     ['Lunch?', ['Ramen', 'ramen'], { options: '"ramen" is listed twice. Each option must be different.' }],
   ])('explains what is wrong with "%s" and %j', (title, options, problems) => {
-    expect(checkPollForm(title, options, limits)).toEqual(problems);
+    expect(checkPollForm(form(title, options), limits)).toEqual(problems);
+  });
+
+  it.each(['', '2', '3.5', '1e30'])('refuses to show the results after "%s" ballots', (ballots) => {
+    expect(checkPollForm(form('Lunch?', ['Ramen', 'Tacos'], ballots), limits)).toEqual({
+      resultsAfterBallots: 'Choose a whole number of ballots, at least 3.',
+    });
+  });
+
+  it('shows the results after 3 ballots or more, billions included', () => {
+    expect(checkPollForm(form('Lunch?', ['Ramen', 'Tacos'], '3'), limits)).toEqual({});
+    expect(checkPollForm(form('Lunch?', ['Ramen', 'Tacos'], '5000000000'), limits)).toEqual({});
   });
 });
 

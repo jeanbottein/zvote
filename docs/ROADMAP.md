@@ -13,6 +13,7 @@ the codebase as simple as it found it: add what the phase needs, no more.
 | 3 | Server rebuilt: Spring Boot 4.1, MVC on virtual threads, JDBC, REST + SSE; anonymous identity; closing polls; RFC 9457 errors; tests for the whole HTTP contract and the live stream |
 | 4 | Client rebuilt against it: one API module, three screens, mobile-first design, live and envelope ballots, tests |
 | 5 | MVP for groups: private polls shared by link or join code (`K7M-4QX`), optional voter names shown as a cloud under the results, polls deleted 30 days after creation; public polls off until accounts |
+| 5b | Ballots at scale, first step (see [Scale](#scale)): one row per ballot, tallies folded from a change log, deleted polls removed in batches, PostgreSQL supported and tested; 41 times faster on PostgreSQL, and as fast on a poll of 10 million ballots as on a new one |
 
 ## Next
 
@@ -24,11 +25,11 @@ enough (the native image serves on about 100 MB): Docker Compose with Caddy
 and a nightly `pg_dump` to OVH Object Storage. GitHub Actions runs the tests,
 builds the image, pushes it to GHCR and deploys it.
 
-- **PostgreSQL** (add `org.flywaydb:flyway-database-postgresql`), with a
-  Testcontainers PostgreSQL profile in CI. Locally H2 stays, so nothing needs
-  installing. PostgreSQL does not index foreign keys by itself, as H2 does:
-  index `approval.option_id` and `judgment.option_id`, or deleting a poll scans
-  both tables once per option.
+- **PostgreSQL**: supported already, and the test suite passes on it (see
+  the server's README). Left for CI: a PostgreSQL profile (a service
+  container, or Testcontainers). The connection URL sets a lock timeout
+  (`?options=-c%20lock_timeout%3D2s`). Locally H2 stays, so nothing needs
+  installing.
 - **Startup and memory**: measured in [PERFORMANCE.md](PERFORMANCE.md). The
   native image works, H2 included, and with profile-guided optimization starts
   in 0.13 s on 100 MB and serves as much as the JVM; the JVM with a Leyden AOT
@@ -42,9 +43,12 @@ builds the image, pushes it to GHCR and deploys it.
 - **The voter secret.** `ZVOTE_VOTER_SECRET` (`openssl rand -base64 48`)
   comes from the host's secrets: never from the image, the repository or
   the database backups. The server refuses to start without it. Losing or
-  changing it orphans every ballot: still counted, but nobody can revise
-  theirs (see [ARCHITECTURE.md](ARCHITECTURE.md#anonymity)). Access logs
-  keep no request bodies, and only for a short time.
+  changing it orphans every ballot: still counted, but voters are told they
+  have not voted, and voting again counts them twice; so it never changes
+  while polls are open (see [ARCHITECTURE.md](ARCHITECTURE.md#anonymity)).
+  Access logs keep no request bodies, and only for a short time. Backups
+  stay logical (`pg_dump`): a physical copy keeps which transaction wrote
+  each row, and with it which name goes with which ballot.
 - **Legal pages** (France and the EU; a checklist, not legal advice). The voter
   cookie and voter names are personal data, so GDPR applies already: a privacy
   page (what is stored, why, for how long, your rights, a contact address;
@@ -88,8 +92,9 @@ domain (Apple also needs a paid developer account).
   `creator_id`. Ballots and names are keyed per poll, so re-key them: for
   each poll still alive (30 days at most), look up the anonymous keys and
   rewrite them as the account's. Where both identities voted on the same
-  poll, keep the most recent ballot. Without this, ballots cast before
-  signing in are orphaned.
+  poll, ballots record no time to tell which is newer: keep the one cast
+  from this browser, the one its voter just saw. Without this, ballots cast
+  before signing in are orphaned.
 - **A voter code, not a receipt.** Accounts answer "revise my ballot from
   another device". Before them, a code that restores the voter token
   elsewhere would do. It must never show the choices on its own, or someone
@@ -130,6 +135,32 @@ Still to do:
   (`ShareButton` uses `window.location.origin` today).
 - The Android back button, the status bar colour, and the Capacitor share
   plugin where `navigator.share` is missing.
+
+## Scale
+
+Goal: the open-source answer to "can it take a billion ballots on one poll?"
+is yes, measured. The first step is done (phase 5b, numbers in
+[PERFORMANCE.md](PERFORMANCE.md#ballots-at-scale)): a poll costs the same to
+read and to vote on at 10 million ballots as at ten, and one laptop records
+thousands of ballots a second. Next, in order:
+
+- **Live updates across servers.** Folding already runs on every server side
+  by side; watchers only hear of their own server's folds. Relay "this poll
+  moved" through PostgreSQL `LISTEN/NOTIFY` (or Redis) so that any server can
+  push it.
+- **Results for millions of watchers.** A poll's update is the same for every
+  watcher: serve it as `GET /api/polls/{id}/results` with
+  `Cache-Control: max-age=1` behind a CDN, and keep server-sent events for
+  small audiences.
+- **A load test in CI** on PostgreSQL, with a regression threshold, so that
+  "it scales" stays true: `perf/Load.java` already drives it.
+- **Beyond one database server.** Split ballots by voter (Citus, with the
+  ballot key as the shard key) and fold per shard; the counters stay one
+  small table per poll.
+- **Identity at scale.** One cookie per browser lets anyone vote twice by
+  clearing it. A billion-ballot poll needs accounts (phase 7) or proof of
+  personhood, and rate limits per network: of all the limits, this is the
+  one technology alone does not remove.
 
 ## Questions for the owner
 

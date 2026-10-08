@@ -9,13 +9,13 @@ interface PollLists {
   others: PollSummary[];
 }
 
-export function usePollLists() {
+export function usePollLists(withPublic: boolean) {
   const [lists, setLists] = useState<PollLists | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
-    Promise.all([listMyPolls(), listPublicPolls()]).then(
+    Promise.all([listMyPolls(), withPublic ? listPublicPolls() : []]).then(
       ([mine, listed]) => {
         if (active) {
           setLists({ mine, others: listed.filter((poll) => !poll.isMine) });
@@ -30,7 +30,7 @@ export function usePollLists() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [withPublic]);
 
   return { lists, error };
 }

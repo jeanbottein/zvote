@@ -1,21 +1,23 @@
 import { useId } from 'react';
-import { anonymousVoters } from './format';
+import { anonymousVoters, moreVoters } from './format';
 
 interface VoterNamesProps {
   names: string[];
+  /** More voters gave a name than are shown. */
+  more: boolean;
   totalBallots: number;
 }
 
 /**
- * Who took part, on a poll that shows names: the names voters gave, in
+ * Who took part, on a poll that shows names: the first names voters gave, in
  * alphabetical order (in the order they came, they would line up with the
  * results as they moved), and how many stayed anonymous. Every name is the same
  * size: a bigger one would seem to mean something. Nothing links a name to a
  * choice.
  */
-export default function VoterNames({ names, totalBallots }: VoterNamesProps) {
+export default function VoterNames({ names, more, totalBallots }: VoterNamesProps) {
   const titleId = useId();
-  const anonymous = totalBallots - names.length;
+  const others = totalBallots - names.length;
   if (totalBallots === 0) {
     return null;
   }
@@ -27,7 +29,7 @@ export default function VoterNames({ names, totalBallots }: VoterNamesProps) {
           {keyed(names).map(({ key, name }) => <li key={key}>{name}</li>)}
         </ul>
       )}
-      {anonymous > 0 && <p className="hint">{anonymousVoters(anonymous, names.length > 0)}</p>}
+      {others > 0 && <p className="hint">{more ? moreVoters(others) : anonymousVoters(others, names.length > 0)}</p>}
     </section>
   );
 }

@@ -572,11 +572,6 @@ fieldset.field {
   text-transform: uppercase;
 }
 
-.join-row input::placeholder {
-  text-transform: none;
-  letter-spacing: 0.08em;
-}
-
 .poll-list {
   display: flex;
   flex-direction: column;

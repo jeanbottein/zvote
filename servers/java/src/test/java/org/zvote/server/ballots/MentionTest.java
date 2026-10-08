@@ -1,4 +1,4 @@
-package org.zvote.server.judgment;
+package org.zvote.server.ballots;
 
 import org.junit.jupiter.api.Test;
 
@@ -12,6 +12,12 @@ class MentionTest {
     void theScaleRunsFromWorstToBestUnderItsWireNames() {
         assertThat(Arrays.stream(Mention.values()).map(Mention::wireName))
             .containsExactly("Bad", "Inadequate", "Passable", "Fair", "Good", "VeryGood", "Excellent");
+    }
+
+    @Test
+    void ballotsStoreEachMentionAsItsRankWorstFirst() {
+        assertThat(Mention.BAD.ordinal()).isZero();
+        assertThat(Mention.EXCELLENT.ordinal()).isEqualTo(6);
     }
 
     @Test

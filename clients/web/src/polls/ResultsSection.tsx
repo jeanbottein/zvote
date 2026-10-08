@@ -4,7 +4,6 @@ import ApprovalResults from '../features/VotingSystem/Approval/ApprovalResults';
 import MajorityJudgmentResults from '../features/VotingSystem/MajorityJudgment/MajorityJudgmentResults';
 import { downloadResults } from './exportResults';
 import { ballotCount } from './format';
-import { showsResults } from './showsResults';
 import type { Connection } from './usePoll';
 import VoterNames from './VoterNames';
 
@@ -15,7 +14,8 @@ interface ResultsSectionProps {
 
 export default function ResultsSection({ poll, connection }: ResultsSectionProps) {
   const titleId = useId();
-  const hidden = !showsResults(poll);
+  // The server sends no tallies while the poll keeps its results back.
+  const hidden = poll.options.every((option) => option.approvalCount === null && option.judgmentCounts === null);
 
   return (
     <section className="panel results" aria-labelledby={titleId}>
@@ -32,7 +32,9 @@ export default function ResultsSection({ poll, connection }: ResultsSectionProps
             ? <MajorityJudgmentResults options={poll.options} />
             : <ApprovalResults options={poll.options} totalBallots={poll.totalBallots} />}
         </>}
-      {poll.voterNames && <VoterNames names={poll.voterNames} totalBallots={poll.totalBallots} />}
+      {poll.voterNames && (
+        <VoterNames names={poll.voterNames} more={poll.moreVoterNames} totalBallots={poll.totalBallots} />
+      )}
       {!hidden && poll.totalBallots > 0 && (
         <div className="results-footer">
           <button type="button" className="button link" onClick={() => downloadResults(poll)}>

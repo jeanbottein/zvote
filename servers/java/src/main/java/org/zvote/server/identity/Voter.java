@@ -4,7 +4,6 @@ import javax.crypto.Mac;
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
-import java.util.Base64;
 
 /**
  * The holder of a voter token, and the keys their records are stored under.
@@ -23,15 +22,17 @@ public final class Voter {
 
     private final String token;
     private final SecretKey secret;
+    private final String id;
 
     Voter(String token, SecretKey secret) {
         this.token = token;
         this.secret = secret;
+        this.id = VoterIdentity.voterIdOf(token);
     }
 
     /** The same on every poll: who created which poll. */
     public String id() {
-        return VoterIdentity.voterIdOf(token);
+        return id;
     }
 
     /** What this voter's ballot on one poll is stored under. */
@@ -48,8 +49,8 @@ public final class Voter {
         try {
             var mac = Mac.getInstance(HMAC);
             mac.init(secret);
-            var digest = mac.doFinal((purpose + ":" + pollId + ":" + token).getBytes(StandardCharsets.US_ASCII));
-            return Base64.getUrlEncoder().withoutPadding().encodeToString(digest);
+            var message = (purpose + ":" + pollId + ":" + token).getBytes(StandardCharsets.US_ASCII);
+            return VoterIdentity.base64url(mac.doFinal(message));
         } catch (GeneralSecurityException e) {
             throw new IllegalStateException("Every JVM ships " + HMAC, e);
         }

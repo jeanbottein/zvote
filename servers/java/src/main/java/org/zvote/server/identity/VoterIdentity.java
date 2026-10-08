@@ -35,10 +35,13 @@ public final class VoterIdentity {
     /** The voter id a token stands for: base64url(SHA-256(token)). */
     public static String voterIdOf(String token) {
         try {
-            var digest = MessageDigest.getInstance("SHA-256").digest(token.getBytes(StandardCharsets.US_ASCII));
-            return Base64.getUrlEncoder().withoutPadding().encodeToString(digest);
+            return base64url(MessageDigest.getInstance("SHA-256").digest(token.getBytes(StandardCharsets.US_ASCII)));
         } catch (NoSuchAlgorithmException e) {
             throw new IllegalStateException("Every JVM ships SHA-256", e);
         }
+    }
+
+    static String base64url(byte[] bytes) {
+        return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
     }
 }

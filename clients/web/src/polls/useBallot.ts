@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 
 export type SubmissionMode = 'live' | 'envelope';
 
@@ -7,6 +7,8 @@ interface BallotOptions<B> {
   saved: B;
   /** Casts a ballot. Resolves once the server's answer has been applied. */
   cast(ballot: B): Promise<void>;
+  /** What cast() adds to the ballot (the voter's name) differs from what the server holds. */
+  castChanged: boolean;
   mode: SubmissionMode;
   equals(a: B, b: B): boolean;
   onError(error: unknown): void;
@@ -19,21 +21,24 @@ interface BallotOptions<B> {
  * neither lost nor all sent - the latest is cast next - so the server always
  * ends up with the voter's last choice, and the page shows that choice while
  * it travels. If casting fails, the page falls back to what the server holds.
+ * What cast() adds is taken when the ballot leaves, never from an older
+ * render, and recast() sends the ballot again once it changed.
  *
- * Envelope: changes stay on the page until submit(), and are kept if it fails.
+ * Envelope: changes, the voter's name included, stay on the page until
+ * submit(), and are kept if it fails.
  *
  * Withdrawing, in either mode, is cast like a live change: it drops unsent
  * changes and cannot overtake a ballot already on its way.
- *
- * Recasting sends again the ballot the server holds, or is about to hold, when
- * something cast() adds to it changed (the voter's name). Unsent envelope
- * changes stay unsent.
  */
-export function useBallot<B>({ saved, cast, mode, equals, onError }: BallotOptions<B>) {
+export function useBallot<B>({ saved, cast, castChanged, mode, equals, onError }: BallotOptions<B>) {
   const [draft, setDraft] = useState<B | null>(null);
   const [travelling, setTravelling] = useState<B | null>(null);
   const [busy, setBusy] = useState(false);
   const queue = useRef<{ next: B | null; sending: boolean }>({ next: null, sending: false });
+  const latestCast = useRef(cast);
+  useLayoutEffect(() => {
+    latestCast.current = cast;
+  });
 
   async function castLatest() {
     const pending = queue.current;
@@ -45,7 +50,7 @@ export function useBallot<B>({ saved, cast, mode, equals, onError }: BallotOptio
       const ballot = pending.next;
       pending.next = null;
       try {
-        await cast(ballot);
+        await latestCast.current(ballot);
       } catch (error) {
         onError(error);
       }
@@ -62,12 +67,9 @@ export function useBallot<B>({ saved, cast, mode, equals, onError }: BallotOptio
   }
 
   async function submit() {
-    if (draft === null) {
-      return;
-    }
     setBusy(true);
     try {
-      await cast(draft);
+      await cast(draft ?? saved);
       setDraft(null);
     } catch (error) {
       onError(error);
@@ -79,18 +81,17 @@ export function useBallot<B>({ saved, cast, mode, equals, onError }: BallotOptio
   return {
     /** What to show: the voter's latest choice, sent or not. */
     ballot: travelling ?? draft ?? saved,
-    /** Envelope mode: whether there are changes to submit. */
-    hasChanges: draft !== null && !equals(draft, saved),
+    /** Envelope mode: whether there is something to submit. */
+    hasChanges: mode === 'envelope' && (castChanged || (draft !== null && !equals(draft, saved))),
     /** An envelope is being submitted. */
     busy,
     change: (ballot: B) => (mode === 'envelope' ? setDraft(ballot) : send(ballot)),
     submit,
     withdraw: send,
+    /** Live mode: sends the ballot again, after any on its way, if what cast() adds may have changed. */
     recast() {
-      if (mode === 'live') {
+      if (mode === 'live' && (castChanged || travelling !== null)) {
         send(travelling ?? saved);
-      } else if (!busy) {
-        cast(saved).catch(onError);
       }
     },
   };
