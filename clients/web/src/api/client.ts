@@ -8,7 +8,7 @@
  * A voter's invitation travels in a header, never in a URL, so that no log
  * along the way keeps it.
  */
-import type { BallotRequest, Invitation, NewPoll, Poll, PollSummary, PollUpdate, ServerInfo } from './types';
+import type { BallotRequest, InvitationPage, NewPoll, Poll, PollSummary, PollUpdate, ServerInfo } from './types';
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '';
 
@@ -108,16 +108,17 @@ export const deletePoll = (id: string) => request<void>('DELETE', pollPath(id));
 export const castBallotAsNewVoter = (id: string, ballot: BallotRequest) =>
   request<Poll>('PUT', `${pollPath(id)}/ballot`, { body: ballot, credentials: 'omit' });
 
-/** The creator's invitations to their poll, in the order they were made. */
-export const listInvitations = (id: string) => request<Invitation[]>('GET', `${pollPath(id)}/invitations`);
+/** The creator's newest invitations to their poll, `limit` of them at most. */
+export const listInvitations = (id: string, limit: number) =>
+  request<InvitationPage>('GET', `${pollPath(id)}/invitations?limit=${limit}`);
 
-/** A new invitation; label: whom it is for, or null. */
+/** A new invitation; label: whom it is for, or null. Answers the newest invitations. */
 export const createInvitation = (id: string, label: string | null) =>
-  request<Invitation>('POST', `${pollPath(id)}/invitations`, { body: { label } });
+  request<InvitationPage>('POST', `${pollPath(id)}/invitations`, { body: { label } });
 
 /** Only an invitation nobody voted with can be taken back. Its link stops working. */
-export const revokeInvitation = (id: string, token: string) =>
-  request<void>('DELETE', `${pollPath(id)}/invitations/${encodeURIComponent(token)}`);
+export const revokeInvitation = (id: string, number: number) =>
+  request<void>('DELETE', `${pollPath(id)}/invitations/${number}`);
 
 export interface PollWatcher {
   onUpdate(update: PollUpdate): void;

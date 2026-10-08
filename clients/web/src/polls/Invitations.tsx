@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef, useState, type FormEvent } from 'react';
 import { flushSync } from 'react-dom';
 import { createInvitation, errorMessage, listInvitations, revokeInvitation } from '../api/client';
-import type { Invitation, Poll } from '../api/types';
+import type { Invitation, InvitationPage, Poll } from '../api/types';
 import Confirmation from '../ui/Confirmation';
 import { CheckIcon, CloseIcon, ShareIcon } from '../ui/icons';
 import { useToast } from '../ui/Toasts';
@@ -10,18 +10,23 @@ import { invitationUrl } from './links';
 import ShareDialog from './ShareDialog';
 import { useServerInfo } from './useServerInfo';
 
+/** Invitations shown at first, and added by each "Show more", up to the most a page can hold. */
+const PAGE = 100;
+const MAX_PAGE = 1000;
+
 /**
  * The creator's invitations to a poll that only invited people may vote on:
- * one link per person, which they send themselves. Each says whether someone
- * voted with it, never with which ballot, and the list is read again as
- * ballots come in.
+ * one link per person, which they send themselves. The newest come first, and
+ * each says whether someone voted with it, never with which ballot. The list
+ * is read again as ballots come in.
  */
 export default function Invitations({ poll }: { poll: Poll }) {
   const { limits } = useServerInfo();
   const showToast = useToast();
   const titleId = useId();
   const inputId = useId();
-  const [invitations, setInvitations] = useState<Invitation[] | null>(null);
+  const [page, setPage] = useState<InvitationPage | null>(null);
+  const [shown, setShown] = useState(PAGE);
   const [label, setLabel] = useState('');
   const [adding, setAdding] = useState(false);
   const [sharing, setSharing] = useState<Invitation | null>(null);
@@ -32,10 +37,10 @@ export default function Invitations({ poll }: { poll: Poll }) {
   // invitation. Only the latest answer counts.
   useEffect(() => {
     let active = true;
-    listInvitations(poll.id).then(
-      (all) => {
+    listInvitations(poll.id, shown).then(
+      (newest) => {
         if (active) {
-          setInvitations(all);
+          setPage(newest);
         }
       },
       (error: unknown) => {
@@ -47,14 +52,13 @@ export default function Invitations({ poll }: { poll: Poll }) {
     return () => {
       active = false;
     };
-  }, [poll.id, poll.totalBallots, changes, showToast]);
+  }, [poll.id, poll.totalBallots, shown, changes, showToast]);
 
   async function invite(event: FormEvent) {
     event.preventDefault();
     setAdding(true);
     try {
-      const invitation = await createInvitation(poll.id, label.trim() || null);
-      setInvitations((all) => [...(all ?? []), invitation]);
+      await createInvitation(poll.id, label.trim() || null);
       setLabel('');
       setChanges((count) => count + 1);
     } catch (error) {
@@ -64,47 +68,25 @@ export default function Invitations({ poll }: { poll: Poll }) {
     }
   }
 
-  async function revoke(token: string) {
+  async function revoke(number: number) {
     try {
-      await revokeInvitation(poll.id, token);
-      setInvitations((all) => all && all.filter((invitation) => invitation.token !== token));
+      await revokeInvitation(poll.id, number);
       setChanges((count) => count + 1);
     } catch (error) {
       showToast(errorMessage(error), 'error');
     }
   }
 
-  const used = invitations?.filter((invitation) => invitation.used).length ?? 0;
-  const full = (invitations?.length ?? 0) >= limits.maxInvitations;
-
   return (
     <section className="panel invitations" aria-labelledby={titleId}>
       <div className="section-header">
         <h2 id={titleId}>Invitations</h2>
-        {invitations !== null && invitations.length > 0 && (
-          <span className="invitation-count">{formatCount(used)} of {formatCount(invitations.length)} used</span>
-        )}
+        {page !== null && page.count > 0 && <span className="invitation-count">{summary(page)}</span>}
       </div>
       <p className="hint">
         Only the people you invite can vote. Send each one a link of their own, which holds one ballot. You see which
         links were used, never what anyone chose. You can vote yourself without one.
       </p>
-      {invitations === null
-        ? <p className="empty" aria-busy="true">Loading the invitations…</p>
-        : invitations.length > 0 && (
-          <ul className="invitation-list">
-            {invitations.map((invitation, index) => (
-              <InvitationRow
-                key={invitation.token}
-                invitation={invitation}
-                name={nameOf(invitation, index)}
-                pollOpen={open}
-                onShare={() => setSharing(invitation)}
-                onRevoke={() => revoke(invitation.token)}
-              />
-            ))}
-          </ul>
-        )}
       {open && (
         <form className="invite-form" onSubmit={invite}>
           <label htmlFor={inputId}>Invite someone</label>
@@ -118,17 +100,34 @@ export default function Invitations({ poll }: { poll: Poll }) {
               enterKeyHint="done"
               onChange={(event) => setLabel(event.target.value)}
             />
-            <button type="submit" className="button primary" disabled={adding || full}>
+            <button type="submit" className="button primary" disabled={adding}>
               {adding ? 'Inviting…' : 'Invite'}
             </button>
           </div>
-          {full && <p className="hint">A poll can have at most {formatCount(limits.maxInvitations)} invitations.</p>}
         </form>
       )}
+      {page === null
+        ? <p className="empty" aria-busy="true">Loading the invitations…</p>
+        : page.invitations.length > 0 && (
+          <ul className="invitation-list">
+            {page.invitations.map((invitation) => (
+              <InvitationRow
+                key={invitation.number}
+                invitation={invitation}
+                pollOpen={open}
+                onShare={() => setSharing(invitation)}
+                onRevoke={() => revoke(invitation.number)}
+              />
+            ))}
+          </ul>
+        )}
+      {page?.next != null && (shown < MAX_PAGE
+        ? <button type="button" className="button secondary" onClick={() => setShown(shown + PAGE)}>Show more</button>
+        : <p className="hint">The newest {formatCount(MAX_PAGE)} are shown.</p>)}
       <ShareDialog
         open={sharing !== null}
         onClose={() => setSharing(null)}
-        title={sharing?.label ? `Invitation for ${sharing.label}` : 'Invitation'}
+        title={sharing?.label ? `Invitation for ${sharing.label}` : nameOf(sharing)}
         hint="Send this link to this person only. It holds one ballot, which only the browser they vote from can change."
         url={sharing ? invitationUrl(poll.id, sharing.token) : ''}
         linkLabel="Link of the invitation"
@@ -139,25 +138,34 @@ export default function Invitations({ poll }: { poll: Poll }) {
   );
 }
 
-/** Whom it is for, or, if the creator did not say, its place in the list. */
-function nameOf(invitation: Invitation, index: number): string {
-  return invitation.label ?? `Invitation ${index + 1}`;
+/** "3 of 10 used" once every invitation is shown; until then, how many there are. */
+function summary(page: InvitationPage): string {
+  if (page.next !== null) {
+    return `${formatCount(page.count)} invitations`;
+  }
+  const used = page.invitations.filter((invitation) => invitation.used).length;
+  return `${formatCount(used)} of ${formatCount(page.count)} used`;
+}
+
+/** Whom it is for, or, if the creator did not say, its number. */
+function nameOf(invitation: Invitation | null): string {
+  return invitation?.label ?? `Invitation ${invitation?.number ?? ''}`;
 }
 
 interface InvitationRowProps {
   invitation: Invitation;
-  name: string;
   /** While the poll is open, an invitation nobody voted with can be taken back. */
   pollOpen: boolean;
   onShare(): void;
   onRevoke(): Promise<void>;
 }
 
-function InvitationRow({ invitation, name, pollOpen, onShare, onRevoke }: InvitationRowProps) {
+function InvitationRow({ invitation, pollOpen, onShare, onRevoke }: InvitationRowProps) {
   const confirmId = useId();
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
   const revokeButton = useRef<HTMLButtonElement>(null);
+  const name = nameOf(invitation);
 
   /** Back to the button that asked, so that keyboard and screen reader users keep their place. */
   function keep() {

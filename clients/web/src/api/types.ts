@@ -92,14 +92,26 @@ export interface NewPoll {
 }
 
 /**
- * An invitation, as the creator of its poll sees it: the token its link
- * carries, whom it is for (null: they did not say), and whether someone
+ * An invitation, as the creator of its poll sees it: its number, the token its
+ * link carries, whom it is for (null: they did not say), and whether someone
  * voted with it. Never what they chose.
  */
 export interface Invitation {
+  number: number;
   token: string;
   label: string | null;
   used: boolean;
+}
+
+/**
+ * Some of a poll's invitations, newest first. count: how many its creator made
+ * and did not take back. next: what to ask for as `before` to read on, or null
+ * once the first invitation is in.
+ */
+export interface InvitationPage {
+  count: number;
+  invitations: Invitation[];
+  next: number | null;
 }
 
 /**

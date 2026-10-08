@@ -40,15 +40,16 @@ zvote:
     max-title-length: 200
     max-option-length: 100
     max-voter-name-length: 40
-    # Per poll. Each one is sent to its person by hand.
+    # Per poll. Links are signed, not stored: a billion cost what one does.
     max-invitations: 1000
     # Polls are for deciding, not archiving: keeping them briefly keeps little
     # personal data (voter names) around.
     poll-lifetime-days: 30
 
-  # Keys who owns each ballot, so that the database never says (see Voter.java).
-  # No default: a server must not run on a secret everyone can read here.
-  # ./mvnw spring-boot:run (and so ./dev.sh) sets a development one, in pom.xml.
-  # Never change it while polls are open: their voters would be told they have
-  # not voted, and voting again would count them twice.
+  # Keys who owns each ballot, so that the database never says (see Voter.java),
+  # and signs invitation links (InvitationLinks.java). No default: a server must
+  # not run on a secret everyone can read here. ./mvnw spring-boot:run (and so
+  # ./dev.sh) sets a development one, in pom.xml. Never change it while polls
+  # are open: their voters would be told they have not voted, voting again
+  # would count them twice, and their invitation links would stop working.
   voter-secret: ${ZVOTE_VOTER_SECRET:}

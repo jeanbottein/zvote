@@ -29,7 +29,7 @@ interface PollRepository extends ListCrudRepository<Poll, Long> {
     @Query("SELECT id FROM poll WHERE created_at < :cutoff")
     List<Long> findIdsCreatedBefore(Instant cutoff);
 
-    /** One statement: their options and tallies go with them (ON DELETE CASCADE), their ballots later. */
+    /** One statement: what they have a few of goes with them (ON DELETE CASCADE), their ballots and the like later. */
     @Modifying
     @Query("DELETE FROM poll WHERE created_at < :cutoff")
     void deleteCreatedBefore(Instant cutoff);

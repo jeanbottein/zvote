@@ -849,12 +849,22 @@ fieldset.field {
   margin-top: 16px;
 }
 
-.invitations > .hint {
-  margin-bottom: 12px;
+.invitations {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.invitations .section-header {
+  margin: 0;
+}
+
+.invitations > .button {
+  align-self: flex-start;
 }
 
 .invitation-list {
-  margin: 0 0 16px;
+  margin: 0;
   padding: 0;
   list-style: none;
 }

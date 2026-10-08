@@ -18,9 +18,12 @@ Phases 0 to 5 of the roadmap are done, with the first step of [Scale](docs/ROADM
   from a change log; deleted polls' ballots removed in batches; PostgreSQL
   supported, the tests pass on it. Measured in docs/PERFORMANCE.md.
 - **Invitation polls (5c)**: the creator sends each voter a link of their
-  own, held by the first browser that votes with it (docs/ARCHITECTURE.md,
+  own, held by the first browser that votes with it. Links are signed, not
+  stored, so a billion invitations cost a counter (docs/ARCHITECTURE.md,
   "Invitations"). Otherwise, the creation form warns that zvote counts on
   good faith.
+- **One migration**: nothing is deployed, so `V1__init.sql` is the whole
+  schema. After pulling a change to it, stop `./dev.sh` and delete `data/`.
 
 **Phase 6, deployment on OVHcloud, is next.** The sections below are the
 history of 2026-09-26.

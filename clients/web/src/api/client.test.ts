@@ -54,12 +54,12 @@ describe('the API client', () => {
     }
   });
 
-  it('takes an invitation back by its token', async () => {
+  it('takes an invitation back by its number, never its token', async () => {
     fetchMock.mockResolvedValue(new Response(null, { status: 204 }));
 
-    await revokeInvitation('abc', 'ana-token');
+    await revokeInvitation('abc', 42);
 
-    expect(fetchMock).toHaveBeenCalledWith('/api/polls/abc/invitations/ana-token', expect.objectContaining({
+    expect(fetchMock).toHaveBeenCalledWith('/api/polls/abc/invitations/42', expect.objectContaining({
       method: 'DELETE',
     }));
   });

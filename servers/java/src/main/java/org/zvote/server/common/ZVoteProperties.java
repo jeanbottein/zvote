@@ -21,17 +21,19 @@ public record ZVoteProperties(Features features, Limits limits) {
 
     /**
      * maxVoterNameLength holds for the names on invitations too.
-     * pollLifetimeDays: a poll is deleted, with its ballots, this many days
-     * after it was created. A limit left out binds to 0, which for the
-     * lifetime would delete every poll at the next retention run: the server
-     * refuses to start instead. Texts must fit their columns (V1, V2, V4).
+     * maxInvitations: per poll; any number costs the same (see
+     * polls.InvitationService). pollLifetimeDays: a poll is deleted, with its
+     * ballots, this many days after it was created. A limit left out binds to
+     * 0, which for the lifetime would delete every poll at the next retention
+     * run: the server refuses to start instead. Texts must fit their columns
+     * (V1__init.sql).
      */
     public record Limits(
         int maxOptions,
         int maxTitleLength,
         int maxOptionLength,
         int maxVoterNameLength,
-        int maxInvitations,
+        long maxInvitations,
         int pollLifetimeDays
     ) {
         public Limits {

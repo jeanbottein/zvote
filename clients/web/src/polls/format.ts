@@ -13,7 +13,7 @@ export const VISIBILITY_NAMES: Record<Visibility, string> = {
 
 /** A join code as people read it: K7M-4QX. */
 export function formatJoinCode(code: string): string {
-  return code.length === 6 ? `${code.slice(0, 3)}-${code.slice(3)}` : code;
+  return `${code.slice(0, 3)}-${code.slice(3)}`;
 }
 
 /** "and 2 anonymous voters", or "1 anonymous voter" when nobody gave a name. */

@@ -68,7 +68,7 @@ folded from a change log; `Mention`), `api` (controllers, `PollViewService`,
 DTOs, error mapping; the only module that knows both polls and ballots, and
 what a ballot's bytes mean: `BallotFormat`),
 `identity` (voter cookie), `live` (`PollStream`, server-sent events), `common`
-(config, the invalid-request exception). Each module's `package-info.java`
+(config, the server's secret `VoterSecret`, the invalid-request exception). Each module's `package-info.java`
 declares the modules it may use (`@ApplicationModule(allowedDependencies)`);
 its API is its root package, and its sub-packages (`api.dto`) are its own.
 `ArchitectureTest` fails the build on an undeclared dependency, a cycle or a
@@ -201,13 +201,18 @@ shown to people as is: write it as a sentence for them.
   poll under `ZVOTE_VOTER_SECRET`). Never store two of them under the same
   key or the voter id, never add a timestamp to any, and keep the name cloud
   alphabetical.
-- **An invitation's token never goes in a URL the server sees**: its link
-  carries it in the fragment (`/p/{id}#invitation=...`), and the client
-  sends it in the `Zvote-Invitation` header. The first ballot cast with it
-  binds it to that browser (`InvitationService.admit`): the creator holds
-  every link, and a used one must show them nothing.
+- **Invitation links are signed, never stored** (`InvitationLinks`: the
+  invitation's number and an HMAC of it), and the token never goes in a URL
+  the server sees: the link carries it in the fragment
+  (`/p/{id}#invitation=...`), and the client sends it in the
+  `Zvote-Invitation` header. The first ballot cast with it binds it to that
+  browser (`InvitationService.admit`): the creator can read every link, and
+  a used one must show them nothing. An invitation has a row only once it is
+  named, used or taken back: never read or count a poll's invitations
+  beyond a page.
 - **The server will not start without `ZVOTE_VOTER_SECRET`** (32+
-  characters). `spring-boot:run` and `./dev.sh` get a development one from
+  characters, `VoterSecret`). It keys voters' records and signs invitation
+  links: changing it orphans every ballot and voids every link. `spring-boot:run` and `./dev.sh` get a development one from
   `pom.xml`, tests from `application-test.yml`; `java -jar`, a native image
   and `perf/bench.py` need it set.
 - **Results kept back are hidden from everyone**, the creator included:
@@ -225,6 +230,10 @@ shown to people as is: write it as a sentence for them.
 - **Ballots and names have no foreign key to their poll**: a deleted poll's
   can be billions, so `PollRetention` removes them in batches, from
   `poll_removal`, which `PollService` fills in the deleting transaction.
+- **Nothing is deployed yet: the schema is one migration**, `V1__init.sql`,
+  rewritten in place when it changes. Delete development databases after
+  such a change (`rm -rf data`, with `./dev.sh` stopped). From the first
+  deployment on, only add migrations.
 - **A migration renamed or removed stays in `target/classes`**: `./mvnw test`
   then fails with "Found more than one migration with version N". Delete that
   one file there; a `clean` would pull the classes from under a running

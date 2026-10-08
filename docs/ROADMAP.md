@@ -14,7 +14,7 @@ the codebase as simple as it found it: add what the phase needs, no more.
 | 4 | Client rebuilt against it: one API module, three screens, mobile-first design, live and envelope ballots, tests |
 | 5 | MVP for groups: private polls shared by link or join code (`K7M-4QX`), optional voter names shown as a cloud under the results, polls deleted 30 days after creation; public polls off until accounts |
 | 5b | Ballots at scale, first step (see [Scale](#scale)): one row per ballot, tallies folded from a change log, deleted polls removed in batches, PostgreSQL supported and tested; 41 times faster on PostgreSQL, and as fast on a poll of 10 million ballots as on a new one |
-| 5c | Invitation polls: the creator sends each voter a link of their own, good for one ballot in the browser that first votes with it, and sees which links were used, never what anyone chose |
+| 5c | Invitation polls: the creator sends each voter a link of their own, good for one ballot in the browser that first votes with it, and sees which links were used, never what anyone chose. Links are signed, not stored: a billion invitations cost a counter |
 
 ## Next
 
@@ -165,9 +165,9 @@ thousands of ballots a second. Next, in order:
   ballot key as the shard key) and fold per shard; the counters stay one
   small table per poll.
 - **Identity at scale.** One cookie per browser lets anyone vote twice by
-  clearing it, and invitations, which count each person once, are made by
-  hand. A billion-ballot poll needs accounts (phase 7) or proof of
-  personhood, and rate limits per network: of all the limits, this is the
+  clearing it. Invitations count each person once at any size, but someone
+  has to hand each link to its person. A billion-ballot public poll needs
+  accounts (phase 7) or proof of personhood, and rate limits per network: of all the limits, this is the
   one technology alone does not remove.
 
 ## Questions for the owner

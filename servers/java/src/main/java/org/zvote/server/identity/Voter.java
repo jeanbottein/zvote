@@ -1,9 +1,6 @@
 package org.zvote.server.identity;
 
-import javax.crypto.Mac;
-import javax.crypto.SecretKey;
-import java.nio.charset.StandardCharsets;
-import java.security.GeneralSecurityException;
+import org.zvote.server.common.VoterSecret;
 
 /**
  * The holder of a voter token, and the keys their records are stored under.
@@ -19,13 +16,11 @@ import java.security.GeneralSecurityException;
  */
 public final class Voter {
 
-    private static final String HMAC = "HmacSHA256";
-
     private final String token;
-    private final SecretKey secret;
+    private final VoterSecret secret;
     private final String id;
 
-    Voter(String token, SecretKey secret) {
+    Voter(String token, VoterSecret secret) {
         this.token = token;
         this.secret = secret;
         this.id = VoterIdentity.voterIdOf(token);
@@ -52,13 +47,6 @@ public final class Voter {
     }
 
     private String key(String purpose, long pollId) {
-        try {
-            var mac = Mac.getInstance(HMAC);
-            mac.init(secret);
-            var message = (purpose + ":" + pollId + ":" + token).getBytes(StandardCharsets.US_ASCII);
-            return VoterIdentity.base64url(mac.doFinal(message));
-        } catch (GeneralSecurityException e) {
-            throw new IllegalStateException("Every JVM ships " + HMAC, e);
-        }
+        return VoterIdentity.base64url(secret.sign(purpose + ":" + pollId + ":" + token));
     }
 }

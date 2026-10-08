@@ -1,71 +1,153 @@
 package org.zvote.server.polls;
 
+import org.springframework.jdbc.core.RowMapper;
+import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.zvote.server.common.InvalidRequestException;
 import org.zvote.server.common.ZVoteProperties;
 
-import java.util.List;
+import java.util.ArrayList;
+import java.util.Map;
 import java.util.Optional;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /**
  * Who may vote on a poll. Anyone holding its link, unless its creator chose
- * invitations: then they make one per voter and send each link to its
- * person themselves.
+ * invitations: then they make them, numbered 1, 2, 3..., and send each link to
+ * its person themselves.
  *
- * The first ballot cast with a link marks its invitation used by that
- * browser (its invitation key, see identity.Voter), which from then on votes
- * on the poll without the link, and is the only one that can. So the
- * creator, who holds every link, can open one, but can neither read nor
- * change the ballot cast with it: they learn which invitations were used,
- * never what anyone chose. They vote without an invitation.
+ * A link is signed, not stored (InvitationLinks), and an invitation has a row
+ * only once something is known of it: a label, a ballot cast with it, or that
+ * it was taken back. So making one invitation or a billion costs the same,
+ * and every request reads a page of them at most.
+ *
+ * The first ballot cast with a link marks its invitation used by that browser
+ * (its invitation key, see identity.Voter), which from then on votes on the
+ * poll without the link, and is the only one that can. So the creator, who can
+ * read every link, can neither read nor change the ballot cast with one: they
+ * learn which invitations were used, never what anyone chose. They vote
+ * without an invitation.
  */
 @Service
 public class InvitationService {
 
+    /** How many invitations a page holds, unless asked for fewer, or more up to MAX_PAGE. */
+    private static final int PAGE = 100;
+    private static final int MAX_PAGE = 1000;
+
+    private static final String NOT_INVITED =
+        "Only invited people can vote on this poll. If you were invited, open the link from your invitation.";
+    private static final String NOT_VALID = "This invitation link is not valid. Ask whoever invited you for a new one.";
+    private static final String USED =
+        "This invitation was already used, in another browser or on another device. Its ballot can only be changed there.";
+
     private final PollService polls;
-    private final InvitationRepository invitations;
+    private final InvitationLinks links;
+    private final JdbcClient jdbc;
     private final ZVoteProperties settings;
 
-    public InvitationService(PollService polls, InvitationRepository invitations, ZVoteProperties settings) {
+    public InvitationService(PollService polls, InvitationLinks links, JdbcClient jdbc, ZVoteProperties settings) {
         this.polls = polls;
-        this.invitations = invitations;
+        this.links = links;
+        this.jdbc = jdbc;
         this.settings = settings;
     }
 
-    /** The poll's invitations, in the order they were made. Its creator only. */
-    public List<Invitation> invitationsOf(String shareToken, String voterId) {
-        return invitations.findByPollIdOrderById(polls.createdBy(shareToken, voterId).id());
+    /** A poll that takes invitations is created with none (see PollCreationService). */
+    @Transactional(propagation = Propagation.MANDATORY)
+    public void open(long pollId) {
+        jdbc.sql("INSERT INTO invitation_count (poll_id, issued, revoked) VALUES (:poll, 0, 0)")
+            .param("poll", pollId)
+            .update();
     }
 
-    /** A new invitation; the label, if any, says whom it is for. Its creator only, while the poll is open. */
-    @Transactional
-    public Invitation invite(String shareToken, String voterId, String label) {
-        var poll = polls.createdBy(shareToken, voterId);
-        if (!poll.invitationOnly()) {
-            throw new InvalidRequestException("Anyone with the link can vote on this poll: it takes no invitations.");
+    /**
+     * The newest invitations below number {@code before} (null: of all),
+     * {@code limit} at most (null: a page). Its creator only.
+     */
+    public InvitationPage invitationsOf(String shareToken, String voterId, Long before, Integer limit) {
+        var size = limit == null ? PAGE : limit;
+        if (size < 1 || size > MAX_PAGE) {
+            throw new InvalidRequestException("Ask for 1 to " + MAX_PAGE + " invitations at a time.");
         }
+        var poll = takingInvitations(polls.createdBy(shareToken, voterId));
+        var counts = countsOf(poll.id());
+        var top = before == null ? counts.issued() : Math.min(before - 1, counts.issued());
+        var bottom = Math.max(1, top - size + 1);
+        var known = knownBetween(poll.id(), bottom, top);
+        var invitations = new ArrayList<Invitation>();
+        for (var number = top; number >= bottom; number--) {
+            var row = known.get(number);
+            if (row == null || !row.revoked()) {
+                invitations.add(new Invitation(number, links.tokenOf(poll.id(), number),
+                    row == null ? null : row.label(), row != null && row.usedBy() != null));
+            }
+        }
+        return new InvitationPage(counts.issued() - counts.revoked(), invitations, bottom > 1 ? bottom : null);
+    }
+
+    /**
+     * Makes {@code count} anonymous invitations, or one for whom the label
+     * says. Its creator only, while the poll is open.
+     */
+    @Transactional
+    public void invite(String shareToken, String voterId, String label, long count) {
+        var poll = takingInvitations(polls.createdBy(shareToken, voterId));
         if (poll.isClosed()) {
             throw new PollClosedException("This poll is closed: nobody else can vote on it.");
         }
-        var max = settings.limits().maxInvitations();
-        if (invitations.countByPollId(poll.id()) >= max) {
-            throw new InvalidRequestException("A poll can have at most " + max + " invitations.");
-        }
         var name = polls.validName(label);
-        return invitations.save(
-            new Invitation(null, poll.id(), PollService.randomToken(), name.isEmpty() ? null : name, null));
+        if (count < 1) {
+            throw new InvalidRequestException("Make at least one invitation.");
+        }
+        if (!name.isEmpty() && count > 1) {
+            throw new InvalidRequestException("A name goes on one invitation at a time.");
+        }
+        var max = settings.limits().maxInvitations();
+        var made = jdbc.sql("UPDATE invitation_count SET issued = issued + :count WHERE poll_id = :poll AND issued <= :room")
+            .param("count", count)
+            .param("poll", poll.id())
+            .param("room", max - count)
+            .update();
+        if (made == 0) {
+            throw new InvalidRequestException(
+                "A poll can have at most " + max + " invitations, and this one has " + countsOf(poll.id()).issued() + ".");
+        }
+        if (!name.isEmpty()) {
+            jdbc.sql("""
+                    INSERT INTO invitation (poll_id, number, label, revoked)
+                    SELECT poll_id, issued, :label, FALSE FROM invitation_count WHERE poll_id = :poll
+                    """)
+                .param("label", name)
+                .param("poll", poll.id())
+                .update();
+        }
     }
 
-    /** Takes back an invitation nobody has voted with: its link stops working. Its creator only. */
+    /** Takes back an invitation nobody voted with: its link stops working. Its creator only. */
     @Transactional
-    public void revoke(String shareToken, String voterId, String token) {
-        var poll = polls.createdBy(shareToken, voterId);
-        if (!invitations.deleteUnused(poll.id(), token) && invitations.existsByPollIdAndToken(poll.id(), token)) {
-            throw new InvitationUsedException(
-                "Someone has voted with this invitation, so it can no longer be taken back.");
+    public void revoke(String shareToken, String voterId, long number) {
+        var poll = takingInvitations(polls.createdBy(shareToken, voterId));
+        if (number < 1 || number > countsOf(poll.id()).issued()) {
+            return;
         }
+        var known = knownOf(poll.id(), number);
+        if (known.isEmpty()) {
+            jdbc.sql("INSERT INTO invitation (poll_id, number, revoked) VALUES (:poll, :number, TRUE)")
+                .param("poll", poll.id())
+                .param("number", number)
+                .update();
+        } else if (known.get().usedBy() != null) {
+            throw new InvitationUsedException("Someone has voted with this invitation, so it can no longer be taken back.");
+        } else if (known.get().revoked() || !takeBack(poll.id(), number)) {
+            return;
+        }
+        jdbc.sql("UPDATE invitation_count SET revoked = revoked + 1 WHERE poll_id = :poll")
+            .param("poll", poll.id())
+            .update();
     }
 
     /** Whether this voter may vote, with the invitation they bring (the token from its link, or null). */
@@ -73,37 +155,126 @@ public class InvitationService {
         if (admitted(poll, voterId, invitationKey)) {
             return Admission.ADMITTED;
         }
-        return invitation(poll, token)
-            .map(invitation -> invitation.isUsed() ? Admission.INVITATION_USED : Admission.ADMITTED)
-            .orElse(Admission.NOT_INVITED);
+        var number = links.numberOf(poll.id(), token);
+        if (number.isEmpty()) {
+            return Admission.NOT_INVITED;
+        }
+        return knownOf(poll.id(), number.getAsLong())
+            .map(row -> row.revoked() ? Admission.NOT_INVITED
+                : row.usedBy() != null ? Admission.INVITATION_USED : Admission.ADMITTED)
+            .orElse(Admission.ADMITTED);
     }
 
     /**
      * Lets this voter cast a ballot, or says why not. Voting with an unused
      * invitation marks it used by them, in the caller's transaction: of two
-     * browsers voting with one link at the same moment, one is refused.
+     * browsers voting with one link at the same moment, one is refused, or
+     * told to try again (409) and then refused.
      */
     @Transactional(propagation = Propagation.MANDATORY)
     public void admit(Poll poll, String voterId, String invitationKey, String token) {
         if (admitted(poll, voterId, invitationKey)) {
             return;
         }
-        var invitation = invitation(poll, token).orElseThrow(() -> new NotInvitedException(token == null
-            ? "Only invited people can vote on this poll. If you were invited, open the link from your invitation."
-            : "This invitation link is not valid. Ask whoever invited you for a new one."));
-        if (!invitations.use(invitation.id(), invitationKey)) {
-            throw new InvitationUsedException(
-                "This invitation was already used, in another browser or on another device. Its ballot can only be changed there.");
+        var number = links.numberOf(poll.id(), token)
+            .orElseThrow(() -> new NotInvitedException(token == null ? NOT_INVITED : NOT_VALID));
+        var known = knownOf(poll.id(), number);
+        if (known.isEmpty()) {
+            jdbc.sql("INSERT INTO invitation (poll_id, number, used_by, revoked) VALUES (:poll, :number, :key, FALSE)")
+                .param("poll", poll.id())
+                .param("number", number)
+                .param("key", invitationKey)
+                .update();
+        } else if (known.get().revoked()) {
+            throw new NotInvitedException(NOT_VALID);
+        } else if (known.get().usedBy() != null || !use(poll.id(), number, invitationKey)) {
+            throw new InvitationUsedException(USED);
         }
+    }
+
+    /** Removes up to {@code limit} invitations of a deleted poll, in one transaction; returns how many. */
+    @Transactional
+    public int removeSome(long pollId, int limit) {
+        return jdbc.sql("""
+                DELETE FROM invitation WHERE poll_id = :poll AND number IN (
+                    SELECT number FROM invitation WHERE poll_id = :poll LIMIT :limit)
+                """)
+            .param("poll", pollId)
+            .param("limit", limit)
+            .update();
     }
 
     private boolean admitted(Poll poll, String voterId, String invitationKey) {
         return !poll.invitationOnly()
             || poll.isCreatedBy(voterId)
-            || invitations.existsByPollIdAndUsedBy(poll.id(), invitationKey);
+            || jdbc.sql("SELECT COUNT(*) FROM invitation WHERE poll_id = :poll AND used_by = :key")
+                .param("poll", poll.id())
+                .param("key", invitationKey)
+                .query(Long.class).single() > 0;
     }
 
-    private Optional<Invitation> invitation(Poll poll, String token) {
-        return token == null ? Optional.empty() : invitations.findByPollIdAndToken(poll.id(), token);
+    private boolean use(long pollId, long number, String invitationKey) {
+        return jdbc.sql("""
+                UPDATE invitation SET used_by = :key
+                WHERE poll_id = :poll AND number = :number AND used_by IS NULL AND NOT revoked
+                """)
+            .param("key", invitationKey)
+            .param("poll", pollId)
+            .param("number", number)
+            .update() == 1;
+    }
+
+    private boolean takeBack(long pollId, long number) {
+        return jdbc.sql("""
+                UPDATE invitation SET revoked = TRUE, label = NULL
+                WHERE poll_id = :poll AND number = :number AND used_by IS NULL AND NOT revoked
+                """)
+            .param("poll", pollId)
+            .param("number", number)
+            .update() == 1;
+    }
+
+    private static Poll takingInvitations(Poll poll) {
+        if (!poll.invitationOnly()) {
+            throw new InvalidRequestException("Anyone with the link can vote on this poll: it takes no invitations.");
+        }
+        return poll;
+    }
+
+    private Counts countsOf(long pollId) {
+        return jdbc.sql("SELECT issued, revoked FROM invitation_count WHERE poll_id = :poll")
+            .param("poll", pollId)
+            .query((row, n) -> new Counts(row.getLong("issued"), row.getLong("revoked")))
+            .single();
+    }
+
+    private Optional<Known> knownOf(long pollId, long number) {
+        return jdbc.sql("SELECT number, label, used_by, revoked FROM invitation WHERE poll_id = :poll AND number = :number")
+            .param("poll", pollId)
+            .param("number", number)
+            .query(Known.MAPPER)
+            .optional();
+    }
+
+    private Map<Long, Known> knownBetween(long pollId, long bottom, long top) {
+        return jdbc.sql("""
+                SELECT number, label, used_by, revoked FROM invitation
+                WHERE poll_id = :poll AND number BETWEEN :bottom AND :top
+                """)
+            .param("poll", pollId)
+            .param("bottom", bottom)
+            .param("top", top)
+            .query(Known.MAPPER)
+            .list().stream()
+            .collect(Collectors.toMap(Known::number, Function.identity()));
+    }
+
+    private record Counts(long issued, long revoked) {}
+
+    /** What is stored of an invitation, if anything (see V1__init.sql). */
+    private record Known(long number, String label, String usedBy, boolean revoked) {
+
+        static final RowMapper<Known> MAPPER = (row, n) -> new Known(
+            row.getLong("number"), row.getString("label"), row.getString("used_by"), row.getBoolean("revoked"));
     }
 }

@@ -1,9 +1,7 @@
 package org.zvote.server.identity;
 
 import org.junit.jupiter.api.Test;
-
-import javax.crypto.spec.SecretKeySpec;
-import java.nio.charset.StandardCharsets;
+import org.zvote.server.common.VoterSecret;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -37,6 +35,6 @@ class VoterTest {
     }
 
     static Voter voter(String token, String secret) {
-        return new Voter(token, new SecretKeySpec(secret.getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
+        return new Voter(token, new VoterSecret(secret + " of at least thirty-two characters"));
     }
 }

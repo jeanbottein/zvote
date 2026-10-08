@@ -43,9 +43,9 @@ secret, that nothing else matches
 | `DELETE` | `/api/polls/{id}` | `204`: creator only |
 | `PUT` | `/api/polls/{id}/ballot` | `PollView`: cast, revise or withdraw the caller's ballot |
 | `GET` | `/api/polls/{id}/events` | `text/event-stream`: live updates |
-| `GET` | `/api/polls/{id}/invitations` | `InvitationView[]`: creator only, in the order they were made |
-| `POST` | `/api/polls/{id}/invitations` | `201` + `InvitationView`: creator only, `{"label": "Zoé"}` (the label is optional) |
-| `DELETE` | `/api/polls/{id}/invitations/{token}` | `204`: creator only, an invitation nobody voted with |
+| `GET` | `/api/polls/{id}/invitations` | `InvitationPage`: creator only, the newest first (`?before=&limit=`) |
+| `POST` | `/api/polls/{id}/invitations` | `201` + `InvitationPage`: creator only, `{"label": "Zoé"}` or `{"count": 500}` |
+| `DELETE` | `/api/polls/{id}/invitations/{number}` | `204`: creator only, an invitation nobody voted with |
 | `GET` | `/actuator/health` | `{"status":"UP"}`: readiness probe |
 
 A poll's `id` is its **share token**: 22 url-safe characters, unguessable. It
@@ -216,17 +216,20 @@ a second; then the next update does.
 ## Invitations
 
 A poll created with `"invitationOnly": true` counts each person once, as long
-as its creator hands out the links honestly. The creator makes one invitation
-per voter, and sends each its link: the poll's address with the invitation's
-token in the fragment.
+as its creator hands out the links honestly. The creator makes invitations,
+numbered 1, 2, 3... in the order they are made, and sends each its link: the
+poll's address with the invitation's token in the fragment. The token is the
+invitation's number and the server's signature of it for this poll.
 
 ```
 POST /api/polls/{id}/invitations
-{ "label": "Zoé" }                               // whom it is for, shown to the creator only; optional
+{ "label": "Zoé" }       // one invitation for Zoé: the label is shown to the creator only
+{ "count": 500 }         // 500 anonymous invitations at once; left out, 1
 
-201 { "token": "qWsD_0PPBuKgjv6h9yEQxA", "label": "Zoé", "used": false }
+201 { "count": 3, "next": null, "invitations": [
+      { "number": 3, "token": "3.qWsD_0PPBuKgjv6h9yEQxA", "label": "Zoé", "used": false }, ... ] }
 
-https://zvote.example/p/{id}#invitation=qWsD_0PPBuKgjv6h9yEQxA
+https://zvote.example/p/{id}#invitation=3.qWsD_0PPBuKgjv6h9yEQxA
 ```
 
 A client sends the token in a header, to read the poll and to cast a ballot,
@@ -234,7 +237,7 @@ never in a URL: browsers do not send a fragment, so no server or proxy log
 keeps it.
 
 ```
-Zvote-Invitation: qWsD_0PPBuKgjv6h9yEQxA
+Zvote-Invitation: 3.qWsD_0PPBuKgjv6h9yEQxA
 ```
 
 - The first ballot cast with an invitation makes it the caller's browser's
@@ -246,18 +249,24 @@ Zvote-Invitation: qWsD_0PPBuKgjv6h9yEQxA
   - `ADMITTED`: they may vote. The poll is open to anyone, or they created
     it (a creator votes without an invitation), or they bring or used an
     invitation.
-  - `NOT_INVITED`: they bring no valid invitation. Casting answers `403`.
+  - `NOT_INVITED`: they bring no valid invitation (none, one the server did
+    not sign for this poll, or one taken back). Casting answers `403`.
   - `INVITATION_USED`: the invitation they bring was used in another
     browser.
-- `GET /api/polls/{id}/invitations` answers the creator every invitation,
-  `[{ "token", "label", "used" }]`, in the order they were made: who has
-  voted, never with which ballot.
-- `DELETE /api/polls/{id}/invitations/{token}` takes back an invitation
+- `GET /api/polls/{id}/invitations` answers the creator an `InvitationPage`:
+  the newest invitations first, `limit` of them (100 unless asked, 1000 at
+  most), below number `before` if given. `count` is how many they made and
+  did not take back, and `next` is the `before` to ask for to read on (null
+  once invitation 1 is in). `used` says who has voted, never with which
+  ballot. `POST` answers the newest page too.
+- `DELETE /api/polls/{id}/invitations/{number}` takes back an invitation
   nobody voted with, and its link stops working. Taking back one that was
   used answers `409`: its ballot stays counted.
-- Labels follow the rules of names (see above). A poll takes at most
-  `maxInvitations` (`400` past that), none once closed (`409`), and none if
-  anyone may vote on it (`400`).
+- Links are signed, not stored: making 1 invitation or a billion costs the
+  same, and so does reading a page. A poll takes up to `maxInvitations`
+  (`400` past that), none once closed (`409`), and none if anyone may vote
+  on it (`400`). A label follows the rules of names (above), and goes on one
+  invitation at a time.
 - Anyone holding the poll's own link or code can still open it, and see its
   results when they show: only voting needs an invitation.
 

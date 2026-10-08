@@ -152,8 +152,8 @@ public class PollService {
 
     /**
      * The poll disappears at once, with its options (ON DELETE CASCADE). Its
-     * ballots and names can be billions: they are removed afterwards, in
-     * batches (see {@link #removedPolls()}).
+     * ballots, names and invitations can be billions: they are removed
+     * afterwards, in batches (see {@link #removedPolls()}).
      */
     @Transactional
     public Poll delete(String shareToken, String voterId) {
@@ -178,7 +178,7 @@ public class PollService {
         return expired;
     }
 
-    /** Deleted polls whose ballots and names are still to be removed. */
+    /** Deleted polls whose ballots, names and invitations are still to be removed. */
     public List<Long> removedPolls() {
         return polls.findRemovals();
     }

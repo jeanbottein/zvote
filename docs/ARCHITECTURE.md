@@ -40,12 +40,12 @@ code, in six modules, one per package under `org.zvote.server`:
 
 | Module | Uses | Holds |
 |---|---|---|
-| `polls` | `common` | `Poll`, `PollOption`, `PollService`: every rule about polls; who may vote, in `InvitationService` |
+| `polls` | `common` | `Poll`, `PollOption`, `PollService`: every rule about polls; who may vote, in `InvitationService` and `InvitationLinks` |
 | `ballots` | nothing | ballots, one byte per option; their tallies (`TallyService`); `Mention` |
 | `api` | everything | controllers, the services that join polls and ballots, DTOs, error mapping |
-| `identity` | nothing | the voter cookie and `VoterIdentityFilter` |
+| `identity` | `common` | the voter cookie and `VoterIdentityFilter` |
 | `live` | nothing | `PollStream`: server-sent events |
-| `common` | nothing | `ZVoteProperties`, `InvalidRequestException` |
+| `common` | nothing | `ZVoteProperties`, `VoterSecret`, `InvalidRequestException` |
 
 Each module says what it is, and which modules it may use, in its
 `package-info.java` (`@ApplicationModule`). Its API is its root package; its
@@ -112,7 +112,8 @@ Who can tell what someone chose, and what stops them:
   Nothing records when a ballot, a name or an invitation was given. The
   server recomputes the keys for whoever holds the cookie, so revising
   works. Going the other way, from a row back to a person, means guessing a
-  256-bit token, even with the secret.
+  256-bit token, even with the secret. Invitation links are signed, not
+  stored: the copy holds none to vote with either.
 - **Others on the poll** see the tallies move. Among a few people, a tally
   that moves just as Sam taps "submit", or as "Sam" joins the names, shows
   what Sam chose, mention by mention in the live ballot mode. So a creator
@@ -190,35 +191,45 @@ names in alphabetical order, then how many more voted. Its key matches no
 ballot row (see [Anonymity](#anonymity)). Withdrawing the ballot takes the name
 away.
 
-### Invitations
-
-A creator can make a poll take invitations (`Poll.invitationOnly`, chosen at
-creation): only the people they invite may vote, each with a link of their
-own. They make one invitation per voter, with a label for whom it is for if
-they like, which only they see, and send each link themselves, by any means
-(the share dialog offers copy, QR code, email and the device's share sheet).
-A poll takes at most `zvote.limits.max-invitations` (1,000) invitations: they
-are made by hand, so they go with their poll in one deletion.
-
-- The link is the poll's address with the invitation's token in the fragment
-  (`/p/{id}#invitation=...`). Browsers never send a fragment, and the client
-  passes the token in the `Zvote-Invitation` header: no URL the server or a
-  proxy logs ever holds it.
-- The first ballot cast with an invitation marks it used by that browser
-  (`InvitationService.admit`, in the casting transaction: of two browsers
-  voting with one link at the same moment, one is refused). From then on
-  that browser votes without the link, and no other can use it. The
-  creator votes without one.
-- Every `PollView` says whether its reader may vote (`admission`), so the page
-  explains why not before anyone tries: no invitation, a link that is not
-  valid, or an invitation used elsewhere.
-- An invitation nobody voted with can be taken back; one that was used
-  cannot, since its ballot cannot be found to remove it.
-
 A join code is drawn at random from 31 characters without look-alikes
 (887 million codes), unique among polls. It is shorter than the 128-bit share
 token, so it is guessable in principle: lookups (`GET /api/join/{code}`) get a
 rate limit at deployment.
+
+### Invitations
+
+A creator can make a poll take invitations (`Poll.invitationOnly`, chosen at
+creation): only the people they invite may vote, each with a link of their
+own. They make invitations one at a time, with a label for whom each is for
+if they like, which only they see, or many at once through the API, and send
+each link themselves (the share dialog offers copy, QR code, email and the
+device's share sheet).
+
+- **Signed, not stored.** Invitations are numbered 1, 2, 3... per poll, and a
+  link's token is the number and the server's 128-bit signature of it for
+  this poll (`InvitationLinks`: `HMAC(secret, "link:" + poll + ":" +
+  number)`, cut to 16 bytes). The server tells a link it made by signing
+  again. Making invitations moves a counter (`invitation_count`), and an
+  invitation gets a row only once something is known of it: a label, a
+  ballot cast with it, or that it was taken back. So a billion invitations
+  cost what one does, and a copy of the database holds no link anyone could
+  vote with.
+- **Never in a URL the server sees.** The link carries the token in its
+  fragment (`/p/{id}#invitation=...`), which browsers never send, and the
+  client passes it in the `Zvote-Invitation` header.
+- **Held by the first browser that votes.** The first ballot cast with an
+  invitation marks it used by that browser (`InvitationService.admit`, in the
+  casting transaction: of two browsers voting with one link at the same
+  moment, one is refused). From then on that browser votes without the link,
+  and no other can use it. The creator votes without one.
+- **Said before anyone tries.** Every `PollView` says whether its reader may
+  vote (`admission`), so the page explains why not: no invitation, a link
+  that is not valid, or an invitation used elsewhere.
+- **Read a page at a time.** The creator reads them newest first, up to 1,000
+  at a time, with the links signed as the page is read. Only creators' actions
+  write the counters: voters never wait on them.
+- An invitation nobody voted with can be taken back; one that was used
+  cannot, since its ballot cannot be found to remove it.
 
 ### Retention
 
@@ -228,11 +239,12 @@ not archiving, and keeping them briefly keeps little personal data around.
 Tests switch the job off (`zvote.retention-cron: "-"`) and call it themselves.
 
 A deleted poll (by its creator or by retention) disappears at once, with its
-options and tallies, but its ballots and names can be billions: they have no
-foreign key to the poll, and the same job removes them afterwards, 10,000 per
-transaction, from the list of deleted polls (`poll_removal`) that the deletion
-wrote in its own transaction. No transaction grows with the size of a poll,
-and nothing is left behind.
+options, tallies and invitation counter, but its ballots, names and
+invitations can be billions: they have no foreign key to the poll, and the
+same job removes them afterwards, 10,000 per transaction, from the list of
+deleted polls (`poll_removal`) that the deletion wrote in its own
+transaction. No transaction grows with the size of a poll, and nothing is
+left behind.
 
 ### Tallies
 
@@ -305,11 +317,12 @@ Flyway owns the schema (`src/main/resources/db/migration`). The SQL is portable
 databases: H2 in development, PostgreSQL in production
 (`SPRING_DATASOURCE_URL=jdbc:postgresql://...`; see the server's README). Table
 names are singular and unquoted and entities have no `@Table`: see the note at
-the top of `V1__init.sql`. Ballots, the change log and tallies are written with
-`JdbcClient` rather than entities: a ballot's key is two columns, and folding
-updates counters in batches. `V1` has never been released and was rewritten in
-place; `V2` and `V3` were added instead, so that development databases migrate.
-From the first deployment on, only add migrations.
+the top of `V1__init.sql`. Ballots, the change log, tallies and invitations
+are written with `JdbcClient` rather than entities: their keys are two
+columns, and folding updates counters in batches. Nothing has been deployed
+yet, so `V1__init.sql` is the whole schema, rewritten in place when it
+changes, and development databases are deleted (`rm -rf data`). From the
+first deployment on, only add migrations.
 
 On PostgreSQL, give the connection a lock timeout
 (`?options=-c%20lock_timeout%3D2s`), as H2 has by default: a ballot that waits
@@ -336,8 +349,9 @@ add CPU. Beyond one PostgreSQL server, ballots split by voter (Citus, or a
 shard key) with folds on each shard. What else stands between zvote and a
 billion-ballot poll is in [ROADMAP.md](ROADMAP.md#scale): live updates across
 servers, results through a CDN for millions of watchers, and, above all,
-identity: one cookie per browser cannot stop anyone from voting twice, and
-invitations, which count each person once, are made by hand.
+identity: one cookie per browser cannot stop anyone from voting twice.
+Invitations count each person once at any size (a billion of them cost a
+counter), but someone has to hand each link to its person.
 
 ### Errors
 
@@ -507,6 +521,7 @@ Playwright is on the roadmap.
 | A counted ballot starts hidden | The voter's screen is not a receipt for whoever looks at it. |
 | Private by link or code; public polls off | Anyone could list anything anonymously; public polls come back for signed-in creators. Choosing who may open a poll needs accounts too. |
 | Invitations made by the creator, held by the first browser that votes | Each person counted once without accounts. The creator holds every link, but a used one shows them nothing. |
+| Invitation links signed, not stored | A billion invitations cost a counter, and a copy of the database holds no link to vote with. |
 | Invitation tokens in the fragment and a header | No server or proxy log ever holds one. |
 | Names per poll, optional | A cloud of who took part, without an account and without a profile kept across polls. |
 | Polls deleted after 30 days | Data minimisation (GDPR), and nothing to archive for a group decision. |

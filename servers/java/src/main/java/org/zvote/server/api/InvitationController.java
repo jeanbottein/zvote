@@ -1,5 +1,6 @@
 package org.zvote.server.api;
 
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -8,19 +9,18 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestAttribute;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import org.zvote.server.api.dto.CreateInvitationRequest;
-import org.zvote.server.api.dto.InvitationView;
+import org.zvote.server.api.dto.CreateInvitationsRequest;
 import org.zvote.server.identity.Voter;
 import org.zvote.server.identity.VoterIdentity;
+import org.zvote.server.polls.InvitationPage;
 import org.zvote.server.polls.InvitationService;
-
-import java.net.URI;
-import java.util.List;
 
 /**
  * The invitations to a poll that only invited people may vote on, which its
- * creator makes and sends (see InvitationService).
+ * creator makes and sends (see InvitationService), newest first, a page at a
+ * time.
  *
  * A voter brings theirs in the Zvote-Invitation header, to read the poll and
  * to cast a ballot, never in a URL: the web client keeps it in the page
@@ -40,25 +40,27 @@ public class InvitationController {
     }
 
     @GetMapping
-    public List<InvitationView> list(@PathVariable String id,
-                                     @RequestAttribute(VoterIdentity.ATTRIBUTE) Voter voter) {
-        return invitations.invitationsOf(id, voter.id()).stream().map(InvitationView::of).toList();
+    public InvitationPage list(@PathVariable String id,
+                               @RequestParam(required = false) Long before,
+                               @RequestParam(required = false) Integer limit,
+                               @RequestAttribute(VoterIdentity.ATTRIBUTE) Voter voter) {
+        return invitations.invitationsOf(id, voter.id(), before, limit);
     }
 
+    /** Answers the newest invitations, the new ones first. */
     @PostMapping
-    public ResponseEntity<InvitationView> invite(@PathVariable String id,
-                                                 @RequestBody CreateInvitationRequest request,
+    public ResponseEntity<InvitationPage> invite(@PathVariable String id,
+                                                 @RequestBody CreateInvitationsRequest request,
                                                  @RequestAttribute(VoterIdentity.ATTRIBUTE) Voter voter) {
-        var invitation = invitations.invite(id, voter.id(), request.label());
-        return ResponseEntity.created(URI.create("/api/polls/" + id + "/invitations/" + invitation.token()))
-            .body(InvitationView.of(invitation));
+        invitations.invite(id, voter.id(), request.label(), request.count() == null ? 1 : request.count());
+        return ResponseEntity.status(HttpStatus.CREATED).body(invitations.invitationsOf(id, voter.id(), null, null));
     }
 
-    @DeleteMapping("/{token}")
+    @DeleteMapping("/{number}")
     public ResponseEntity<Void> revoke(@PathVariable String id,
-                                       @PathVariable String token,
+                                       @PathVariable long number,
                                        @RequestAttribute(VoterIdentity.ATTRIBUTE) Voter voter) {
-        invitations.revoke(id, voter.id(), token);
+        invitations.revoke(id, voter.id(), number);
         return ResponseEntity.noContent().build();
     }
 }
