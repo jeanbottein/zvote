@@ -30,27 +30,39 @@ function openAt(path: string) {
 }
 
 describe('the app', () => {
-  it('opens on the polls, with no way back from there', async () => {
+  it('opens on the home page, with no way back from there', async () => {
     openAt('/');
 
-    expect(await screen.findByText('No public polls yet.')).toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: 'All polls' })).not.toBeInTheDocument();
+    expect(await screen.findByText('Polls you create will appear here.')).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Home' })).not.toBeInTheDocument();
   });
 
-  it('leads back to the polls from anywhere else', async () => {
+  it('leads back home from anywhere else', async () => {
     openAt('/new');
 
     expect(screen.getByRole('heading', { name: 'New poll' })).toBeInTheDocument();
-    await userEvent.click(screen.getByRole('link', { name: 'All polls' }));
+    await userEvent.click(screen.getByRole('link', { name: 'Home' }));
 
     expect(await screen.findByRole('heading', { name: 'Decide together, fairly.' })).toBeInTheDocument();
+  });
+
+  it('says how results are decided, and cites the research, from every page', async () => {
+    openAt('/new');
+
+    await userEvent.click(screen.getByRole('link', { name: 'About and the science behind it' }));
+
+    expect(await screen.findByRole('heading', { name: 'About zvote' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'A theory of measuring, electing, and ranking' }))
+      .toHaveAttribute('href', 'https://doi.org/10.1073/pnas.0702634104');
+    expect(screen.getAllByRole('link', { name: /source code/i })[0])
+      .toHaveAttribute('href', 'https://github.com/jeanbottein/zvote');
   });
 
   it('says when there is nothing at an address', () => {
     openAt('/nowhere');
 
     expect(screen.getByRole('heading', { name: 'Page not found' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'See all polls' })).toHaveAttribute('href', '/');
+    expect(screen.getByRole('link', { name: 'Back to the home page' })).toHaveAttribute('href', '/');
   });
 });
 

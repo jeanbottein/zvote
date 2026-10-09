@@ -13,13 +13,17 @@ afterEach(() => {
 
 describe('loading the preferences', () => {
   it('starts from the defaults', () => {
-    expect(loadPreferences()).toEqual({ theme: 'system', colorblind: false, mjBallot: 'scale', submission: 'live' });
+    expect(loadPreferences()).toEqual({
+      theme: 'system', colorblind: false, mjBallot: 'scale', submission: 'live', voterName: '',
+    });
   });
 
   it('keeps what was saved, and the defaults for the rest', () => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ theme: 'dark', submission: 'envelope' }));
 
-    expect(loadPreferences()).toEqual({ theme: 'dark', colorblind: false, mjBallot: 'scale', submission: 'envelope' });
+    expect(loadPreferences()).toEqual({
+      theme: 'dark', colorblind: false, mjBallot: 'scale', submission: 'envelope', voterName: '',
+    });
   });
 
   it('falls back to the defaults when what was saved cannot be read', () => {
@@ -31,12 +35,12 @@ describe('loading the preferences', () => {
 
 describe('applying the preferences', () => {
   it('puts the theme on <html> and the grey palette on <body>, where the stylesheets look', () => {
-    applyPreferences({ theme: 'dark', colorblind: true, mjBallot: 'scale', submission: 'live' });
+    applyPreferences({ theme: 'dark', colorblind: true });
 
     expect(document.documentElement.dataset.theme).toBe('dark');
     expect(document.body.dataset.colorblind).toBe('true');
 
-    applyPreferences({ theme: 'system', colorblind: false, mjBallot: 'scale', submission: 'live' });
+    applyPreferences({ theme: 'system', colorblind: false });
 
     expect(document.documentElement).not.toHaveAttribute('data-theme');
     expect(document.body).not.toHaveAttribute('data-colorblind');
@@ -52,13 +56,13 @@ describe("the browser's own bars", () => {
     const media = () => [...document.querySelectorAll<HTMLMetaElement>('meta[name="theme-color"]')]
       .map((meta) => meta.media);
 
-    applyPreferences({ theme: 'dark', colorblind: false, mjBallot: 'scale', submission: 'live' });
+    applyPreferences({ theme: 'dark', colorblind: false });
     expect(media()).toEqual(['not all', 'all']);
 
-    applyPreferences({ theme: 'light', colorblind: false, mjBallot: 'scale', submission: 'live' });
+    applyPreferences({ theme: 'light', colorblind: false });
     expect(media()).toEqual(['all', 'not all']);
 
-    applyPreferences({ theme: 'system', colorblind: false, mjBallot: 'scale', submission: 'live' });
+    applyPreferences({ theme: 'system', colorblind: false });
     expect(media()).toEqual(['(prefers-color-scheme: light)', '(prefers-color-scheme: dark)']);
 
     document.head.querySelectorAll('meta[name="theme-color"]').forEach((meta) => meta.remove());

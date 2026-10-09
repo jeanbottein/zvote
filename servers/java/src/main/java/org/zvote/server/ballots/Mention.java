@@ -1,4 +1,4 @@
-package org.zvote.server.judgment;
+package org.zvote.server.ballots;
 
 import java.util.Arrays;
 import java.util.Optional;
@@ -9,6 +9,9 @@ import java.util.Optional;
  * The wire names are canonical across the whole system: the API, the client's
  * majorityJudgment.ts and the colour ramp in majority-judgment.css all use
  * exactly these seven spellings. Renaming one means renaming all of them.
+ *
+ * A ballot stores a mention as its rank, worst first (BAD is 0): never
+ * reorder them.
  */
 public enum Mention {
     BAD("Bad"),

@@ -1,22 +1,21 @@
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { ApiError, createPoll, getServerInfo } from '../api/client';
+import { ApiError, createPoll } from '../api/client';
 import type { Poll } from '../api/types';
+import { serverInfo } from '../test/fixtures';
 import { renderAt } from '../test/render';
 import CreatePollPage from './CreatePollPage';
+import { useServerInfo } from './useServerInfo';
 
 vi.mock('../api/client', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../api/client')>()),
   createPoll: vi.fn(),
-  getServerInfo: vi.fn(),
 }));
+vi.mock('./useServerInfo', () => ({ useServerInfo: vi.fn() }));
 
 beforeEach(() => {
-  vi.mocked(getServerInfo).mockResolvedValue({
-    features: { publicPolls: true, unlistedPolls: true, approvalVoting: true, majorityJudgment: true },
-    limits: { maxOptions: 20, maxTitleLength: 200, maxOptionLength: 100 },
-  });
+  vi.mocked(useServerInfo).mockReturnValue(serverInfo({ publicPolls: true }));
 });
 
 const openForm = () => renderAt('/new', [{ path: '/new', element: <CreatePollPage /> }]);
@@ -30,7 +29,8 @@ describe('creating a poll', () => {
     await userEvent.type(screen.getByLabelText('Option 1'), 'Ramen');
     await userEvent.type(screen.getByLabelText('Option 2'), 'Tacos');
     await userEvent.click(screen.getByRole('radio', { name: 'Approval' }));
-    await userEvent.click(screen.getByRole('radio', { name: 'Unlisted' }));
+    await userEvent.click(screen.getByRole('radio', { name: 'Private' }));
+    await userEvent.click(screen.getByRole('radio', { name: 'Show names' }));
     await userEvent.click(screen.getByRole('button', { name: 'Create poll' }));
 
     expect(createPoll).toHaveBeenCalledWith({
@@ -38,8 +38,91 @@ describe('creating a poll', () => {
       options: ['Ramen', 'Tacos'],
       votingSystem: 'APPROVAL',
       visibility: 'UNLISTED',
+      invitationOnly: false,
+      showVoterNames: true,
+      resultsShown: 'AFTER_CLOSING',
+      resultsAfterBallots: null,
     });
     expect(await screen.findByText('Poll page fresh')).toBeInTheDocument();
+  });
+
+  it('keeps the results of a poll showing names for when it closes, unless told otherwise', async () => {
+    openForm();
+
+    expect(await screen.findByRole('radio', { name: 'Live' })).toBeChecked();
+    await userEvent.click(screen.getByRole('radio', { name: 'Show names' }));
+    expect(screen.getByRole('radio', { name: 'At close' })).toBeChecked();
+
+    await userEvent.click(screen.getByRole('radio', { name: 'Live' }));
+    await userEvent.click(screen.getByRole('radio', { name: 'Anonymous' }));
+    await userEvent.click(screen.getByRole('radio', { name: 'Show names' }));
+    expect(screen.getByRole('radio', { name: 'Live' })).toBeChecked();
+  });
+
+  it('says so when the server takes no new polls', async () => {
+    vi.mocked(useServerInfo).mockReturnValue(serverInfo({ unlistedPolls: false }));
+    openForm();
+    await userEvent.type(await screen.findByLabelText('Question'), 'Lunch?');
+    await userEvent.type(screen.getByLabelText('Option 1'), 'Ramen');
+    await userEvent.type(screen.getByLabelText('Option 2'), 'Tacos');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Create poll' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('This server takes no new polls at the moment.');
+    expect(createPoll).not.toHaveBeenCalled();
+  });
+
+  it('warns the creator about live results', async () => {
+    openForm();
+
+    expect(await screen.findByText(/In a small group, that shows who chose what/)).toHaveAttribute('data-tone', 'warning');
+    await userEvent.click(screen.getByRole('radio', { name: 'At close' }));
+    expect(screen.getByText(/Results show once you close the poll/)).not.toHaveAttribute('data-tone');
+  });
+
+  it('warns that anyone with the link can vote again from another browser, unless invited', async () => {
+    vi.mocked(createPoll).mockResolvedValue({ id: 'fresh' } as Poll);
+    openForm();
+    await userEvent.type(await screen.findByLabelText('Question'), 'Who chairs?');
+    await userEvent.type(screen.getByLabelText('Option 1'), 'Ana');
+    await userEvent.type(screen.getByLabelText('Option 2'), 'Bob');
+
+    expect(screen.getByText(/zvote counts on good faith/)).toHaveAttribute('data-tone', 'warning');
+    await userEvent.click(screen.getByRole('radio', { name: 'Invited only' }));
+    expect(screen.getByText(/a link of their own/)).not.toHaveAttribute('data-tone');
+    await userEvent.click(screen.getByRole('button', { name: 'Create poll' }));
+
+    expect(createPoll).toHaveBeenCalledWith(expect.objectContaining({
+      invitationOnly: true,
+      resultsShown: 'AFTER_CLOSING',
+    }));
+  });
+
+  it('shows the results after a number of ballots, at least three', async () => {
+    vi.mocked(createPoll).mockResolvedValue({ id: 'fresh' } as Poll);
+    openForm();
+    await userEvent.type(await screen.findByLabelText('Question'), 'Lunch?');
+    await userEvent.type(screen.getByLabelText('Option 1'), 'Ramen');
+    await userEvent.type(screen.getByLabelText('Option 2'), 'Tacos');
+
+    await userEvent.click(screen.getByRole('radio', { name: 'Delayed' }));
+    const ballots = screen.getByLabelText('Ballots before the results show');
+    expect(ballots).toHaveValue(5);
+    await userEvent.clear(ballots);
+    await userEvent.type(ballots, '2');
+    await userEvent.click(screen.getByRole('button', { name: 'Create poll' }));
+
+    expect(screen.getByText('Choose a whole number of ballots, at least 3.')).toBeInTheDocument();
+    expect(createPoll).not.toHaveBeenCalled();
+
+    await userEvent.clear(ballots);
+    await userEvent.type(ballots, '4');
+    await userEvent.click(screen.getByRole('button', { name: 'Create poll' }));
+
+    expect(createPoll).toHaveBeenCalledWith(expect.objectContaining({
+      resultsShown: 'AFTER_BALLOTS',
+      resultsAfterBallots: 4,
+    }));
   });
 
   it('adds a row for the next option as the last one is filled in', async () => {

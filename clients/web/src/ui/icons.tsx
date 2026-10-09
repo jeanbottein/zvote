@@ -48,6 +48,13 @@ export const ShareIcon = () => (
   </Icon>
 );
 
+export const MailIcon = () => (
+  <Icon>
+    <rect x="3" y="5" width="18" height="14" rx="2" />
+    <path d="M3 7l9 6 9-6" />
+  </Icon>
+);
+
 export const CheckIcon = () => (
   <Icon>
     <path d="M5 12l5 5 9-10" />

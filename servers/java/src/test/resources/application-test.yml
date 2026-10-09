@@ -5,6 +5,13 @@ spring:
   main:
     banner-mode: off
 
+# No poll retention running in the middle of a test: tests call it themselves.
+# A ballot's answer waits for its fold, so that tests read exact tallies.
+zvote:
+  retention-cron: "-"
+  fold-patience: 10s
+  voter-secret: test-voter-secret-0123456789abcdef
+
 # Warnings and errors only (see logback-test.xml), minus the expected ones.
 logging:
   level:

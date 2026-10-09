@@ -17,8 +17,9 @@ function slowServer() {
 function renderBallot(mode: SubmissionMode, cast: (ballot: string) => Promise<void>, saved = 'nothing') {
   const onError = vi.fn();
   const hook = renderHook(
-    (props: { saved: string; mode: SubmissionMode }) => useBallot({
-      saved: props.saved, mode: props.mode, cast, onError, equals: (a, b) => a === b,
+    (props: { saved: string; mode: SubmissionMode; castChanged?: boolean }) => useBallot({
+      saved: props.saved, mode: props.mode, castChanged: props.castChanged ?? false, cast, onError,
+      equals: (a, b) => a === b,
     }),
     { initialProps: { saved, mode } },
   );
@@ -137,5 +138,76 @@ describe('withdrawing', () => {
     await server.answerNext();
 
     expect(server.received).toEqual(['Ramen', 'nothing']);
+  });
+});
+
+describe('what cast() adds (the voter\'s name)', () => {
+  /** A ballot hook whose cast() adds the name of the render it comes from. */
+  function renderNamedBallot(mode: SubmissionMode, saved = 'nothing') {
+    const server = slowServer();
+    const hook = renderHook(
+      (props: { name: string; castChanged: boolean }) => useBallot({
+        saved, mode, castChanged: props.castChanged, onError: vi.fn(), equals: (a, b) => a === b,
+        cast: (ballot) => server.cast(`${ballot} by ${props.name}`),
+      }),
+      { initialProps: { name: 'Sam', castChanged: false } },
+    );
+    return { ...hook, server };
+  }
+
+  it('is taken when a queued ballot leaves, not when the queue started', async () => {
+    const { result, rerender, server } = renderNamedBallot('live');
+
+    act(() => result.current.change('Ramen'));
+    rerender({ name: 'Samuel', castChanged: false });
+    act(() => result.current.change('Tacos'));
+    await server.answerNext();
+    await server.answerNext();
+
+    expect(server.received).toEqual(['Ramen by Sam', 'Tacos by Samuel']);
+  });
+
+  it('changed while the first ballot travels is sent again after it', async () => {
+    const { result, rerender, server } = renderNamedBallot('live');
+
+    act(() => result.current.change('Ramen'));
+    rerender({ name: 'Samuel', castChanged: false });
+    act(() => result.current.recast());
+    await server.answerNext();
+    await server.answerNext();
+
+    expect(server.received).toEqual(['Ramen by Sam', 'Ramen by Samuel']);
+  });
+
+  it('is not sent again when nothing changed and nothing travels', () => {
+    const { result, server } = renderNamedBallot('live', 'Ramen');
+
+    act(() => result.current.recast());
+
+    expect(server.received).toEqual([]);
+  });
+
+  it('changed on a live ballot sends what the server holds again', () => {
+    const { result, rerender, server } = renderNamedBallot('live', 'Ramen');
+
+    rerender({ name: 'Samuel', castChanged: true });
+    act(() => result.current.recast());
+
+    expect(server.received).toEqual(['Ramen by Samuel']);
+  });
+
+  it('changed on an envelope ballot waits for the submission, like the choices', async () => {
+    const { result, rerender, server } = renderNamedBallot('envelope', 'Ramen');
+
+    rerender({ name: 'Samuel', castChanged: true });
+    act(() => result.current.recast());
+    expect(server.received).toEqual([]);
+    expect(result.current.hasChanges).toBe(true);
+
+    const submitted = act(() => result.current.submit());
+    await server.answerNext();
+    await submitted;
+
+    expect(server.received).toEqual(['Ramen by Samuel']);
   });
 });

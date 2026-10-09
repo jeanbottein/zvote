@@ -11,7 +11,7 @@ public class ServerInfoController {
 
     private final ZVoteProperties settings;
 
-    public ServerInfoController(ZVoteProperties settings) {
+    ServerInfoController(ZVoteProperties settings) {
         this.settings = settings;
     }
 

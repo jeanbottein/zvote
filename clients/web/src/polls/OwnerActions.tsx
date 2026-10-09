@@ -1,7 +1,9 @@
-import { useId, useState } from 'react';
+import { useId, useRef, useState } from 'react';
+import { flushSync } from 'react-dom';
 import { useNavigate } from 'react-router';
-import { deletePoll, errorMessage, setPollClosed } from '../api/client';
+import { closePoll, deletePoll, errorMessage } from '../api/client';
 import type { Poll } from '../api/types';
+import Confirmation from '../ui/Confirmation';
 import { useToast } from '../ui/Toasts';
 
 interface OwnerActionsProps {
@@ -9,14 +11,15 @@ interface OwnerActionsProps {
   onChange(poll: Poll): void;
 }
 
-/** What only the poll's creator can do: close or reopen voting, and delete the poll. */
+/** What only the poll's creator can do: close voting, for good, and delete the poll. Both ask first. */
 export default function OwnerActions({ poll, onChange }: OwnerActionsProps) {
   const navigate = useNavigate();
   const showToast = useToast();
   const titleId = useId();
   const [busy, setBusy] = useState(false);
-  const [confirmingDelete, setConfirmingDelete] = useState(false);
-  const closed = poll.closedAt !== null;
+  const [confirming, setConfirming] = useState<'close' | 'delete' | null>(null);
+  const closeButton = useRef<HTMLButtonElement>(null);
+  const deleteButton = useRef<HTMLButtonElement>(null);
 
   async function run(action: () => Promise<void>) {
     setBusy(true);
@@ -29,9 +32,17 @@ export default function OwnerActions({ poll, onChange }: OwnerActionsProps) {
     }
   }
 
-  // No toast: the page itself shows the poll closing or reopening.
-  const toggleClosed = () => run(async () => {
-    onChange(await setPollClosed(poll.id, !closed));
+  /** Back to the button that asked, so that keyboard and screen reader users keep their place. */
+  function keep() {
+    const asked = confirming === 'close' ? closeButton : deleteButton;
+    flushSync(() => setConfirming(null));
+    asked.current?.focus();
+  }
+
+  // No toast: the page itself shows the poll closing.
+  const close = () => run(async () => {
+    onChange(await closePoll(poll.id));
+    setConfirming(null);
   });
 
   const remove = () => run(async () => {
@@ -43,30 +54,47 @@ export default function OwnerActions({ poll, onChange }: OwnerActionsProps) {
   return (
     <section className="panel owner-actions" aria-labelledby={titleId}>
       <h2 id={titleId}>Manage your poll</h2>
-      <div className="button-row">
-        <button type="button" className="button secondary" disabled={busy} onClick={toggleClosed}>
-          {closed ? 'Reopen voting' : 'Close voting'}
-        </button>
-        {!confirmingDelete && (
-          <button type="button" className="button danger" disabled={busy} onClick={() => setConfirmingDelete(true)}>
+      {confirming === null && (
+        <div className="button-row">
+          {poll.closedAt === null && (
+            <button
+              type="button" className="button secondary" ref={closeButton} disabled={busy}
+              onClick={() => setConfirming('close')}
+            >
+              Close voting
+            </button>
+          )}
+          <button
+            type="button" className="button danger" ref={deleteButton} disabled={busy}
+            onClick={() => setConfirming('delete')}
+          >
             Delete poll
           </button>
-        )}
-      </div>
-      {confirmingDelete && (
-        <div className="confirm" role="alertdialog" aria-labelledby={`${titleId}-confirm`}>
-          <p id={`${titleId}-confirm`}>
-            Delete this poll and all its ballots? Everyone watching it will see it disappear. This cannot be undone.
-          </p>
-          <div className="button-row">
-            <button type="button" className="button secondary" disabled={busy} onClick={() => setConfirmingDelete(false)}>
-              Keep it
-            </button>
-            <button type="button" className="button danger" disabled={busy} onClick={remove}>
-              Delete for good
-            </button>
-          </div>
         </div>
+      )}
+      {confirming === 'close' && (
+        <Confirmation
+          id={`${titleId}-confirm`}
+          question="Close voting for good? Nobody can vote or change their ballot any more, and everyone sees the final results. A closed poll cannot be reopened."
+          busy={busy}
+          keep="Keep it open"
+          confirm="Close for good"
+          tone="primary"
+          onKeep={keep}
+          onConfirm={close}
+        />
+      )}
+      {confirming === 'delete' && (
+        <Confirmation
+          id={`${titleId}-confirm`}
+          question="Delete this poll and all its ballots? Everyone watching it will see it disappear. This cannot be undone."
+          busy={busy}
+          keep="Keep it"
+          confirm="Delete for good"
+          tone="danger"
+          onKeep={keep}
+          onConfirm={remove}
+        />
       )}
     </section>
   );

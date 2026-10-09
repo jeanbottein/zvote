@@ -4,8 +4,11 @@ import type { ServerInfo } from '../api/types';
 
 /** The server's usual offer: what to assume until it answers, or if it cannot. */
 const USUAL: ServerInfo = {
-  features: { publicPolls: true, unlistedPolls: true, approvalVoting: true, majorityJudgment: true },
-  limits: { maxOptions: 20, maxTitleLength: 200, maxOptionLength: 100 },
+  features: { publicPolls: false, unlistedPolls: true, approvalVoting: true, majorityJudgment: true },
+  limits: {
+    maxOptions: 20, maxTitleLength: 200, maxOptionLength: 100, maxVoterNameLength: 40, maxInvitations: 1000,
+    pollLifetimeDays: 30,
+  },
 };
 
 let request: Promise<ServerInfo> | null = null;

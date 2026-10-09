@@ -4,10 +4,12 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestAttribute;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.zvote.server.api.dto.CastBallotRequest;
 import org.zvote.server.api.dto.PollView;
+import org.zvote.server.identity.Voter;
 import org.zvote.server.identity.VoterIdentity;
 import org.zvote.server.live.PollStream;
 
@@ -23,20 +25,28 @@ public class BallotController {
     private final BallotService ballots;
     private final PollViewService views;
     private final PollStream stream;
+    private final TallyFolding folding;
 
-    public BallotController(BallotService ballots, PollViewService views, PollStream stream) {
+    BallotController(BallotService ballots, PollViewService views, PollStream stream, TallyFolding folding) {
         this.ballots = ballots;
         this.views = views;
         this.stream = stream;
+        this.folding = folding;
     }
 
-    /** Watchers hear of the ballot once it is committed, and the voter sees it at once. */
+    /**
+     * Watchers hear of the ballot once it is folded into the tallies, and of
+     * the voter's name once it is committed. The voter sees their ballot at
+     * once, and the tallies with it unless many ballots are arriving.
+     */
     @PutMapping
     public PollView cast(@PathVariable String id,
                          @RequestBody CastBallotRequest ballot,
-                         @RequestAttribute(VoterIdentity.ATTRIBUTE) String voterId) {
-        var poll = ballots.cast(id, ballot, voterId);
+                         @RequestHeader(name = InvitationController.HEADER, required = false) String invitation,
+                         @RequestAttribute(VoterIdentity.ATTRIBUTE) Voter voter) {
+        var poll = ballots.cast(id, ballot, voter, invitation);
+        folding.fold();
         stream.changed(poll.id(), () -> views.update(poll.id()));
-        return views.view(poll, voterId);
+        return views.view(poll, voter, invitation);
     }
 }

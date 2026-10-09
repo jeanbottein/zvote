@@ -1,10 +1,13 @@
 import type { ReactNode } from 'react';
 import { Link } from 'react-router';
+import JoinForm from './JoinForm';
 import PollList from './PollList';
 import { usePollLists } from './usePollLists';
+import { useServerInfo } from './useServerInfo';
 
 export default function HomePage() {
-  const { lists, error } = usePollLists();
+  const { features } = useServerInfo();
+  const { lists, error } = usePollLists(features.publicPolls);
 
   return (
     <>
@@ -12,11 +15,13 @@ export default function HomePage() {
       <section className="hero">
         <h1>Decide together, fairly.</h1>
         <p>
-          Rate every option with majority judgment, or approve the ones you like.
-          Results update live, and nobody needs an account.
+          Create a private poll, share its link or code with your group, and watch
+          the results come in live. Nobody needs an account.
         </p>
         <Link className="button primary" to="/new">Create a poll</Link>
       </section>
+
+      <JoinForm />
 
       {error ? (
         <p className="panel error-text" role="alert">{error}</p>
@@ -25,9 +30,11 @@ export default function HomePage() {
           <Section title="Your polls">
             {lists ? <PollList polls={lists.mine} empty="Polls you create will appear here." /> : <Loading />}
           </Section>
-          <Section title="Public polls">
-            {lists ? <PollList polls={lists.others} empty="No public polls yet." /> : <Loading />}
-          </Section>
+          {features.publicPolls && (
+            <Section title="Public polls">
+              {lists ? <PollList polls={lists.others} empty="No public polls yet." /> : <Loading />}
+            </Section>
+          )}
         </>
       )}
     </>

@@ -1,10 +1,22 @@
-import type { ServerInfo, Visibility, VotingSystem } from '../api/types';
+import type { ResultsShown, ServerInfo, Visibility, VotingSystem } from '../api/types';
 
 type Limits = ServerInfo['limits'];
+
+/** Fewer ballots than this, and the results are the ballots: two voters would each read the other's. */
+export const MIN_RESULTS_AFTER_BALLOTS = 3;
+
+export interface PollForm {
+  title: string;
+  options: string[];
+  resultsShown: ResultsShown;
+  /** As typed: AFTER_BALLOTS only. */
+  resultsAfterBallots: string;
+}
 
 export interface PollFormProblems {
   title?: string;
   options?: string;
+  resultsAfterBallots?: string;
 }
 
 /** The options that were filled in, trimmed. Blank rows are just ignored. */
@@ -13,7 +25,9 @@ export function filledOptions(options: string[]): string[] {
 }
 
 /** The same rules the server applies, checked before sending so mistakes show at once. */
-export function checkPollForm(title: string, options: string[], limits: Limits): PollFormProblems {
+export function checkPollForm(
+  { title, options, resultsShown, resultsAfterBallots }: PollForm, limits: Limits,
+): PollFormProblems {
   const problems: PollFormProblems = {};
 
   const trimmedTitle = title.trim();
@@ -41,6 +55,12 @@ export function checkPollForm(title: string, options: string[], limits: Limits):
     problems.options = `An option can be at most ${limits.maxOptionLength} characters long.`;
   } else if (repeated) {
     problems.options = `"${repeated}" is listed twice. Each option must be different.`;
+  }
+
+  const ballots = Number(resultsAfterBallots);
+  if (resultsShown === 'AFTER_BALLOTS' && (resultsAfterBallots.trim() === '' || !Number.isSafeInteger(ballots)
+    || ballots < MIN_RESULTS_AFTER_BALLOTS)) {
+    problems.resultsAfterBallots = `Choose a whole number of ballots, at least ${MIN_RESULTS_AFTER_BALLOTS}.`;
   }
 
   return problems;
@@ -72,6 +92,6 @@ export function offeredVotingSystems(info: ServerInfo): { value: VotingSystem; l
 export function offeredVisibilities(info: ServerInfo): { value: Visibility; label: string }[] {
   return [
     info.features.publicPolls && { value: 'PUBLIC' as const, label: 'Public' },
-    info.features.unlistedPolls && { value: 'UNLISTED' as const, label: 'Unlisted' },
+    info.features.unlistedPolls && { value: 'UNLISTED' as const, label: 'Private' },
   ].filter((choice) => choice !== false);
 }

@@ -11,7 +11,7 @@ export default function Header() {
         {atHome ? (
           <span className="icon-button-placeholder" />
         ) : (
-          <Link to="/" className="icon-button" aria-label="All polls">
+          <Link to="/" className="icon-button" aria-label="Home">
             <BackIcon />
           </Link>
         )}

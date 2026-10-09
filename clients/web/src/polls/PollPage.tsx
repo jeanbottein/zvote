@@ -3,30 +3,36 @@ import type { Poll } from '../api/types';
 import Notice from '../ui/Notice';
 import BallotSection from './BallotSection';
 import DevBallotFeeder from './DevBallotFeeder';
-import { timeAgo, VISIBILITY_NAMES, VOTING_SYSTEM_NAMES } from './format';
+import { formatDate, timeAgo, VISIBILITY_NAMES, VOTING_SYSTEM_NAMES } from './format';
+import Invitations from './Invitations';
+import { invitationIn } from './links';
 import OwnerActions from './OwnerActions';
 import ResultsSection from './ResultsSection';
 import ShareButton from './ShareButton';
 import { usePoll } from './usePoll';
 
-/** A poll: your ballot, and the results as they come in. Its address is its share link. */
+/**
+ * A poll: your ballot, and the results as they come in. Its address is its
+ * share link, and an invitation's link adds the invitation in the fragment.
+ */
 export default function PollPage() {
   const { id = '' } = useParams();
-  // Keyed by id, so moving to another poll starts from a clean slate.
-  return <PollScreen key={id} id={id} />;
+  const invitation = invitationIn(useLocation().hash);
+  // Keyed, so that moving to another poll, or another invitation, starts from a clean slate.
+  return <PollScreen key={`${id}#${invitation}`} id={id} invitation={invitation} />;
 }
 
-const allPolls = <Link className="button primary" to="/">See all polls</Link>;
+const home = <Link className="button primary" to="/">Back to the home page</Link>;
 
-function PollScreen({ id }: { id: string }) {
-  const { poll, error, deleted, connection, setPoll } = usePoll(id);
+function PollScreen({ id, invitation }: { id: string; invitation: string | null }) {
+  const { poll, error, deleted, connection, setPoll } = usePoll(id, invitation);
   const justCreated = (useLocation().state as { created?: boolean } | null)?.created === true;
 
   if (deleted) {
-    return <Notice title="This poll was deleted" action={allPolls}><p>Its creator deleted it, and its results with it.</p></Notice>;
+    return <Notice title="This poll was deleted" action={home}><p>It was deleted, and its results with it.</p></Notice>;
   }
   if (error?.status === 404) {
-    return <Notice title="Poll not found" action={allPolls}><p>The link may be incomplete, or the poll was deleted.</p></Notice>;
+    return <Notice title="Poll not found" action={home}><p>The link may be incomplete, or the poll was deleted.</p></Notice>;
   }
   if (error) {
     return (
@@ -46,18 +52,22 @@ function PollScreen({ id }: { id: string }) {
     <>
       <title>{`${poll.title} · zvote`}</title>
       <PollHeader poll={poll} />
-      {justCreated && poll.isMine && poll.totalBallots === 0 && (
-        <section className="panel callout">
+      {justCreated && poll.isMine && poll.totalBallots === 0 && (poll.invitationOnly
+        ? <p className="panel callout">
+          <span><strong>Your poll is ready.</strong> Invite people below: each gets a link of their own.</span>
+        </p>
+        : <section className="panel callout">
           <p><strong>Your poll is ready.</strong> Share its link to collect ballots.</p>
           <ShareButton poll={poll} className="button primary" />
-        </section>
-      )}
+        </section>)}
       {poll.closedAt
         ? <p className="panel callout">Voting closed {timeAgo(poll.closedAt)}. These are the final results.</p>
-        : <BallotSection poll={poll} onCast={setPoll} />}
+        : <BallotSection poll={poll} invitation={invitation} onCast={setPoll} />}
+      {poll.isMine && poll.invitationOnly && <Invitations poll={poll} />}
       <ResultsSection poll={poll} connection={connection} />
+      <p className="hint expiry">This poll and its ballots will be deleted on {formatDate(poll.expiresAt)}.</p>
       {poll.isMine && <OwnerActions poll={poll} onChange={setPoll} />}
-      {import.meta.env.DEV && poll.isMine && <DevBallotFeeder poll={poll} />}
+      {import.meta.env.DEV && poll.isMine && !poll.invitationOnly && <DevBallotFeeder poll={poll} />}
     </>
   );
 }
@@ -70,6 +80,7 @@ function PollHeader({ poll }: { poll: Poll }) {
         <p className="poll-meta">
           <span>{VOTING_SYSTEM_NAMES[poll.votingSystem]}</span>
           <span>{VISIBILITY_NAMES[poll.visibility]}</span>
+          {poll.invitationOnly && <span>By invitation</span>}
           <span>Created {timeAgo(poll.createdAt)}</span>
           {poll.closedAt && <span className="badge">Closed</span>}
         </p>

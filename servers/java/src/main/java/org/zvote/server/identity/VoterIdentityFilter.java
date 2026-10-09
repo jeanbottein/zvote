@@ -9,6 +9,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseCookie;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
+import org.zvote.server.common.VoterSecret;
 
 import java.io.IOException;
 import java.security.SecureRandom;
@@ -19,9 +20,9 @@ import java.util.Optional;
 import java.util.regex.Pattern;
 
 /**
- * Resolves the caller's voter id on every API request, issuing a voter token to
+ * Resolves the caller on every API request, issuing a voter token to
  * newcomers, so that handlers simply declare
- * {@code @RequestAttribute(VoterIdentity.ATTRIBUTE) String voterId}.
+ * {@code @RequestAttribute(VoterIdentity.ATTRIBUTE) Voter voter}.
  *
  * The cookie is SameSite=Lax: browsers do not send it on cross-site POST, PUT,
  * PATCH or DELETE requests, and the server enables no CORS, so another site
@@ -35,6 +36,12 @@ public class VoterIdentityFilter extends OncePerRequestFilter {
 
     /** 256 random bits, base64url: exactly what {@link #newToken()} issues. */
     private static final Pattern TOKEN = Pattern.compile("[A-Za-z0-9_-]{43}");
+
+    private final VoterSecret secret;
+
+    public VoterIdentityFilter(VoterSecret secret) {
+        this.secret = secret;
+    }
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
@@ -57,7 +64,7 @@ public class VoterIdentityFilter extends OncePerRequestFilter {
                 .build()
                 .toString());
         }
-        request.setAttribute(VoterIdentity.ATTRIBUTE, VoterIdentity.voterIdOf(token));
+        request.setAttribute(VoterIdentity.ATTRIBUTE, new Voter(token, secret));
         chain.doFilter(request, response);
     }
 

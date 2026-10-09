@@ -20,7 +20,7 @@ export default function PollList({ polls, empty }: PollListProps) {
             <span className="poll-list-meta">
               <span>{VOTING_SYSTEM_NAMES[poll.votingSystem]}</span>
               <span>{timeAgo(poll.createdAt)}</span>
-              {poll.visibility === 'UNLISTED' && <span className="badge">Unlisted</span>}
+              {poll.visibility === 'PUBLIC' && <span className="badge">Public</span>}
               {poll.closedAt && <span className="badge">Closed</span>}
             </span>
           </Link>

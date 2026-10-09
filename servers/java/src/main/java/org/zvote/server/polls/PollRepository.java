@@ -1,9 +1,12 @@
 package org.zvote.server.polls;
 
+import org.springframework.data.jdbc.repository.query.Modifying;
+import org.springframework.data.jdbc.repository.query.Query;
 import org.springframework.data.relational.core.sql.LockMode;
 import org.springframework.data.relational.repository.Lock;
 import org.springframework.data.repository.ListCrudRepository;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
@@ -18,6 +21,33 @@ interface PollRepository extends ListCrudRepository<Poll, Long> {
      */
     @Lock(LockMode.PESSIMISTIC_READ)
     Optional<Poll> findLockedByShareToken(String shareToken);
+
+    Optional<Poll> findByJoinCode(String joinCode);
+
+    boolean existsByJoinCode(String joinCode);
+
+    @Query("SELECT id FROM poll WHERE created_at < :cutoff")
+    List<Long> findIdsCreatedBefore(Instant cutoff);
+
+    /** One statement: what they have a few of goes with them (ON DELETE CASCADE), their ballots and the like later. */
+    @Modifying
+    @Query("DELETE FROM poll WHERE created_at < :cutoff")
+    void deleteCreatedBefore(Instant cutoff);
+
+    @Modifying
+    @Query("INSERT INTO poll_removal (poll_id) VALUES (:pollId)")
+    void scheduleRemoval(Long pollId);
+
+    @Modifying
+    @Query("INSERT INTO poll_removal (poll_id) SELECT id FROM poll WHERE created_at < :cutoff")
+    void scheduleRemovalsCreatedBefore(Instant cutoff);
+
+    @Query("SELECT poll_id FROM poll_removal")
+    List<Long> findRemovals();
+
+    @Modifying
+    @Query("DELETE FROM poll_removal WHERE poll_id = :pollId")
+    void removalDone(Long pollId);
 
     List<Poll> findTop50ByVisibilityOrderByCreatedAtDesc(Poll.Visibility visibility);
 

@@ -1,9 +1,13 @@
 package org.zvote.server.polls;
 
-/** The poll no longer accepts ballots. */
+/** The poll is closed: it takes no more ballots. Its message is for people. */
 public class PollClosedException extends RuntimeException {
 
-    public PollClosedException() {
-        super("Poll is closed");
+    PollClosedException() {
+        this("This poll is closed and no longer accepts ballots.");
+    }
+
+    PollClosedException(String message) {
+        super(message);
     }
 }

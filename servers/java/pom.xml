@@ -52,8 +52,8 @@
             <artifactId>spring-boot-starter-data-jdbc</artifactId>
         </dependency>
 
-        <!-- Flyway owns the schema. H2 support ships inside flyway-core; the
-             PostgreSQL deployment will add org.flywaydb:flyway-database-postgresql. -->
+        <!-- Flyway owns the schema. H2 support ships inside flyway-core;
+             PostgreSQL's is flyway-database-postgresql, below. -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-flyway</artifactId>
@@ -64,6 +64,17 @@
             <groupId>com.h2database</groupId>
             <artifactId>h2</artifactId>
             <scope>runtime</scope>
+        </dependency>
+
+        <!-- PostgreSQL, the production database: SPRING_DATASOURCE_URL=jdbc:postgresql://... -->
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-database-postgresql</artifactId>
         </dependency>
 
         <!-- /actuator/health, the readiness probe used by dev.sh. -->
@@ -103,6 +114,12 @@
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration>
+                    <!-- spring-boot:run only, for development: a deployed server sets its own. -->
+                    <environmentVariables>
+                        <ZVOTE_VOTER_SECRET>development-only-voter-secret-never-deployed</ZVOTE_VOTER_SECRET>
+                    </environmentVariables>
+                </configuration>
             </plugin>
             <!-- GraalVM native image, on a GraalVM JDK: ./mvnw -Pnative native:compile builds
                  target/zvote-server (Spring Boot's native profile runs its AOT processing first). -->

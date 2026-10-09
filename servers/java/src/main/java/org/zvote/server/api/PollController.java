@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestAttribute;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
@@ -20,68 +21,80 @@ import org.zvote.server.api.dto.PollUpdate;
 import org.zvote.server.api.dto.PollView;
 import org.zvote.server.api.dto.UpdatePollRequest;
 import org.zvote.server.common.InvalidRequestException;
+import org.zvote.server.identity.Voter;
 import org.zvote.server.identity.VoterIdentity;
 import org.zvote.server.live.PollStream;
 import org.zvote.server.polls.PollService;
 import org.zvote.server.polls.CreatePollRequest;
 
 import java.net.URI;
+import java.time.Duration;
 import java.util.List;
 
 @RestController
 @RequestMapping("/api/polls")
 public class PollController {
 
+    /** Closing waits for every ballot cast before it to be folded in: final results are final. */
+    private static final Duration FINAL_FOLD = Duration.ofSeconds(30);
+
     private final PollService polls;
+    private final PollCreationService creations;
     private final PollViewService views;
     private final PollStream stream;
+    private final TallyFolding folding;
 
-    public PollController(PollService polls, PollViewService views, PollStream stream) {
+    PollController(PollService polls, PollCreationService creations, PollViewService views, PollStream stream,
+                   TallyFolding folding) {
         this.polls = polls;
+        this.creations = creations;
         this.views = views;
         this.stream = stream;
+        this.folding = folding;
     }
 
     @GetMapping
-    public List<PollSummary> listPublic(@RequestAttribute(VoterIdentity.ATTRIBUTE) String voterId) {
-        return polls.listPublic().stream().map(poll -> views.summary(poll, voterId)).toList();
+    public List<PollSummary> listPublic(@RequestAttribute(VoterIdentity.ATTRIBUTE) Voter voter) {
+        return polls.listPublic().stream().map(poll -> views.summary(poll, voter)).toList();
     }
 
     @GetMapping("/mine")
-    public List<PollSummary> listMine(@RequestAttribute(VoterIdentity.ATTRIBUTE) String voterId) {
-        return polls.listCreatedBy(voterId).stream().map(poll -> views.summary(poll, voterId)).toList();
+    public List<PollSummary> listMine(@RequestAttribute(VoterIdentity.ATTRIBUTE) Voter voter) {
+        return polls.listCreatedBy(voter.id()).stream().map(poll -> views.summary(poll, voter)).toList();
     }
 
     @PostMapping
     public ResponseEntity<PollView> create(@RequestBody CreatePollRequest request,
-                                           @RequestAttribute(VoterIdentity.ATTRIBUTE) String voterId) {
-        var poll = polls.create(request, voterId);
+                                           @RequestAttribute(VoterIdentity.ATTRIBUTE) Voter voter) {
+        var poll = creations.create(request, voter.id());
         return ResponseEntity.created(URI.create("/api/polls/" + poll.shareToken()))
-            .body(views.view(poll, voterId));
+            .body(views.view(poll, voter, null));
     }
 
     @GetMapping("/{id}")
     public PollView get(@PathVariable String id,
-                        @RequestAttribute(VoterIdentity.ATTRIBUTE) String voterId) {
-        return views.view(polls.find(id), voterId);
+                        @RequestHeader(name = InvitationController.HEADER, required = false) String invitation,
+                        @RequestAttribute(VoterIdentity.ATTRIBUTE) Voter voter) {
+        return views.view(polls.find(id), voter, invitation);
     }
 
     @PatchMapping("/{id}")
     public PollView update(@PathVariable String id,
                            @RequestBody UpdatePollRequest request,
-                           @RequestAttribute(VoterIdentity.ATTRIBUTE) String voterId) {
-        if (request.closed() == null) {
-            throw new InvalidRequestException("Say whether the poll should be closed: {\"closed\": true}.");
+                           @RequestAttribute(VoterIdentity.ATTRIBUTE) Voter voter) {
+        if (!Boolean.TRUE.equals(request.closed())) {
+            throw new InvalidRequestException("A poll can only be closed, for good: send {\"closed\": true}.");
         }
-        var poll = polls.setClosed(id, voterId, request.closed());
+        var poll = polls.close(id, voter.id());
+        folding.fold(FINAL_FOLD);
         stream.changed(poll.id(), () -> views.update(poll.id()));
-        return views.view(poll, voterId);
+        return views.view(poll, voter, null);
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable String id,
-                                       @RequestAttribute(VoterIdentity.ATTRIBUTE) String voterId) {
-        stream.deleted(polls.delete(id, voterId).id());
+                                       @RequestAttribute(VoterIdentity.ATTRIBUTE) Voter voter) {
+        stream.deleted(polls.delete(id, voter.id()).id());
         return ResponseEntity.noContent().build();
     }
 

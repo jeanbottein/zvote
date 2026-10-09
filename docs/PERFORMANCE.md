@@ -1,7 +1,8 @@
-# zvote performance: JVM, Leyden and GraalVM
+# zvote performance: JVM, Leyden and GraalVM; ballots at scale
 
-Measured on 2026-09-27. The question: how should the server run once it is
-deployed (roadmap phase 8)? On the regular JVM, with OpenJDK's new AOT cache
+Two studies. [Ballots at scale](#ballots-at-scale) (2026-10-07): can one poll
+take billions of ballots? The runtimes, first (2026-09-27). The question: how should the server run once it is
+deployed (roadmap phase 6)? On the regular JVM, with OpenJDK's new AOT cache
 (Project Leyden), on Oracle GraalVM's JIT, or as a GraalVM native image, with or
 without profile-guided optimization?
 
@@ -85,7 +86,7 @@ stream's 200 ms coalescing window, not by the runtime.
 
 ## What it means for zvote
 
-For deployment (phase 8), in order of effort:
+For deployment (phase 6), in order of effort:
 
 - **Now, for free**: run the JVM with a Leyden AOT cache and Spring AOT, built
   in the image by a training run. 1.1 s startups, the JIT's full speed, no
@@ -126,6 +127,62 @@ socket. The other 5 are JVM-only by nature, and marked
 `@DisabledInNativeImage`: the architecture rules read class files, and one
 test mocks with Mockito, which generates classes at run time.
 
+## Ballots at scale
+
+Measured on 2026-10-07, on the same Apple M1 (8 GB), with PostgreSQL 14.19
+on the same machine as the server and the load (`shared_buffers` 1 GB). The
+question: how far is zvote from a billion ballots on one poll, and does a
+different design close the distance? The previous design stored one row per
+option and voter, and recounted the whole poll (`GROUP BY`, `COUNT(DISTINCT)`)
+for every ballot's answer and every live update. The new one stores one row
+per ballot, one byte per option, and folds what ballots change into stored
+counters (ARCHITECTURE.md, [Tallies](ARCHITECTURE.md#tallies)).
+
+**End to end** (`perf/Load.java`: 100 live viewers, new voters casting
+majority judgment ballots on 5 options, 64 at a time, over HTTP):
+
+| Design | Ballots on the poll | Ballots/s | p50 | p99 | Worst |
+|---|---|---|---|---|---|
+| Recount (before) | 50,000 | 58 | 824 ms | 4.9 s | 14.9 s |
+| Fold (after) | 50,000 | 2,375 | 23 ms | 93 ms | 317 ms |
+| Fold (after), next round | 200,000 | 3,672 | 17 ms | 36 ms | 138 ms |
+
+No ballot failed, and every viewer ended with the right count. The recount
+slows down as the poll grows; the fold does not (the second round only ran
+on a warmer JVM).
+
+**One big poll.** The previous design, at 500,000 ballots on 20 options (10
+million rows), took 1.4 s for the tallies and 5 s for the ballot count:
+about 6 s of database time for every ballot and every update, growing with
+the poll. With the fold, on a poll loaded with 10 million ballots: 3 ms to
+load the page, 3 to 10 ms to cast a ballot, folded in and counted in the
+answer.
+
+**The database alone** (pgbench, 32 clients, 20 s; a ballot of 20 options,
+without the answer's view):
+
+| Pattern | Ballots/s | Latency |
+|---|---|---|
+| Before: lock the poll, delete, insert 20 rows | 2,447 | 13.1 ms |
+| One row per ballot, change log (what zvote does now) | 11,460 to 13,975 | 2.3 to 2.8 ms |
+| One row per ballot, counters updated by each ballot (64 shards) | 6,909 | 4.6 ms |
+
+Folding keeps up easily: 229,115 changes folded in 0.69 s, about 330,000 a
+second. Locking the poll `FOR SHARE`, as the code does on PostgreSQL, did as
+well as PostgreSQL's advisory locks (13,975 against 12,254 ballots/s at 32
+clients; 12,491 against 11,539 at 128), so no PostgreSQL-only code was
+needed.
+
+**Storage**: 183 bytes per ballot with its index, against about 6,300 for a
+ballot of 20 options before: about 180 GB per billion ballots instead of
+6 TB.
+
+**What it means.** A billion ballots in a day is about 11,600 per second,
+which the database alone already does on this laptop; a production server,
+with the database on its own machine, adds what the HTTP layer needs. Past
+one database server, ballots split by voter; past millions of live watchers,
+results go through a CDN. Both are in [ROADMAP.md](ROADMAP.md#scale).
+
 ## Reproducing
 
 With a Java 25 JDK in `JAVA_HOME` and Oracle GraalVM 25 in `GRAALVM_HOME`
@@ -142,3 +199,14 @@ perf/bench.py run                     # measures them all; results in target/per
 
 Close other applications first, and run it twice: numbers from one run on a
 busy machine are not worth much.
+
+Ballots at scale, against a PostgreSQL of your own:
+
+```bash
+cd servers/java
+./mvnw -DskipTests package
+ZVOTE_VOTER_SECRET=$(openssl rand -base64 48) \
+  SPRING_DATASOURCE_URL='jdbc:postgresql://localhost:5432/zvote?options=-c%20lock_timeout%3D2s' \
+  SPRING_DATASOURCE_USERNAME=zvote java -jar target/zvote-server-0.1.0-SNAPSHOT.jar &
+java perf/Load.java http://127.0.0.1:8080 100 50000 64 1   # viewers, ballots, at a time, rounds
+```

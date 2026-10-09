@@ -4,13 +4,15 @@ import HomePage from '../polls/HomePage';
 import PollPage from '../polls/PollPage';
 import { PreferencesProvider } from '../preferences/preferences';
 import { ToastProvider } from '../ui/Toasts';
+import AboutPage from './AboutPage';
+import Footer from './Footer';
 import Header from './Header';
 import NotFoundPage from './NotFoundPage';
 
 /**
  * Three screens: the polls you can see, a form to create one, and a poll -
  * where you vote and watch the results come in. A poll's address, /p/<id>,
- * is its share link.
+ * is its share link. /about says how results are decided, and why.
  */
 export default function App() {
   return (
@@ -22,6 +24,7 @@ export default function App() {
               <Route index element={<HomePage />} />
               <Route path="new" element={<CreatePollPage />} />
               <Route path="p/:id" element={<PollPage />} />
+              <Route path="about" element={<AboutPage />} />
               <Route path="*" element={<NotFoundPage />} />
             </Route>
           </Routes>
@@ -38,6 +41,7 @@ function Layout() {
       <main className="page">
         <Outlet />
       </main>
+      <Footer />
     </>
   );
 }

@@ -8,7 +8,8 @@ export type Connection = 'connecting' | 'live' | 'offline';
 export const RETRY_DELAY = 5000;
 
 /**
- * One poll, kept up to date live.
+ * One poll, kept up to date live, as seen with the invitation the voter came
+ * with, if any.
  *
  * It is loaded first and watched second: the stream's first event is then at
  * least as recent as the loaded poll, so no update is missed or rolled back.
@@ -18,9 +19,10 @@ export const RETRY_DELAY = 5000;
  * as it does while it restarts), the poll is loaded and watched again a little
  * later, until that works or the poll turns out to be gone.
  *
- * The state is not reset when the id changes; render one per poll, keyed by id.
+ * The state is not reset when the id or the invitation changes; render one per
+ * poll and invitation, keyed by both.
  */
-export function usePoll(id: string) {
+export function usePoll(id: string, invitation: string | null) {
   const [poll, setPoll] = useState<Poll | null>(null);
   const [error, setError] = useState<ApiError | null>(null);
   const [deleted, setDeleted] = useState(false);
@@ -36,7 +38,7 @@ export function usePoll(id: string) {
     };
 
     function follow() {
-      getPoll(id).then(
+      getPoll(id, invitation).then(
         (current) => {
           if (!active) {
             return;
@@ -71,7 +73,7 @@ export function usePoll(id: string) {
       stopWatching();
       window.clearTimeout(retry);
     };
-  }, [id]);
+  }, [id, invitation]);
 
   return { poll, error, deleted, connection, setPoll };
 }

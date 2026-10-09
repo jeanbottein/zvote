@@ -50,7 +50,7 @@ class PollEventsTest {
     @BeforeEach
     void createAndWatchAPoll() throws Exception {
         var created = send(alice, "POST", "/api/polls", """
-            {"title": "Lunch?", "votingSystem": "MAJORITY_JUDGMENT", "visibility": "PUBLIC",
+            {"title": "Lunch?", "votingSystem": "MAJORITY_JUDGMENT", "visibility": "UNLISTED",
              "options": ["Ramen", "Tacos"]}
             """);
         poll = JsonPath.read(created.body(), "$.id");
@@ -105,6 +105,51 @@ class PollEventsTest {
         send(alice, "DELETE", "/api/polls/" + poll, null);
 
         assertThat(events.next().name()).isEqualTo("deleted");
+    }
+
+    @Test
+    void theNamesVotersGiveArePushedWithoutTheirBallots() throws Exception {
+        var created = send(alice, "POST", "/api/polls", """
+            {"title": "Trip?", "votingSystem": "APPROVAL", "visibility": "UNLISTED",
+             "showVoterNames": true, "options": ["Lisbon", "Oslo"]}
+            """);
+        var trip = JsonPath.<String>read(created.body(), "$.id");
+        var lisbon = JsonPath.<List<String>>read(created.body(), "$.options[*].id").getFirst();
+        try (var tripEvents = watch(trip)) {
+            assertThat(JsonPath.<List<String>>read(tripEvents.next().data(), "$.voterNames")).isEmpty();
+
+            send(newVoter(), "PUT", "/api/polls/" + trip + "/ballot", """
+                {"approvedOptionIds": ["%s"], "voterName": "Zoé"}
+                """.formatted(lisbon));
+
+            var update = tripEvents.next().data();
+            assertThat(JsonPath.<List<String>>read(update, "$.voterNames")).containsExactly("Zoé");
+            assertThat(update).doesNotContain("myBallot");
+        }
+    }
+
+    @Test
+    void resultsShownOnceClosedArriveWithTheClosing() throws Exception {
+        var created = send(alice, "POST", "/api/polls", """
+            {"title": "Trip?", "votingSystem": "APPROVAL", "visibility": "UNLISTED",
+             "resultsShown": "AFTER_CLOSING", "options": ["Lisbon", "Oslo"]}
+            """);
+        var trip = JsonPath.<String>read(created.body(), "$.id");
+        var lisbon = JsonPath.<List<String>>read(created.body(), "$.options[*].id").getFirst();
+        try (var tripEvents = watch(trip)) {
+            tripEvents.next();
+
+            send(newVoter(), "PUT", "/api/polls/" + trip + "/ballot", """
+                {"approvedOptionIds": ["%s"]}
+                """.formatted(lisbon));
+            var ballot = tripEvents.next().data();
+            send(alice, "PATCH", "/api/polls/" + trip, "{\"closed\": true}");
+            var closing = tripEvents.next().data();
+
+            assertThat(JsonPath.<Integer>read(ballot, "$.totalBallots")).isEqualTo(1);
+            assertThat(JsonPath.<List<Integer>>read(ballot, "$.options[*].approvalCount")).containsOnlyNulls();
+            assertThat(JsonPath.<List<Integer>>read(closing, "$.options[*].approvalCount")).containsExactly(1, 0);
+        }
     }
 
     @Test

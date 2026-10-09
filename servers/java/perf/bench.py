@@ -112,7 +112,7 @@ def prepare(pgo):
 # --- measuring -------------------------------------------------------------------------------
 
 def start(command, data_dir, log, cwd=WORK):
-    env = dict(os.environ, ZVOTE_DATA_DIR=data_dir)
+    env = dict(os.environ, ZVOTE_DATA_DIR=data_dir, ZVOTE_VOTER_SECRET='benchmark-only-voter-secret-0123456789')
     t0 = time.perf_counter()
     process = subprocess.Popen(command + [f'--server.port={PORT}'], env=env, cwd=cwd,
                                stdout=log, stderr=subprocess.STDOUT)

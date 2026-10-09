@@ -1,8 +1,8 @@
 /**
- * Who is voting: the voter cookie, and the voter id every API request carries.
+ * Who is voting: the voter cookie, and the voter every API request carries.
  * It works the same whatever is being voted on.
  */
-@ApplicationModule(displayName = "Voter identity", allowedDependencies = {})
+@ApplicationModule(displayName = "Voter identity", allowedDependencies = "common")
 package org.zvote.server.identity;
 
 import org.springframework.modulith.ApplicationModule;
