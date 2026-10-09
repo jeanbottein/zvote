@@ -10,6 +10,7 @@ spring:
 zvote:
   retention-cron: "-"
   fold-patience: 10s
+  public-url: https://zvote.test
   voter-secret: test-voter-secret-0123456789abcdef
 
 # Warnings and errors only (see logback-test.xml), minus the expected ones.

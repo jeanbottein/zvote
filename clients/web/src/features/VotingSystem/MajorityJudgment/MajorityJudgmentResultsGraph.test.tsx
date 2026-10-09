@@ -1,15 +1,22 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import type { JudgmentCounts } from '../../../utils/majorityJudgment';
+import type { JudgmentCounts } from '../../../api/types';
 import MajorityJudgmentResultsGraph from './MajorityJudgmentResultsGraph';
 
 const none: JudgmentCounts = { Bad: 0, Inadequate: 0, Passable: 0, Fair: 0, Good: 0, VeryGood: 0, Excellent: 0 };
 const ramen: JudgmentCounts = { ...none, Excellent: 1, Good: 2, Bad: 1 };
 
 function renderGraph(counts: JudgmentCounts = ramen, rank?: number) {
-  const total = Object.values(counts).reduce((sum, count) => sum + count, 0);
+  const total = Object.values(counts).reduce((sum: number, count: number) => sum + count, 0);
   const { container } = render(
-    <MajorityJudgmentResultsGraph optionLabel="Ramen" judgmentCounts={counts} totalBallots={total} rank={rank} />,
+    <MajorityJudgmentResultsGraph
+      optionLabel="Ramen"
+      judgmentCounts={counts}
+      totalBallots={total}
+      majorityMention="Good"
+      score={{ numerator: 0, denominator: 2 }}
+      rank={rank}
+    />,
   );
   const slices = [...container.querySelectorAll<HTMLElement>('.mj-results-bar')];
   const tooltip = () => container.querySelector('.mj-results-tooltip');

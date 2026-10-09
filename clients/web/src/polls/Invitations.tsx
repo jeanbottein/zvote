@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState, type FormEvent } from 'react';
 import { flushSync } from 'react-dom';
-import { createInvitation, errorMessage, listInvitations, revokeInvitation } from '../api/client';
+import { createInvitations, errorMessage, listInvitations, revokeInvitation } from '../api/client';
 import type { Invitation, InvitationPage, Poll } from '../api/types';
 import Confirmation from '../ui/Confirmation';
 import { CheckIcon, CloseIcon, ShareIcon } from '../ui/icons';
@@ -58,7 +58,8 @@ export default function Invitations({ poll }: { poll: Poll }) {
     event.preventDefault();
     setAdding(true);
     try {
-      await createInvitation(poll.id, label.trim() || null);
+      const named = label.trim();
+      await createInvitations(poll.id, named ? { labels: [named] } : { count: 1 });
       setLabel('');
       setChanges((count) => count + 1);
     } catch (error) {

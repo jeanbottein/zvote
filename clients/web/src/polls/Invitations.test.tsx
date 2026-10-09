@@ -2,7 +2,7 @@ import { act, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
-  createInvitation, getPoll, listInvitations, revokeInvitation, watchPoll, type PollWatcher,
+  createInvitations, getPoll, listInvitations, revokeInvitation, watchPoll, type PollWatcher,
 } from '../api/client';
 import type { Invitation, InvitationPage, Poll } from '../api/types';
 import { lunchPoll } from '../test/fixtures';
@@ -14,13 +14,13 @@ vi.mock('../api/client', async (importOriginal) => ({
   getPoll: vi.fn(),
   watchPoll: vi.fn(),
   listInvitations: vi.fn(),
-  createInvitation: vi.fn(),
+  createInvitations: vi.fn(),
   revokeInvitation: vi.fn(),
 }));
 
 const mine: Poll = lunchPoll({ isMine: true, invitationOnly: true, resultsShown: 'AFTER_CLOSING' });
-const ana: Invitation = { number: 1, token: '1.ana', label: 'Ana', used: true };
-const second: Invitation = { number: 2, token: '2.second', label: null, used: false };
+const ana: Invitation = { number: 1, token: '1.ana', link: null, label: 'Ana', used: true };
+const second: Invitation = { number: 2, token: '2.second', link: null, label: null, used: false };
 
 /** The newest first, as the server sends them. */
 const pageOf = (invitations: Invitation[], next: number | null = null): InvitationPage => ({
@@ -63,13 +63,13 @@ describe("a poll's invitations", () => {
 
   it('come one per person, whose link the creator shares', async () => {
     const user = userEvent.setup();
-    const bob = { number: 3, token: '3.bob', label: 'Bob', used: false };
-    vi.mocked(createInvitation).mockResolvedValue(pageOf([ana, second, bob]));
+    const bob = { number: 3, token: '3.bob', link: null, label: 'Bob', used: false };
+    vi.mocked(createInvitations).mockResolvedValue(pageOf([ana, second, bob]));
     const section = await openInvitations();
     vi.mocked(listInvitations).mockResolvedValue(pageOf([ana, second, bob]));
 
     await user.type(within(section).getByLabelText('Invite someone'), ' Bob {Enter}');
-    expect(createInvitation).toHaveBeenCalledWith('abc', 'Bob');
+    expect(createInvitations).toHaveBeenCalledWith('abc', { labels: ['Bob'] });
     await user.click(await within(section).findByRole('button', { name: 'Share the link for Bob' }));
 
     const dialog = screen.getByRole('dialog', { name: 'Invitation for Bob' });
@@ -79,14 +79,14 @@ describe("a poll's invitations", () => {
   });
 
   it('can be anonymous, known by their number', async () => {
-    const third = { number: 3, token: '3.third', label: null, used: false };
-    vi.mocked(createInvitation).mockResolvedValue(pageOf([ana, second, third]));
+    const third = { number: 3, token: '3.third', link: null, label: null, used: false };
+    vi.mocked(createInvitations).mockResolvedValue(pageOf([ana, second, third]));
     const section = await openInvitations();
     vi.mocked(listInvitations).mockResolvedValue(pageOf([ana, second, third]));
 
     await userEvent.click(within(section).getByRole('button', { name: 'Invite' }));
 
-    expect(createInvitation).toHaveBeenCalledWith('abc', null);
+    expect(createInvitations).toHaveBeenCalledWith('abc', { count: 1 });
     expect(await within(section).findByText('Invitation 3')).toBeInTheDocument();
   });
 

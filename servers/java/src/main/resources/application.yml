@@ -46,6 +46,12 @@ zvote:
     # personal data (voter names) around.
     poll-lifetime-days: 30
 
+  # Where people reach this server's polls, without a trailing slash: share
+  # links and invitation links are built from it, for clients that cannot know
+  # their own address (an agent) or run on another one (a packaged app). In
+  # development the app is the Vite server, which proxies /api here.
+  public-url: ${ZVOTE_PUBLIC_URL:http://localhost:5173}
+
   # Keys who owns each ballot, so that the database never says (see Voter.java),
   # and signs invitation links (InvitationLinks.java). No default: a server must
   # not run on a secret everyone can read here. ./mvnw spring-boot:run (and so
@@ -53,3 +59,17 @@ zvote:
   # are open: their voters would be told they have not voted, voting again
   # would count them twice, and their invitation links would stop working.
   voter-secret: ${ZVOTE_VOTER_SECRET:}
+
+# The same services as tools, for an agent (org.zvote.server.api.mcp).
+# Stateless: a tool call is one request in and one answer out, on a virtual
+# thread, with nothing kept between them - so any instance can answer, and no
+# call costs more because a poll is large. It is served under /api, where
+# VoterIdentityFilter resolves the caller: an agent sends its voter token as
+# "Authorization: Bearer <token>", exactly as it would to the HTTP API.
+spring.ai.mcp.server:
+  name: zvote
+  version: 0.1.0
+  type: SYNC
+  protocol: STATELESS
+  streamable-http:
+    mcp-endpoint: /api/mcp

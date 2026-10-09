@@ -2,6 +2,7 @@ package org.zvote.server.api;
 
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.aot.hint.annotation.RegisterReflectionForBinding;
+import org.springframework.http.CacheControl;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -21,11 +22,12 @@ import org.zvote.server.api.dto.PollUpdate;
 import org.zvote.server.api.dto.PollView;
 import org.zvote.server.api.dto.UpdatePollRequest;
 import org.zvote.server.common.InvalidRequestException;
+import org.zvote.server.idempotency.IdempotencyService;
 import org.zvote.server.identity.Voter;
 import org.zvote.server.identity.VoterIdentity;
 import org.zvote.server.live.PollStream;
-import org.zvote.server.polls.PollService;
 import org.zvote.server.polls.CreatePollRequest;
+import org.zvote.server.polls.PollService;
 
 import java.net.URI;
 import java.time.Duration;
@@ -35,22 +37,24 @@ import java.util.List;
 @RequestMapping("/api/polls")
 public class PollController {
 
-    /** Closing waits for every ballot cast before it to be folded in: final results are final. */
-    private static final Duration FINAL_FOLD = Duration.ofSeconds(30);
+    /** Where the token that hands a poll over travels, never in a URL a log would keep. */
+    static final String HANDOVER = "Zvote-Handover";
 
     private final PollService polls;
     private final PollCreationService creations;
+    private final PollChangeService changes;
     private final PollViewService views;
     private final PollStream stream;
-    private final TallyFolding folding;
+    private final IdempotencyService idempotency;
 
-    PollController(PollService polls, PollCreationService creations, PollViewService views, PollStream stream,
-                   TallyFolding folding) {
+    PollController(PollService polls, PollCreationService creations, PollChangeService changes,
+                   PollViewService views, PollStream stream, IdempotencyService idempotency) {
         this.polls = polls;
         this.creations = creations;
+        this.changes = changes;
         this.views = views;
         this.stream = stream;
-        this.folding = folding;
+        this.idempotency = idempotency;
     }
 
     @GetMapping
@@ -63,12 +67,19 @@ public class PollController {
         return polls.listCreatedBy(voter.id()).stream().map(poll -> views.summary(poll, voter)).toList();
     }
 
+    /**
+     * A client that may have to retry - an agent whose request timed out -
+     * sends an Idempotency-Key, and a second attempt answers the poll the
+     * first one made instead of making another.
+     */
     @PostMapping
     public ResponseEntity<PollView> create(@RequestBody CreatePollRequest request,
+                                           @RequestHeader(name = IdempotencyService.HEADER, required = false) String key,
                                            @RequestAttribute(VoterIdentity.ATTRIBUTE) Voter voter) {
-        var poll = creations.create(request, voter.id());
-        return ResponseEntity.created(URI.create("/api/polls/" + poll.shareToken()))
-            .body(views.view(poll, voter, null));
+        var shareToken = idempotency.once(voter.id(), key, () -> creations.create(request, voter.id()).shareToken());
+        var poll = polls.find(shareToken);
+        return ResponseEntity.created(URI.create("/api/polls/" + shareToken))
+            .body(views.view(poll, voter, null, polls.handoverTokenOf(poll, voter.id()).orElse(null)));
     }
 
     @GetMapping("/{id}")
@@ -85,17 +96,39 @@ public class PollController {
         if (!Boolean.TRUE.equals(request.closed())) {
             throw new InvalidRequestException("A poll can only be closed, for good: send {\"closed\": true}.");
         }
-        var poll = polls.close(id, voter.id());
-        folding.fold(FINAL_FOLD);
-        stream.changed(poll.id(), () -> views.update(poll.id()));
-        return views.view(poll, voter, null);
+        return views.view(changes.close(id, voter.id()), voter, null);
+    }
+
+    /**
+     * Makes the caller the poll's creator, with the token its creation
+     * answered: the client that made the poll for somebody sends them this
+     * link, and from then on the poll is theirs to close, to delete, and whose
+     * invitations are theirs to read. The token works once.
+     */
+    @PostMapping("/{id}/creator")
+    public PollView handOver(@PathVariable String id,
+                             @RequestHeader(name = HANDOVER) String handover,
+                             @RequestAttribute(VoterIdentity.ATTRIBUTE) Voter voter) {
+        return views.view(polls.handOver(id, handover, voter.id()), voter, null);
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable String id,
                                        @RequestAttribute(VoterIdentity.ATTRIBUTE) Voter voter) {
-        stream.deleted(polls.delete(id, voter.id()).id());
+        changes.delete(id, voter.id());
         return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * A poll's results, the same for everyone: what a watcher receives, for a
+     * client that asks instead. Cacheable for a second, so a crowd of readers
+     * costs one read (docs/ROADMAP.md, "Results for millions of watchers").
+     */
+    @GetMapping("/{id}/results")
+    public ResponseEntity<PollUpdate> results(@PathVariable String id) {
+        return ResponseEntity.ok()
+            .cacheControl(CacheControl.maxAge(Duration.ofSeconds(1)))
+            .body(views.results(id));
     }
 
     /**

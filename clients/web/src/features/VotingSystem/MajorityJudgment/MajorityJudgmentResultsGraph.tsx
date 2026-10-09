@@ -1,11 +1,15 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
-import { computeMJAnalysis, formatGMJScore, type JudgmentCounts } from '../../../utils/majorityJudgment';
+import type { JudgmentCounts, Mention, Score } from '../../../api/types';
+import { formatGMJScore, gmjScore } from './gmjScore';
 import { MENTION_NAMES, MENTIONS_BEST_FIRST } from './mentions';
 
 interface MajorityJudgmentResultsGraphProps {
   optionLabel: string;
   judgmentCounts: JudgmentCounts;
   totalBallots: number;
+  /** The mention and score the server ranked this option by (see api.Ranking). */
+  majorityMention: Mention | null;
+  score: Score | null;
   compact?: boolean;
   rank?: number;
   isExAequo?: boolean;
@@ -46,13 +50,14 @@ export default function MajorityJudgmentResultsGraph({
   optionLabel,
   judgmentCounts,
   totalBallots,
+  majorityMention,
+  score,
   compact = false,
   rank,
   isExAequo = false,
 }: MajorityJudgmentResultsGraphProps) {
   const [focused, setFocused] = useState<number | null>(null);
   const chart = useRef<HTMLDivElement>(null);
-  const analysis = computeMJAnalysis(judgmentCounts);
 
   // Details shown by a tap go away with a tap anywhere else.
   useEffect(() => {
@@ -136,19 +141,19 @@ export default function MajorityJudgmentResultsGraph({
         ))}
       </div>
 
-      {!empty && (
+      {!empty && majorityMention && score && (
         <div className="mj-results-badges-below">
           <div className="mj-results-badges">
             <span className="mj-results-hint">Majority Mention:</span>
-            <div className="mj-results-badge" data-judgment={analysis.majorityMention}>
-              {MENTION_NAMES[analysis.majorityMention]}
+            <div className="mj-results-badge" data-judgment={majorityMention}>
+              {MENTION_NAMES[majorityMention]}
             </div>
             <span className="mj-results-hint">GMJ Score:</span>
             <div
               className="mj-score-badge"
-              title={`GMJ's usual judgment score: ${analysis.gmdScore.toFixed(4)}. It breaks ties between options with the same majority mention.`}
+              title={`GMJ's usual judgment score: ${gmjScore(score).toFixed(4)}. It breaks ties between options with the same majority mention.`}
             >
-              {formatGMJScore(analysis.gmdScore)}
+              {formatGMJScore(score)}
             </div>
           </div>
         </div>

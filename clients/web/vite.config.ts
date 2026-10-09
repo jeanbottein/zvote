@@ -21,7 +21,8 @@ export default defineConfig({
   },
   test: {
     environment: 'jsdom',
-    // majorityJudgment.test.ts predates Vitest and uses global describe/it/expect.
+    // Testing Library unmounts between tests only when it finds a global
+    // afterEach; without this, one test's DOM is still there in the next.
     globals: true,
     setupFiles: ['src/test/setup.ts'],
     include: ['src/**/*.test.{ts,tsx}'],

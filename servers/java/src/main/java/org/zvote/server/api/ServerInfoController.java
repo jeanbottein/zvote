@@ -17,6 +17,6 @@ public class ServerInfoController {
 
     @GetMapping("/api/server-info")
     public ServerInfo serverInfo() {
-        return new ServerInfo(settings.features(), settings.limits());
+        return new ServerInfo(settings.features(), settings.limits(), settings.publicUrl());
     }
 }

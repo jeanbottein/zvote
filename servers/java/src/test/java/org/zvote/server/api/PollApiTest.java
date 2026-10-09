@@ -715,8 +715,48 @@ class PollApiTest {
                 .isEqualTo(Arrays.asList("Zoé M.", null, "Bob"));
             assertThat(result).bodyJson().extractingPath("$.invitations[*].used").isEqualTo(List.of(false, false, true));
             assertThat(result).bodyJson().extractingPath("$.invitations[0]").asMap()
-                .containsOnlyKeys("number", "token", "label", "used");
+                .containsOnlyKeys("number", "token", "link", "label", "used");
             assertThat(result).bodyJson().extractingPath("$.next").isNull();
+        }
+
+        /** A creator with a list of people asks once, and sends each their link. */
+        @Test
+        void oneRequestInvitesAWholeGroupByName() {
+            var names = IntStream.rangeClosed(1, 100).mapToObj(n -> "\"Voter " + n + "\"")
+                .collect(Collectors.joining(", "));
+
+            var made = post(alice, "/api/polls/" + poll + "/invitations", "{\"labels\": [" + names + "]}");
+
+            assertThat(made).hasStatus(HttpStatus.CREATED);
+            assertThat(made).bodyJson().extractingPath("$.count").isEqualTo(100);
+            assertThat(made).bodyJson().extractingPath("$.invitations[*].number").asList().startsWith(100, 99);
+            assertThat(made).bodyJson().extractingPath("$.invitations[*].label").asList()
+                .startsWith("Voter 100", "Voter 99").endsWith("Voter 1");
+            assertThat(made).bodyJson().extractingPath("$.invitations[0].link").asString()
+                .isEqualTo("https://zvote.test/p/" + poll + "#invitation="
+                    + JsonPath.<String>read(body(made), "$.invitations[0].token"));
+        }
+
+        @Test
+        void aGroupIsNamedAPageAtATime() {
+            var names = IntStream.rangeClosed(1, 101).mapToObj(n -> "\"Voter " + n + "\"")
+                .collect(Collectors.joining(", "));
+
+            var tooMany = post(alice, "/api/polls/" + poll + "/invitations", "{\"labels\": [" + names + "]}");
+
+            assertThat(tooMany).hasStatus(HttpStatus.BAD_REQUEST);
+            assertThat(tooMany).bodyJson().extractingPath("$.detail")
+                .isEqualTo("Name up to 100 invitations at a time.");
+        }
+
+        @Test
+        void aBlankNameIsLeftOutRatherThanEmpty() {
+            var blank = post(alice, "/api/polls/" + poll + "/invitations", "{\"labels\": [\"Bob\", \" \"]}");
+
+            assertThat(blank).hasStatus(HttpStatus.BAD_REQUEST);
+            assertThat(blank).bodyJson().extractingPath("$.detail")
+                .isEqualTo("An invitation's name cannot be blank: leave it out instead.");
+            assertThat(page("")).bodyJson().extractingPath("$.count").isEqualTo(0);
         }
 
         @Test
@@ -753,12 +793,13 @@ class PollApiTest {
 
         @Test
         void aNameGoesOnOneInvitationAndFollowsTheRulesOfNames() {
-            var several = post(alice, "/api/polls/" + poll + "/invitations", "{\"label\": \"Bob\", \"count\": 2}");
+            var several = post(alice, "/api/polls/" + poll + "/invitations", "{\"labels\": [\"Bob\"], \"count\": 2}");
             var none = post(alice, "/api/polls/" + poll + "/invitations", "{\"count\": 0}");
-            var tooLong = post(alice, "/api/polls/" + poll + "/invitations", "{\"label\": \"" + "x".repeat(41) + "\"}");
-            var invisible = post(alice, "/api/polls/" + poll + "/invitations", "{\"label\": \"\\u202Eboj\"}");
+            var tooLong = post(alice, "/api/polls/" + poll + "/invitations", "{\"labels\": [\"" + "x".repeat(41) + "\"]}");
+            var invisible = post(alice, "/api/polls/" + poll + "/invitations", "{\"labels\": [\"\\u202Eboj\"]}");
 
-            assertThat(several).bodyJson().extractingPath("$.detail").isEqualTo("A name goes on one invitation at a time.");
+            assertThat(several).bodyJson().extractingPath("$.detail")
+                .isEqualTo("Send names, or a number of invitations, not both.");
             assertThat(none).bodyJson().extractingPath("$.detail").isEqualTo("Make at least one invitation.");
             assertThat(tooLong).bodyJson().extractingPath("$.detail").isEqualTo("A name can be at most 40 characters long.");
             assertThat(invisible).bodyJson().extractingPath("$.detail").isEqualTo("A name can only hold visible characters.");
@@ -823,7 +864,7 @@ class PollApiTest {
         /** Makes an invitation, and returns the token its link carries. */
         String invite(String label) {
             var result = post(alice, "/api/polls/" + poll + "/invitations",
-                label == null ? "{}" : "{\"label\": \"" + label + "\"}");
+                label == null ? "{}" : "{\"labels\": [\"" + label + "\"]}");
             assertThat(result).hasStatus(HttpStatus.CREATED);
             return JsonPath.read(body(result), "$.invitations[0].token");
         }
@@ -911,7 +952,7 @@ class PollApiTest {
         @Test
         void aDeletedPollsInvitationsGoRightAfterIt() {
             var poll = createPoll(alice, "APPROVAL", "UNLISTED", "\"invitationOnly\": true");
-            post(alice, "/api/polls/" + poll + "/invitations", "{\"label\": \"Bob\"}");
+            post(alice, "/api/polls/" + poll + "/invitations", "{\"labels\": [\"Bob\"]}");
             post(alice, "/api/polls/" + poll + "/invitations", "{\"count\": 999}");
             var id = idOf(poll);
 
@@ -1098,7 +1139,7 @@ class PollApiTest {
         void anInvitationSharesNoKeyWithTheBallotOrTheNameCastWithIt() {
             var poll = createPoll(alice, "APPROVAL", "UNLISTED", "\"invitationOnly\": true, \"showVoterNames\": true");
             var invitation = JsonPath.<String>read(
-                body(post(alice, "/api/polls/" + poll + "/invitations", "{\"label\": \"Bob\"}")),
+                body(post(alice, "/api/polls/" + poll + "/invitations", "{\"labels\": [\"Bob\"]}")),
                 "$.invitations[0].token");
             mvc.put().uri("/api/polls/" + poll + "/ballot").cookie(bob.cookie())
                 .header(InvitationController.HEADER, invitation)

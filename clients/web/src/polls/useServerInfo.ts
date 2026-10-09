@@ -9,6 +9,7 @@ const USUAL: ServerInfo = {
     maxOptions: 20, maxTitleLength: 200, maxOptionLength: 100, maxVoterNameLength: 40, maxInvitations: 1000,
     pollLifetimeDays: 30,
   },
+  publicUrl: null,
 };
 
 let request: Promise<ServerInfo> | null = null;

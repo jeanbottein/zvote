@@ -2,7 +2,20 @@
  * The shapes the zvote API sends and receives. They mirror the server's DTOs
  * (servers/java/.../api/dto) one to one.
  */
-import type { JudgmentCounts } from '../utils/majorityJudgment';
+
+/**
+ * How many voters gave each of the seven mentions, worst first, spelled as
+ * they are on the wire, in the server's Mention enum and in mentions.css.
+ */
+export interface JudgmentCounts {
+  Bad: number;
+  Inadequate: number;
+  Passable: number;
+  Fair: number;
+  Good: number;
+  VeryGood: number;
+  Excellent: number;
+}
 
 /** One of the seven majority judgment mentions, as spelled on the wire. */
 export type Mention = keyof JudgmentCounts;
@@ -26,13 +39,37 @@ export type Visibility = 'PUBLIC' | 'UNLISTED';
  */
 export type Admission = 'ADMITTED' | 'NOT_INVITED' | 'INVITATION_USED';
 
+/**
+ * An option's GMJ score, the exact fraction the server computes it as. Divide
+ * it to show it, never to compare: past about seventy million ballots two
+ * different scores round to the same number, and two equal ones round apart.
+ */
+export interface Score {
+  numerator: number;
+  denominator: number;
+}
+
+/**
+ * One option, its tallies and its place in the results, which the server
+ * ranks (the counts come with it, so the ranking can be checked).
+ *
+ * Options come in the poll's own order, never sorted: read `rank` to order
+ * them. Everything but the id and the label is null while the poll keeps its
+ * results back.
+ */
 export interface PollOption {
   id: string;
   label: string;
-  /** Approval polls only. Null while the poll keeps its results back. */
+  /** Approval polls only. */
   approvalCount: number | null;
-  /** Majority judgment polls only: how many voters gave each mention. Null while the poll keeps its results back. */
+  /** Majority judgment polls only. */
   judgmentCounts: JudgmentCounts | null;
+  /** 1 for the winner; a rank shared by several options means they are ex aequo. */
+  rank: number | null;
+  /** Majority judgment polls only: the mention that ranks this option. */
+  majorityMention: Mention | null;
+  /** Majority judgment polls only: what separates options sharing a majority mention. */
+  score: Score | null;
 }
 
 /** The caller's own ballot, and the name they gave with it (polls that show names). */
@@ -70,6 +107,12 @@ export interface Poll {
   /** More voters gave a name than voterNames holds. */
   moreVoterNames: boolean;
   myBallot: MyBallot | null;
+  /**
+   * The one-time token that makes whoever brings it this poll's creator, for a
+   * poll created on somebody's behalf. Only the answer that created the poll
+   * ever carries it, and only if it was asked for: null everywhere else.
+   */
+  handover: string | null;
 }
 
 /** What a poll's watchers receive live: what changes, the same for every watcher. */
@@ -99,6 +142,8 @@ export interface NewPoll {
 export interface Invitation {
   number: number;
   token: string;
+  /** The whole link to send its person, or null if the server was not told its address. */
+  link: string | null;
   label: string | null;
   used: boolean;
 }
@@ -138,4 +183,6 @@ export interface ServerInfo {
     maxInvitations: number;
     pollLifetimeDays: number;
   };
+  /** Where this server's polls are reached, without a trailing slash, or null. */
+  publicUrl: string | null;
 }

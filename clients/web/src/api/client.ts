@@ -13,6 +13,7 @@ import type { BallotRequest, InvitationPage, NewPoll, Poll, PollSummary, PollUpd
 const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '';
 
 const INVITATION_HEADER = 'Zvote-Invitation';
+const HANDOVER_HEADER = 'Zvote-Handover';
 
 /** A failed call. The message is written for the person using the app. */
 export class ApiError extends Error {
@@ -34,13 +35,15 @@ interface RequestOptions {
   body?: unknown;
   /** The token from the invitation link the voter came with. */
   invitation?: string | null;
+  /** The token from a handover link, which makes the caller the poll's creator. */
+  handover?: string | null;
   credentials?: RequestCredentials;
 }
 
 async function request<T>(
   method: string,
   path: string,
-  { body, invitation, credentials = 'include' }: RequestOptions = {},
+  { body, invitation, handover, credentials = 'include' }: RequestOptions = {},
 ): Promise<T> {
   const headers: Record<string, string> = {};
   if (body !== undefined) {
@@ -48,6 +51,9 @@ async function request<T>(
   }
   if (invitation) {
     headers[INVITATION_HEADER] = invitation;
+  }
+  if (handover) {
+    headers[HANDOVER_HEADER] = handover;
   }
   let response: Response;
   try {
@@ -108,13 +114,24 @@ export const deletePoll = (id: string) => request<void>('DELETE', pollPath(id));
 export const castBallotAsNewVoter = (id: string, ballot: BallotRequest) =>
   request<Poll>('PUT', `${pollPath(id)}/ballot`, { body: ballot, credentials: 'omit' });
 
+/**
+ * Becomes the poll's creator with the token from a handover link: the poll is
+ * then this voter's to close, to delete, and whose invitations are theirs to
+ * read. The token works once.
+ */
+export const takePollOver = (id: string, handover: string) =>
+  request<Poll>('POST', `${pollPath(id)}/creator`, { handover });
+
 /** The creator's newest invitations to their poll, `limit` of them at most. */
 export const listInvitations = (id: string, limit: number) =>
   request<InvitationPage>('GET', `${pollPath(id)}/invitations?limit=${limit}`);
 
-/** A new invitation; label: whom it is for, or null. Answers the newest invitations. */
-export const createInvitation = (id: string, label: string | null) =>
-  request<InvitationPage>('POST', `${pollPath(id)}/invitations`, { body: { label } });
+/**
+ * New invitations: one per name, or `count` anonymous ones. Answers the
+ * newest invitations, the new ones first.
+ */
+export const createInvitations = (id: string, invitations: { labels: string[] } | { count: number }) =>
+  request<InvitationPage>('POST', `${pollPath(id)}/invitations`, { body: invitations });
 
 /** Only an invitation nobody voted with can be taken back. Its link stops working. */
 export const revokeInvitation = (id: string, number: number) =>

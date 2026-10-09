@@ -10,7 +10,25 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * enforces it, so the advertisement can never promise more than the server does.
  */
 @ConfigurationProperties(prefix = "zvote")
-public record ZVoteProperties(Features features, Limits limits) {
+public record ZVoteProperties(Features features, Limits limits, String publicUrl) {
+
+    /**
+     * publicUrl: where people reach this server's polls, without a trailing
+     * slash - what a share link and an invitation link are built from, for a
+     * client that does not know its own address (an agent) or runs on another
+     * one (a packaged app). Left out, those links are left to the client.
+     */
+    public ZVoteProperties {
+        publicUrl = publicUrl == null || publicUrl.isBlank() ? null : publicUrl.strip();
+        if (publicUrl != null) {
+            if (!publicUrl.startsWith("http://") && !publicUrl.startsWith("https://")) {
+                throw new IllegalArgumentException("zvote.public-url must start with http:// or https://");
+            }
+            while (publicUrl.endsWith("/")) {
+                publicUrl = publicUrl.substring(0, publicUrl.length() - 1);
+            }
+        }
+    }
 
     public record Features(
         boolean publicPolls,

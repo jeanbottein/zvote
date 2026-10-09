@@ -69,6 +69,7 @@ describe('offeredVotingSystems', () => {
     const info = {
       features: { publicPolls: true, unlistedPolls: true, approvalVoting: false, majorityJudgment: true },
       limits,
+      publicUrl: null,
     };
 
     expect(offeredVotingSystems(info).map((choice) => choice.value)).toEqual(['MAJORITY_JUDGMENT']);

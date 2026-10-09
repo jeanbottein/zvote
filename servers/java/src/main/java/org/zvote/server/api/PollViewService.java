@@ -31,9 +31,9 @@ import java.util.List;
  * moment after the last ballots (see TallyFolding).
  *
  * While a poll keeps its results back (Poll#showsResults), it has no
- * tallies, for anyone, its creator included: watching the counts move as
- * people vote shows what each of them chose. The number of ballots still
- * shows.
+ * tallies and no ranking, for anyone, its creator included: watching the
+ * counts move as people vote shows what each of them chose, and so would
+ * watching the order change. The number of ballots still shows.
  */
 @Service
 public class PollViewService {
@@ -54,6 +54,19 @@ public class PollViewService {
     /** invitation: the token from the invitation link the voter came with, if any. */
     @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
     public PollView view(Poll poll, Voter voter, String invitation) {
+        return composed(poll, voter, invitation, null);
+    }
+
+    /**
+     * The same, for the answer that created the poll: handover is the token
+     * that hands it over, and no other answer ever carries one.
+     */
+    @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
+    public PollView view(Poll poll, Voter voter, String invitation, String handover) {
+        return composed(poll, voter, invitation, handover);
+    }
+
+    private PollView composed(Poll poll, Voter voter, String invitation, String handover) {
         var options = polls.optionsOf(poll);
         var results = results(poll, options);
         return new PollView(
@@ -75,13 +88,26 @@ public class PollViewService {
             results.options(),
             results.voterNames(),
             results.moreVoterNames(),
-            myBallot(poll, options, voter));
+            myBallot(poll, options, voter),
+            handover);
     }
 
     /** What the poll's watchers receive, read afresh: updates are computed after the fact. */
     @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
     public PollUpdate update(Long pollId) {
         var poll = polls.get(pollId);
+        return results(poll, polls.optionsOf(poll));
+    }
+
+    /**
+     * The same thing, for a client that asks rather than watches: a process
+     * that cannot hold a stream open, or one of thousands that would rather
+     * read a cached answer. It is identical for everyone, so it can be cached.
+     * Results held back are held back here too.
+     */
+    @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
+    public PollUpdate results(String shareToken) {
+        var poll = polls.find(shareToken);
         return results(poll, polls.optionsOf(poll));
     }
 
@@ -99,12 +125,15 @@ public class PollViewService {
     private PollUpdate results(Poll poll, List<PollOption> options) {
         var tally = tallies.tallyOf(poll.id());
         var shown = poll.showsResults(tally.ballots());
+        // Ranking needs every option at once, and is computed here so that one
+        // update serves every watcher rather than every watcher computing it.
+        var places = shown ? Ranking.of(poll.votingSystem(), tally, options.size()) : null;
         var optionViews = new ArrayList<OptionView>(options.size());
         for (int position = 0; position < options.size(); position++) {
             var option = options.get(position);
             optionViews.add(shown
-                ? tallied(poll, option, tally, position)
-                : new OptionView(BallotFormat.idOf(option), option.label(), null, null));
+                ? tallied(poll, option, tally, position, places.get(position))
+                : new OptionView(BallotFormat.idOf(option), option.label(), null, null, null, null, null));
         }
         if (!poll.showVoterNames()) {
             return new PollUpdate(poll.closedAt(), tally.ballots(), optionViews, null, false);
@@ -113,12 +142,14 @@ public class PollViewService {
         return new PollUpdate(poll.closedAt(), tally.ballots(), optionViews, names.names(), names.more());
     }
 
-    private static OptionView tallied(Poll poll, PollOption option, Tally tally, int position) {
+    private static OptionView tallied(Poll poll, PollOption option, Tally tally, int position,
+                                      Ranking.Place place) {
         var id = BallotFormat.idOf(option);
         return switch (poll.votingSystem()) {
-            case APPROVAL -> new OptionView(id, option.label(), BallotFormat.approvals(tally, position), null);
-            case MAJORITY_JUDGMENT ->
-                new OptionView(id, option.label(), null, BallotFormat.judgmentCounts(tally, position));
+            case APPROVAL -> new OptionView(id, option.label(), BallotFormat.approvals(tally, position), null,
+                place.rank(), null, null);
+            case MAJORITY_JUDGMENT -> new OptionView(id, option.label(), null,
+                BallotFormat.judgmentCounts(tally, position), place.rank(), place.majorityMention(), place.score());
         };
     }
 

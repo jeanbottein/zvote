@@ -1,5 +1,6 @@
 package org.zvote.server.polls;
 
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
@@ -9,6 +10,7 @@ import org.zvote.server.common.InvalidRequestException;
 import org.zvote.server.common.ZVoteProperties;
 
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
@@ -47,12 +49,15 @@ public class InvitationService {
     private final PollService polls;
     private final InvitationLinks links;
     private final JdbcClient jdbc;
+    private final JdbcTemplate batches;
     private final ZVoteProperties settings;
 
-    public InvitationService(PollService polls, InvitationLinks links, JdbcClient jdbc, ZVoteProperties settings) {
+    public InvitationService(PollService polls, InvitationLinks links, JdbcClient jdbc, JdbcTemplate batches,
+                             ZVoteProperties settings) {
         this.polls = polls;
         this.links = links;
         this.jdbc = jdbc;
+        this.batches = batches;
         this.settings = settings;
     }
 
@@ -82,7 +87,8 @@ public class InvitationService {
         for (var number = top; number >= bottom; number--) {
             var row = known.get(number);
             if (row == null || !row.revoked()) {
-                invitations.add(new Invitation(number, links.tokenOf(poll.id(), number),
+                var token = links.tokenOf(poll.id(), number);
+                invitations.add(new Invitation(number, token, linkOf(poll.shareToken(), token),
                     row == null ? null : row.label(), row != null && row.usedBy() != null));
             }
         }
@@ -90,41 +96,68 @@ public class InvitationService {
     }
 
     /**
-     * Makes {@code count} anonymous invitations, or one for whom the label
-     * says. Its creator only, while the poll is open.
+     * Makes one invitation per name in {@code labels}, or {@code count}
+     * anonymous ones (neither: one). Its creator only, while the poll is open.
+     *
+     * A creator with a list of people asks once and sends each their link, so
+     * the cost of inviting a group is one update and one batch, not one
+     * request per person.
      */
     @Transactional
-    public void invite(String shareToken, String voterId, String label, long count) {
+    public void invite(String shareToken, String voterId, List<String> labels, Long count) {
         var poll = takingInvitations(polls.createdBy(shareToken, voterId));
         if (poll.isClosed()) {
             throw new PollClosedException("This poll is closed: nobody else can vote on it.");
         }
-        var name = polls.validName(label);
-        if (count < 1) {
-            throw new InvalidRequestException("Make at least one invitation.");
+        var names = validNames(labels);
+        if (!names.isEmpty() && count != null) {
+            throw new InvalidRequestException("Send names, or a number of invitations, not both.");
         }
-        if (!name.isEmpty() && count > 1) {
-            throw new InvalidRequestException("A name goes on one invitation at a time.");
+        var many = names.isEmpty() ? (count == null ? 1 : count) : names.size();
+        if (many < 1) {
+            throw new InvalidRequestException("Make at least one invitation.");
         }
         var max = settings.limits().maxInvitations();
         var made = jdbc.sql("UPDATE invitation_count SET issued = issued + :count WHERE poll_id = :poll AND issued <= :room")
-            .param("count", count)
+            .param("count", many)
             .param("poll", poll.id())
-            .param("room", max - count)
+            .param("room", max - many)
             .update();
         if (made == 0) {
             throw new InvalidRequestException(
                 "A poll can have at most " + max + " invitations, and this one has " + countsOf(poll.id()).issued() + ".");
         }
-        if (!name.isEmpty()) {
-            jdbc.sql("""
-                    INSERT INTO invitation (poll_id, number, label, revoked)
-                    SELECT poll_id, issued, :label, FALSE FROM invitation_count WHERE poll_id = :poll
-                    """)
-                .param("label", name)
-                .param("poll", poll.id())
-                .update();
+        if (!names.isEmpty()) {
+            // The update above locked the counter, so these numbers are ours.
+            var last = countsOf(poll.id()).issued();
+            var rows = new ArrayList<Object[]>(names.size());
+            for (var i = 0; i < names.size(); i++) {
+                rows.add(new Object[] {poll.id(), last - names.size() + 1 + i, names.get(i)});
+            }
+            batches.batchUpdate("INSERT INTO invitation (poll_id, number, label, revoked) VALUES (?, ?, ?, FALSE)",
+                rows);
         }
+    }
+
+    /** One name per invitation, each following the rules of a voter's name. */
+    private List<String> validNames(List<String> labels) {
+        if (labels == null || labels.isEmpty()) {
+            return List.of();
+        }
+        if (labels.size() > PAGE) {
+            throw new InvalidRequestException("Name up to " + PAGE + " invitations at a time.");
+        }
+        var names = labels.stream().map(polls::validName).toList();
+        if (names.stream().anyMatch(String::isEmpty)) {
+            throw new InvalidRequestException("An invitation's name cannot be blank: leave it out instead.");
+        }
+        return names;
+    }
+
+    /** The link to send an invitation's person, or null if the server was not told its address. */
+    private String linkOf(String shareToken, String token) {
+        var address = settings.publicUrl();
+        return address == null ? null : address + "/p/" + shareToken + "#invitation=" + token;
     }
 
     /** Takes back an invitation nobody voted with: its link stops working. Its creator only. */

@@ -16,6 +16,10 @@ import java.time.Instant;
  * invitationOnly, showVoterNames and resultsShown are chosen once, at
  * creation: whether only invited people may vote (see InvitationService),
  * whether the poll shows who took part, and when its results show.
+ *
+ * handoverOpen says the poll is still waiting to be handed to its person, for
+ * one created on their behalf: whoever brings its signed token (HandoverLinks)
+ * becomes its creator, once.
  */
 public record Poll(
     @Id Long id,
@@ -30,7 +34,8 @@ public record Poll(
     ResultsShown resultsShown,
     Long resultsAfterBallots,
     Instant createdAt,
-    Instant closedAt
+    Instant closedAt,
+    boolean handoverOpen
 ) {
     public enum VotingSystem { MAJORITY_JUDGMENT, APPROVAL }
 
@@ -71,6 +76,12 @@ public record Poll(
 
     Poll withClosedAt(Instant closedAt) {
         return new Poll(id, shareToken, joinCode, creatorId, title, votingSystem, visibility, invitationOnly,
-            showVoterNames, resultsShown, resultsAfterBallots, createdAt, closedAt);
+            showVoterNames, resultsShown, resultsAfterBallots, createdAt, closedAt, handoverOpen);
+    }
+
+    /** Handed over: its new creator, and the handover closed for good. */
+    Poll withCreator(String creatorId) {
+        return new Poll(id, shareToken, joinCode, creatorId, title, votingSystem, visibility, invitationOnly,
+            showVoterNames, resultsShown, resultsAfterBallots, createdAt, closedAt, false);
     }
 }

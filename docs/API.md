@@ -29,23 +29,47 @@ invitation you used on each poll under other keys, keyed with a server
 secret, that nothing else matches
 (see [ARCHITECTURE.md](ARCHITECTURE.md#anonymity)).
 
+A client that is not a browser - an agent, a script, a packaged app - asks
+for a token of its own and sends it as a bearer token instead:
+
+```
+POST /api/voters          ->  201 {"token": "<43 url-safe characters>"}
+Authorization: Bearer <token>
+```
+
+`POST /api/voters` mints, and never reveals: it always answers a voter nobody
+has been before, never the caller's own token, so a script on a page that
+called it would learn nothing. It grants nothing new either, since any `/api`
+request already hands a fresh identity to whoever has none.
+
+A bearer token comes before the cookie, and no cookie is set when one is sent.
+A bearer token this server could not have issued answers `401` with
+`WWW-Authenticate: Bearer`, rather than quietly becoming a new voter the way a
+stale *cookie* does: a browser starting again is right, a client that chose to
+send a credential casting ballots as a stranger is not.
+
 ## Endpoints
 
 | Method | Path | Answer |
 |---|---|---|
 | `GET` | `/api/server-info` | `ServerInfo`: what this server offers |
+| `POST` | `/api/voters` | `201` + `{"token"}`: a voter token, for a client that keeps its own |
 | `GET` | `/api/polls` | `PollSummary[]`: the 50 most recent public polls (none while `publicPolls` is off) |
 | `GET` | `/api/polls/mine` | `PollSummary[]`: the caller's polls, newest first |
 | `POST` | `/api/polls` | `201` + `PollView`, `Location: /api/polls/{id}` |
 | `GET` | `/api/polls/{id}` | `PollView` |
+| `GET` | `/api/polls/{id}/results` | `PollUpdate`: the results, the same for everyone, `Cache-Control: max-age=1` |
+| `POST` | `/api/polls/{id}/creator` | `PollView`: becomes the poll's creator, with `Zvote-Handover` |
 | `GET` | `/api/join/{code}` | `PollSummary`: the poll behind a join code (only its letters and digits count, in any case) |
 | `PATCH` | `/api/polls/{id}` | `PollView`: creator only, `{"closed": true}` closes it for good; anything else answers `400` |
 | `DELETE` | `/api/polls/{id}` | `204`: creator only |
 | `PUT` | `/api/polls/{id}/ballot` | `PollView`: cast, revise or withdraw the caller's ballot |
 | `GET` | `/api/polls/{id}/events` | `text/event-stream`: live updates |
 | `GET` | `/api/polls/{id}/invitations` | `InvitationPage`: creator only, the newest first (`?before=&limit=`) |
-| `POST` | `/api/polls/{id}/invitations` | `201` + `InvitationPage`: creator only, `{"label": "Zoé"}` or `{"count": 500}` |
+| `POST` | `/api/polls/{id}/invitations` | `201` + `InvitationPage`: creator only, `{"labels": ["Zoé", "Ali"]}` or `{"count": 500}` |
 | `DELETE` | `/api/polls/{id}/invitations/{number}` | `204`: creator only, an invitation nobody voted with |
+| `POST` | `/api/mcp` | the same services as Model Context Protocol tools |
+| `GET` | `/v3/api-docs` | this API as OpenAPI (`.yaml` too) |
 | `GET` | `/actuator/health` | `{"status":"UP"}`: readiness probe |
 
 A poll's `id` is its **share token**: 22 url-safe characters, unguessable. It
@@ -87,10 +111,13 @@ A poll as the calling voter sees it.
       "label": "Ramen",
       "approvalCount": null,             // approval polls: how many approved it
       "judgmentCounts": {                // majority judgment: voters per mention, worst first
-                                         // (both null while resultsShown keeps them back)
         "Bad": 0, "Inadequate": 0, "Passable": 0, "Fair": 0,
         "Good": 1, "VeryGood": 0, "Excellent": 1
-      }
+      },
+      "rank": 1,                         // 1 is the winner; a rank shared means ex aequo
+      "majorityMention": "VeryGood",     // majority judgment: the mention that ranks it
+      "score": { "numerator": 0, "denominator": 1 }  // what separates options sharing one
+                                         // (all five null while resultsShown keeps them back)
     }
   ],
   "voterNames": ["Sam", "Zoé"],          // null unless showVoterNames: the first 100 names given, alphabetical
@@ -99,23 +126,35 @@ A poll as the calling voter sees it.
     "approvedOptionIds": null,           // approval polls, in the poll's order
     "judgments": { "1": "Excellent" },   // majority judgment: option id -> mention
     "voterName": "Zoé"                   // the name the caller gave, or null
-  }
+  },
+  "handover": null                       // see "Creating a poll for somebody else"
 }
 ```
 
 While the poll is open, its options carry tallies only if `resultsShown` is
 `LIVE`, or `AFTER_BALLOTS` with at least `resultsAfterBallots` ballots in
 (fewer again after withdrawals, and they hide again). Otherwise they carry
-none, for anyone, its creator included; `totalBallots` still counts.
+none, for anyone, its creator included - no counts, and no ranking either, since
+the order would say who is winning just as plainly; `totalBallots` still counts.
 Watching tallies move as people vote shows what each of them chose. Closing
 the poll shows them.
 A closed poll cannot be reopened: its results are final, and a creator
 cannot read the results kept for the closing and then watch the next
 ballots move them.
 
-The server sends tallies, not rankings. Clients rank majority judgment options
-themselves from the seven counts (`clients/web/src/utils/majorityJudgment.ts`:
-majority mention first, then the GMJ score).
+Options come in the poll's own order, never sorted: that order is what a
+ballot's bytes are positions in. Read `rank` to order them, and `rank == 1` for
+the winner - several options at rank 1 are ex aequo.
+
+The server ranks, and sends the counts it ranked from, so the ranking can be
+checked rather than believed. It is computed in one place
+(`servers/java/.../api/Ranking.java`, pinned by `RankingTest`): the majority
+mention first - the best mention more than half the voters give an option or
+better, which with an even number of ballots is the lower of the two middle
+mentions - then the GMJ Usual score for options sharing one, as the exact
+fraction `(above - below) / at`. Divide `score` to show it, never to compare
+it: past about seventy million ballots two different scores round to the same
+number, and two equal ones round apart.
 
 ### The seven mentions
 
@@ -146,15 +185,25 @@ Tallies and `totalBallots` are as of the last fold of the ballots into the
 tallies, a moment after they are cast (ARCHITECTURE.md,
 [Tallies](ARCHITECTURE.md#tallies)): updates follow the folds.
 
+`GET /api/polls/{id}/results` answers the same shape to a client that would
+rather ask than hold a stream open. Being identical for everyone it carries
+`Cache-Control: max-age=1`, so a crowd of readers can cost one read.
+
 ### ServerInfo
 
 ```json
 {
   "features": { "publicPolls": false, "unlistedPolls": true, "approvalVoting": true, "majorityJudgment": true },
   "limits": { "maxOptions": 20, "maxTitleLength": 200, "maxOptionLength": 100,
-              "maxVoterNameLength": 40, "maxInvitations": 1000, "pollLifetimeDays": 30 }
+              "maxVoterNameLength": 40, "maxInvitations": 1000, "pollLifetimeDays": 30 },
+  "publicUrl": "https://zvote.example"
 }
 ```
+
+`publicUrl` is where this server's polls are reached, without a trailing
+slash: what a client that cannot know its own address builds a share link
+from, and what the server builds invitation links from. Null when it was not
+told (`zvote.public-url`).
 
 From `zvote.features` and `zvote.limits` in `application.yml`. The server
 enforces them when a poll is created.
@@ -178,6 +227,49 @@ polls are refused while `publicPolls` is off: they will need a signed-in
 creator. Title and options are trimmed. There must be 2 to
 `maxOptions` options, none empty, none longer than `maxOptionLength`, and no two
 the same (ignoring case).
+
+Send an `Idempotency-Key` header (1 to 64 printable characters without spaces,
+such as a UUID) when the request may have to be sent again: a second attempt
+with the same key answers the poll the first one made, rather than making
+another. Keys belong to the voter that sent them, and are forgotten after a
+day. `POST /api/polls/{id}/invitations` takes one too - without it, a retry
+hands a second link to each of the same people, and each of them could then
+vote twice. Casting a ballot is a `PUT` and needs no key.
+
+## Creating a poll for somebody else
+
+A client creating a poll on someone's behalf - an agent asked to run a vote -
+sends `"handover": true`. The answer then carries a one-time token:
+
+```jsonc
+POST /api/polls
+{ "title": "Where do we eat?", "options": ["Ramen", "Tacos"], "votingSystem": "APPROVAL",
+  "visibility": "UNLISTED", "handover": true }
+
+201 { "id": "R0JsGfPEiNuO7CoMMd_I5g", ..., "handover": "qWsD_0PPBuKgjv6h9yEQxA" }
+```
+
+Send its person the poll's address with the token in the fragment, which
+browsers never send on:
+
+```
+https://zvote.example/p/R0JsGfPEiNuO7CoMMd_I5g#handover=qWsD_0PPBuKgjv6h9yEQxA
+```
+
+Opening it makes them the poll's creator - theirs to close, to delete, and
+whose invitations are theirs to read - and the client that created it keeps
+none of that. A client doing this itself sends the token in a header:
+
+```
+POST /api/polls/{id}/creator
+Zvote-Handover: qWsD_0PPBuKgjv6h9yEQxA
+```
+
+The token works once: a handover link that leaked afterwards - into a chat, a
+log, a mailbox - opens nothing (`403`, `/problems/handover-unavailable`). It is
+signed rather than stored, so the database holds no credential, and a client
+retrying the request that created the poll is told it again. `handover` is null
+in every other answer: only the request that created the poll ever carries it.
 
 ## Casting a ballot
 
@@ -221,16 +313,21 @@ numbered 1, 2, 3... in the order they are made, and sends each its link: the
 poll's address with the invitation's token in the fragment. The token is the
 invitation's number and the server's signature of it for this poll.
 
-```
+```jsonc
 POST /api/polls/{id}/invitations
-{ "label": "Zoé" }       // one invitation for Zoé: the label is shown to the creator only
-{ "count": 500 }         // 500 anonymous invitations at once; left out, 1
+{ "labels": ["Zoé", "Ali", "Bo"] }   // one invitation each: the names are shown to the creator only
+{ "count": 500 }                     // 500 anonymous invitations at once; neither field, 1
 
 201 { "count": 3, "next": null, "invitations": [
-      { "number": 3, "token": "3.qWsD_0PPBuKgjv6h9yEQxA", "label": "Zoé", "used": false }, ... ] }
-
-https://zvote.example/p/{id}#invitation=3.qWsD_0PPBuKgjv6h9yEQxA
+      { "number": 3, "token": "3.qWsD_0PPBuKgjv6h9yEQxA",
+        "link": "https://zvote.example/p/{id}#invitation=3.qWsD_0PPBuKgjv6h9yEQxA",
+        "label": "Bo", "used": false }, ... ] }
 ```
+
+A creator with a list of people asks once and sends each of them their `link`:
+one update and one batch, not one request per person. `link` is null when the
+server was not told its public address (`publicUrl` in `ServerInfo`); the
+address is the poll's with the invitation's token in the fragment.
 
 A client sends the token in a header, to read the poll and to cast a ballot,
 never in a URL: browsers do not send a fragment, so no server or proxy log
@@ -265,8 +362,10 @@ Zvote-Invitation: 3.qWsD_0PPBuKgjv6h9yEQxA
 - Links are signed, not stored: making 1 invitation or a billion costs the
   same, and so does reading a page. A poll takes up to `maxInvitations`
   (`400` past that), none once closed (`409`), and none if anyone may vote
-  on it (`400`). A label follows the rules of names (above), and goes on one
-  invitation at a time.
+  on it (`400`). Each label follows the rules of names (above); up to 100 go
+  in one request, so the invitations just made are the top of the page it
+  answers. `labels` and `count` are mutually exclusive: an invitation is for
+  a person or for nobody in particular.
 - Anyone holding the poll's own link or code can still open it, and see its
   results when they show: only voting needs an invitation.
 
@@ -302,29 +401,45 @@ data:{}
 
 Every error is an [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) problem
 document, `Content-Type: application/problem+json`. Its `detail` is written for
-the person using the app and can be shown as is.
+the person using the app and can be shown as is; its `type` says the same thing
+to a machine, and is what to branch on.
 
 ```json
-{ "title": "Conflict", "status": 409,
+{ "type": "/problems/poll-closed", "title": "Conflict", "status": 409,
   "detail": "This poll is closed and no longer accepts ballots.",
   "instance": "/api/polls/R0JsGfPEiNuO7CoMMd_I5g/ballot" }
 ```
 
-(`type` is omitted: it is the default, `about:blank`.)
+| `type` | Status | When |
+|---|---|---|
+| `/problems/invalid-request` | `400` | The request breaks a rule (the `detail` says which), or its JSON cannot be read |
+| `/problems/unknown-voter` | `401` | A bearer token this server could not have issued (`WWW-Authenticate: Bearer`) |
+| `/problems/not-poll-creator` | `403` | Only the poll's creator can do that |
+| `/problems/not-invited` | `403` | Only invited people can vote on this poll |
+| `/problems/handover-unavailable` | `403` | That handover token is spent, or not this poll's |
+| `/problems/poll-not-found` | `404` | No poll has that id or join code (or it was deleted) |
+| `/problems/poll-closed` | `409` | The poll is closed |
+| `/problems/invitation-used` | `409` | Someone has already voted with that invitation |
+| `/problems/collision` | `409` | Another change landed at the same moment; sending it again is safe (`Retry-After: 1`) |
+| `/problems/server-error` | `500` | Something unexpected failed on the server; the `detail` says so and nothing more |
 
-| Status | When |
-|---|---|
-| `400` | The request breaks a rule (the `detail` says which), or its JSON cannot be read |
-| `403` | Only the poll's creator can do that, or only invited people can vote on this poll |
-| `404` | No poll has that id or join code (or it was deleted) |
-| `409` | The poll is closed, the invitation was used, or the change collided with another made at the same moment (send it again) |
-| `500` | Something unexpected failed on the server; the `detail` says so and nothing more |
+The `type` is a relative URI, which RFC 9457 resolves against the request, so
+it holds whatever address the server answers on. Spring's own refusals (`405`,
+`415`, a route that does not exist) are problem documents too, but carry no
+`type`: RFC 9457 reads a missing one as `about:blank`, "no more than the
+status". `429` is reserved for the rate limits of the deployment phase
+(ROADMAP.md), so adding them will need no change here.
 
 ## Trying it with curl
 
 ```bash
-# Create a poll; the cookie jar keeps your voter token.
-ID=$(curl -s -c me.txt -X POST localhost:8080/api/polls \
+# A voter token of your own, instead of a cookie jar.
+ME=$(curl -s -X POST localhost:8080/api/voters \
+  | python3 -c 'import json,sys; print(json.load(sys.stdin)["token"])')
+
+# Create a poll. The key makes it safe to send again if this times out.
+ID=$(curl -s -X POST localhost:8080/api/polls \
+  -H "Authorization: Bearer $ME" -H 'Idempotency-Key: lunch-today' \
   -H 'Content-Type: application/json' \
   -d '{"title":"Lunch?","options":["Ramen","Tacos"],"visibility":"UNLISTED","votingSystem":"MAJORITY_JUDGMENT"}' \
   | python3 -c 'import json,sys; print(json.load(sys.stdin)["id"])')
@@ -333,6 +448,32 @@ ID=$(curl -s -c me.txt -X POST localhost:8080/api/polls \
 curl -N localhost:8080/api/polls/$ID/events
 
 # Vote (option ids come back in the poll's "options").
-curl -s -b me.txt -X PUT localhost:8080/api/polls/$ID/ballot \
+curl -s -X PUT localhost:8080/api/polls/$ID/ballot -H "Authorization: Bearer $ME" \
   -H 'Content-Type: application/json' -d '{"judgments":{"1":"Excellent","2":"Good"}}'
+
+# Who won: the options at rank 1.
+curl -s localhost:8080/api/polls/$ID/results
 ```
+
+## For agents
+
+Everything above is reachable two ways, and both go through the same services,
+so there is one set of rules and no second contract.
+
+- **This API**, described at `GET /v3/api-docs` (OpenAPI 3.1, `.yaml` too).
+  The document carries the shapes, generated from the code, and the rules no
+  shape can state: that an unrated option counts as `Bad`, that an invitation
+  binds to the first voter who uses it, that closing is final, that the winner
+  is rank 1, and what each problem `type` means.
+- **Model Context Protocol**, at `POST /api/mcp` (stateless streamable HTTP),
+  with nine tools: `create_poll`, `read_poll`, `poll_results`, `cast_ballot`,
+  `invite`, `list_invitations`, `close_poll`, `delete_poll`, `list_my_polls`.
+  A tool call is one request in and one answer out, carrying the same
+  `Authorization: Bearer` token, so an agent is a voter like any other.
+  `poll_results` names the winner outright.
+
+A group of agents deciding together: one of them creates an invitation-only
+poll, invites the others by name in a single call, and sends each the `link`
+it answers; each agent mints a token of its own and casts a ballot with its
+link; any of them reads `/results` until the ballots are in. Nothing about who
+chose what is stored, for agents any more than for people.

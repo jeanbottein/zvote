@@ -21,12 +21,21 @@
     <properties>
         <java.version>25</java.version>
         <spring-modulith.version>2.1.1</spring-modulith.version>
+        <springdoc.version>3.1.1</springdoc.version>
+        <spring-ai.version>2.0.1</spring-ai.version>
         <archunit.version>1.5.1</archunit.version>
         <jacoco.version>0.8.15</jacoco.version>
     </properties>
 
     <dependencyManagement>
         <dependencies>
+            <dependency>
+                <groupId>org.springframework.ai</groupId>
+                <artifactId>spring-ai-bom</artifactId>
+                <version>${spring-ai.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
             <dependency>
                 <groupId>org.springframework.modulith</groupId>
                 <artifactId>spring-modulith-bom</artifactId>
@@ -89,6 +98,22 @@
         <dependency>
             <groupId>org.springframework.modulith</groupId>
             <artifactId>spring-modulith-api</artifactId>
+        </dependency>
+
+        <!-- The same services over the Model Context Protocol, so an agent
+             reaches them as tools rather than as HTTP calls it must compose. -->
+        <dependency>
+            <groupId>org.springframework.ai</groupId>
+            <artifactId>spring-ai-starter-mcp-server-webmvc</artifactId>
+        </dependency>
+
+        <!-- Describes the API to machine clients at /v3/api-docs. The -api
+             artifact, not -ui: an agent reads the document, and Swagger UI
+             would add WebJars and a page this server does not serve. -->
+        <dependency>
+            <groupId>org.springdoc</groupId>
+            <artifactId>springdoc-openapi-starter-webmvc-api</artifactId>
+            <version>${springdoc.version}</version>
         </dependency>
 
         <dependency>

@@ -5,19 +5,27 @@ import BallotSection from './BallotSection';
 import DevBallotFeeder from './DevBallotFeeder';
 import { formatDate, timeAgo, VISIBILITY_NAMES, VOTING_SYSTEM_NAMES } from './format';
 import Invitations from './Invitations';
-import { invitationIn } from './links';
+import { handoverIn, invitationIn } from './links';
 import OwnerActions from './OwnerActions';
 import ResultsSection from './ResultsSection';
 import ShareButton from './ShareButton';
+import { useHandover } from './useHandover';
 import { usePoll } from './usePoll';
 
 /**
  * A poll: your ballot, and the results as they come in. Its address is its
- * share link, and an invitation's link adds the invitation in the fragment.
+ * share link; an invitation's link adds the invitation in the fragment, and a
+ * handover link the token that makes you the poll's creator.
  */
 export default function PollPage() {
   const { id = '' } = useParams();
-  const invitation = invitationIn(useLocation().hash);
+  const hash = useLocation().hash;
+  const invitation = invitationIn(hash);
+  const handover = useHandover(id, handoverIn(hash));
+
+  if (handover === 'taking') {
+    return <p className="panel">Taking this poll over...</p>;
+  }
   // Keyed, so that moving to another poll, or another invitation, starts from a clean slate.
   return <PollScreen key={`${id}#${invitation}`} id={id} invitation={invitation} />;
 }

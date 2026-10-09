@@ -1,7 +1,6 @@
 import type { Poll } from '../api/types';
-import { rankByApprovals } from '../features/VotingSystem/Approval/approvalRanking';
-import { toRankable } from '../features/VotingSystem/MajorityJudgment/MajorityJudgmentResults';
-import { rankOptions } from '../utils/majorityJudgment';
+import { gmjScore } from '../features/VotingSystem/MajorityJudgment/gmjScore';
+import { ranked } from '../features/VotingSystem/ranked';
 
 /** The results as a self-describing document, for anyone who wants to check or archive them. */
 export function resultsDocument(poll: Poll, exportedAt = new Date()) {
@@ -15,19 +14,19 @@ export function resultsDocument(poll: Poll, exportedAt = new Date()) {
     },
     exportedAt: exportedAt.toISOString(),
     totalBallots: poll.totalBallots,
-    ranking: poll.votingSystem === 'MAJORITY_JUDGMENT'
-      ? rankOptions(toRankable(poll.options)).map((option) => ({
-          rank: option.mjAnalysis.rank,
+    ranking: ranked(poll.options).map(({ option, rank }) => poll.votingSystem === 'MAJORITY_JUDGMENT'
+      ? {
+          rank,
           label: option.label,
-          majorityMention: option.mjAnalysis.majorityMention,
-          gmjScore: option.mjAnalysis.gmdScore,
-          judgmentCounts: option.judgment_counts,
-        }))
-      : rankByApprovals(poll.options).map((standing) => ({
-          rank: standing.rank,
-          label: standing.label,
-          approvals: standing.approvals,
-        })),
+          majorityMention: option.majorityMention,
+          gmjScore: option.score && gmjScore(option.score),
+          judgmentCounts: option.judgmentCounts,
+        }
+      : {
+          rank,
+          label: option.label,
+          approvals: option.approvalCount ?? 0,
+        }),
   };
 }
 

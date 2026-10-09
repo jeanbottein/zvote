@@ -1,6 +1,7 @@
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
+import { option } from '../../../test/fixtures';
 import ApprovalBallot from './ApprovalBallot';
 import ApprovalResults from './ApprovalResults';
 
@@ -32,11 +33,16 @@ describe('the approval ballot', () => {
 });
 
 describe('the approval results', () => {
-  const counted = (ramen: number, tacos: number, pizza: number) => [
-    { id: '1', label: 'Ramen', approvalCount: ramen, judgmentCounts: null },
-    { id: '2', label: 'Tacos', approvalCount: tacos, judgmentCounts: null },
-    { id: '3', label: 'Pizza', approvalCount: pizza, judgmentCounts: null },
-  ];
+  /** As the server sends them: the poll's own order, each with the rank it ranked them at. */
+  const counted = (ramen: number, tacos: number, pizza: number) => {
+    const approvals = [ramen, tacos, pizza];
+    const rankOf = (own: number) => 1 + approvals.filter((other) => other > own).length;
+    return [
+      option({ id: '1', label: 'Ramen', approvalCount: ramen, rank: rankOf(ramen) }),
+      option({ id: '2', label: 'Tacos', approvalCount: tacos, rank: rankOf(tacos) }),
+      option({ id: '3', label: 'Pizza', approvalCount: pizza, rank: rankOf(pizza) }),
+    ];
+  };
 
   it('ranks the options by approvals, with the share of voters who approved each', () => {
     render(<ApprovalResults options={counted(1, 4, 4)} totalBallots={5} />);

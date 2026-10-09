@@ -1,6 +1,6 @@
 import type { PollOption } from '../../../api/types';
 import { formatCount } from '../../../utils/formatCount';
-import { rankByApprovals } from './approvalRanking';
+import { ranked } from '../ranked';
 import './approval.css';
 
 interface ApprovalResultsProps {
@@ -14,15 +14,16 @@ export default function ApprovalResults({ options, totalBallots }: ApprovalResul
 
   return (
     <ol className="approval-results">
-      {rankByApprovals(options).map((standing) => {
-        const share = counted ? standing.approvals / totalBallots : 0;
+      {ranked(options).map(({ option, rank }) => {
+        const approvals = option.approvalCount ?? 0;
+        const share = counted ? approvals / totalBallots : 0;
         return (
-          <li key={standing.id} className="approval-result" data-winner={counted && standing.rank === 1}>
+          <li key={option.id} className="approval-result" data-winner={counted && rank === 1}>
             <div className="approval-result-head">
-              {counted && <span className="approval-rank" aria-label={`Rank ${standing.rank}`}>{standing.rank}</span>}
-              <span className="approval-result-label">{standing.label}</span>
+              {counted && <span className="approval-rank" aria-label={`Rank ${rank}`}>{rank}</span>}
+              <span className="approval-result-label">{option.label}</span>
               <span className="approval-result-count">
-                {formatCount(standing.approvals)} {standing.approvals === 1 ? 'approval' : 'approvals'}
+                {formatCount(approvals)} {approvals === 1 ? 'approval' : 'approvals'}
                 {counted && ` · ${Math.round(share * 100)}%`}
               </span>
             </div>

@@ -15,6 +15,7 @@ the codebase as simple as it found it: add what the phase needs, no more.
 | 5 | MVP for groups: private polls shared by link or join code (`K7M-4QX`), optional voter names shown as a cloud under the results, polls deleted 30 days after creation; public polls off until accounts |
 | 5b | Ballots at scale, first step (see [Scale](#scale)): one row per ballot, tallies folded from a change log, deleted polls removed in batches, PostgreSQL supported and tested; 41 times faster on PostgreSQL, and as fast on a poll of 10 million ballots as on a new one |
 | 5c | Invitation polls: the creator sends each voter a link of their own, good for one ballot in the browser that first votes with it, and sees which links were used, never what anyone chose. Links are signed, not stored: a billion invitations cost a counter |
+| 5d | A backend agents can use: voter tokens as bearer tokens, `Idempotency-Key` on the two creating POSTs, invitations named a hundred at a time with their links, a cacheable `GET /api/polls/{id}/results`, a one-time handover so a poll made for someone becomes theirs, machine-readable problem types, OpenAPI at `/v3/api-docs`, and the same services as MCP tools at `/api/mcp`. The ranking moved to the server, so the winner is in the results and the GMJ math has one home |
 
 ## Next
 
@@ -37,10 +38,18 @@ builds the image, pushes it to GHCR and deploys it.
   cache and Spring AOT starts in 1.1 s at no cost. Choose on the target (Linux,
   PostgreSQL), and run `-PnativeTest` in CI if the native image is chosen.
 - **One origin.** The server serves the built client, which keeps cookies
-  first-party and enables the Open Graph pages above.
+  first-party and enables the Open Graph pages above. Set `zvote.public-url`
+  (`ZVOTE_PUBLIC_URL`) to that address: invitation links are built from it, and
+  `/api/server-info` advertises it.
 - **Hardening.** TLS (the cookie turns `Secure` on its own behind HTTPS), a
   Content Security Policy, and rate limits on poll creation, ballots and join
-  code lookups (a join code is guessable in principle; the link is not).
+  code lookups (a join code is guessable in principle; the link is not). More
+  pressing since phase 5d: a client can mint a voter token in one call, which
+  makes scripted use pleasant and scripted abuse no harder than clearing a
+  cookie was. Caddy can limit by network, which is the keying that matters and
+  the one the server cannot do alone. The error vocabulary already reserves
+  `429` with `Retry-After` (docs/API.md), so adding them needs no contract
+  change.
 - **The voter secret.** `ZVOTE_VOTER_SECRET` (`openssl rand -base64 48`)
   comes from the host's secrets: never from the image, the repository or
   the database backups. The server refuses to start without it. Losing or
@@ -130,14 +139,16 @@ same code and the same design. Already in place: the mobile-first UI, and
 Still to do:
 
 - **Authentication across origins.** A packaged app runs on its own origin, so
-  the cookie becomes third-party. Either issue a bearer token after an OIDC
-  sign-in with PKCE through the system browser, or use `SameSite=None; Secure`
-  cookies with CORS for the app's origin. The bearer token is the sturdier
-  choice; `VoterIdentityFilter` is where it would be read.
+  the cookie becomes third-party. Half done in phase 5d: `VoterIdentityFilter`
+  already reads `Authorization: Bearer`, and `POST /api/voters` mints a token
+  to hold. What is left is where the app gets it after an OIDC sign-in with
+  PKCE through the system browser (phase 7), and keeping it in the platform's
+  secure storage rather than in a cookie.
 - **Deep links.** Android App Links (`assetlinks.json`) so `/p/{id}` links open
   the app.
 - **Share links** built from the public web address, not the app's origin
-  (`ShareButton` uses `window.location.origin` today).
+  (`ShareButton` uses `window.location.origin` today). The address is already
+  advertised: `publicUrl` in `/api/server-info`.
 - **Sending invitations** (phase 5c): the system share sheet and the
   contacts picker, so a creator sends each voter their link in a tap or two.
 - The Android back button, the status bar colour, and the Capacitor share
@@ -155,10 +166,10 @@ thousands of ballots a second. Next, in order:
   by side; watchers only hear of their own server's folds. Relay "this poll
   moved" through PostgreSQL `LISTEN/NOTIFY` (or Redis) so that any server can
   push it.
-- **Results for millions of watchers.** A poll's update is the same for every
-  watcher: serve it as `GET /api/polls/{id}/results` with
-  `Cache-Control: max-age=1` behind a CDN, and keep server-sent events for
-  small audiences.
+- **Results for millions of watchers.** Done in phase 5d: `GET
+  /api/polls/{id}/results` answers the same thing to everyone with
+  `Cache-Control: max-age=1`, and server-sent events stay for small audiences.
+  Left for the deployment: putting a CDN in front of it.
 - **A load test in CI** on PostgreSQL, with a regression threshold, so that
   "it scales" stays true: `perf/Load.java` already drives it.
 - **Beyond one database server.** Split ballots by voter (Citus, with the

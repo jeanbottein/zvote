@@ -45,13 +45,15 @@ public class PollService {
     private final PollRepository polls;
     private final PollOptionRepository options;
     private final VoterNameRepository voterNames;
+    private final HandoverLinks handovers;
     private final ZVoteProperties settings;
 
     public PollService(PollRepository polls, PollOptionRepository options, VoterNameRepository voterNames,
-                       ZVoteProperties settings) {
+                       HandoverLinks handovers, ZVoteProperties settings) {
         this.polls = polls;
         this.options = options;
         this.voterNames = voterNames;
+        this.handovers = handovers;
         this.settings = settings;
     }
 
@@ -62,6 +64,7 @@ public class PollService {
         var invitationOnly = Boolean.TRUE.equals(request.invitationOnly());
         var showVoterNames = Boolean.TRUE.equals(request.showVoterNames());
         var resultsShown = resultsShown(request.resultsShown(), invitationOnly || showVoterNames);
+        var handover = Boolean.TRUE.equals(request.handover());
         var poll = polls.save(new Poll(
             null,
             randomToken(),
@@ -75,7 +78,8 @@ public class PollService {
             resultsShown,
             resultsShown == Poll.ResultsShown.AFTER_BALLOTS ? validThreshold(request.resultsAfterBallots()) : null,
             now(),
-            null));
+            null,
+            handover));
 
         var rows = new ArrayList<PollOption>(labels.size());
         for (int position = 0; position < labels.size(); position++) {
@@ -83,6 +87,35 @@ public class PollService {
         }
         options.saveAll(rows);
         return poll;
+    }
+
+    /**
+     * The token that hands this poll over, for its creator and while the
+     * handover is still open. Being signed rather than stored, it can be
+     * answered again to a client retrying the request that created the poll.
+     */
+    public Optional<String> handoverTokenOf(Poll poll, String voterId) {
+        return poll.handoverOpen() && poll.isCreatedBy(voterId)
+            ? Optional.of(handovers.tokenOf(poll.id()))
+            : Optional.empty();
+    }
+
+    /**
+     * Makes whoever brings the token the poll's creator, and spends it: the
+     * poll is theirs to close, to delete, and whose invitations are theirs to
+     * read, and the client that created it keeps none of that.
+     *
+     * The token works once. A handover link that leaked - in a chat, a log, a
+     * mailbox - cannot be used behind its person's back afterwards.
+     */
+    @Transactional
+    public Poll handOver(String shareToken, String token, String newCreatorId) {
+        var poll = find(shareToken);
+        if (!poll.handoverOpen() || !handovers.isFor(poll.id(), token)) {
+            throw new HandoverUnavailableException(
+                "This link cannot hand this poll over: it was used already, or it is not this poll's.");
+        }
+        return polls.save(poll.withCreator(newCreatorId));
     }
 
     /**

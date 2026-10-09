@@ -8,10 +8,12 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestAttribute;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.zvote.server.api.dto.CreateInvitationsRequest;
+import org.zvote.server.idempotency.IdempotencyService;
 import org.zvote.server.identity.Voter;
 import org.zvote.server.identity.VoterIdentity;
 import org.zvote.server.polls.InvitationPage;
@@ -34,9 +36,11 @@ public class InvitationController {
     static final String HEADER = "Zvote-Invitation";
 
     private final InvitationService invitations;
+    private final IdempotencyService idempotency;
 
-    InvitationController(InvitationService invitations) {
+    InvitationController(InvitationService invitations, IdempotencyService idempotency) {
         this.invitations = invitations;
+        this.idempotency = idempotency;
     }
 
     @GetMapping
@@ -47,12 +51,22 @@ public class InvitationController {
         return invitations.invitationsOf(id, voter.id(), before, limit);
     }
 
-    /** Answers the newest invitations, the new ones first. */
+    /**
+     * Answers the newest invitations, the new ones first.
+     *
+     * An Idempotency-Key makes this safe to retry: without one, a request that
+     * timed out but landed would, sent again, hand a second link to each of the
+     * same people, and each of them could then vote twice.
+     */
     @PostMapping
     public ResponseEntity<InvitationPage> invite(@PathVariable String id,
                                                  @RequestBody CreateInvitationsRequest request,
+                                                 @RequestHeader(name = IdempotencyService.HEADER, required = false) String key,
                                                  @RequestAttribute(VoterIdentity.ATTRIBUTE) Voter voter) {
-        invitations.invite(id, voter.id(), request.label(), request.count() == null ? 1 : request.count());
+        idempotency.once(voter.id(), key, () -> {
+            invitations.invite(id, voter.id(), request.labels(), request.count());
+            return id;
+        });
         return ResponseEntity.status(HttpStatus.CREATED).body(invitations.invitationsOf(id, voter.id(), null, null));
     }
 

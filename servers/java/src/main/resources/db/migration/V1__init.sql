@@ -44,6 +44,11 @@ CREATE TABLE poll (
     created_at            TIMESTAMP WITH TIME ZONE NOT NULL,
     -- NULL while the poll accepts ballots.
     closed_at             TIMESTAMP WITH TIME ZONE,
+    -- Whether this poll is still waiting to be handed to its person, for one
+    -- created on their behalf (PollService.handOver). The token itself is
+    -- signed, never stored (HandoverLinks); this closes once it is used, so a
+    -- link that leaked cannot seize the poll afterwards.
+    handover_open         BOOLEAN NOT NULL,
     CONSTRAINT poll_results_after_ballots
         CHECK (results_shown <> 'AFTER_BALLOTS' OR COALESCE(results_after_ballots, 0) >= 3)
 );
@@ -141,3 +146,18 @@ CREATE TABLE invitation (
 CREATE TABLE poll_removal (
     poll_id BIGINT NOT NULL PRIMARY KEY
 );
+
+-- What a request carrying an Idempotency-Key answered, so that sending it
+-- again answers the same thing rather than making a second poll, or a second
+-- invitation for the same person (IdempotencyService). The share token is
+-- enough: the answer itself is composed afresh on a replay. Rows are kept for
+-- as long as a client would still be retrying, then dropped by PollRetention.
+CREATE TABLE idempotent_request (
+    voter_id    VARCHAR(64) NOT NULL,
+    request_key VARCHAR(64) NOT NULL,
+    share_token VARCHAR(32) NOT NULL,
+    created_at  TIMESTAMP WITH TIME ZONE NOT NULL,
+    PRIMARY KEY (voter_id, request_key)
+);
+
+CREATE INDEX idempotent_request_by_age ON idempotent_request (created_at);

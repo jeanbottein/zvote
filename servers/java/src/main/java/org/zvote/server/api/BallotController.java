@@ -11,7 +11,6 @@ import org.zvote.server.api.dto.CastBallotRequest;
 import org.zvote.server.api.dto.PollView;
 import org.zvote.server.identity.Voter;
 import org.zvote.server.identity.VoterIdentity;
-import org.zvote.server.live.PollStream;
 
 /**
  * Casting a ballot is a PUT: a voter has at most one ballot per poll, and
@@ -22,16 +21,12 @@ import org.zvote.server.live.PollStream;
 @RequestMapping("/api/polls/{id}/ballot")
 public class BallotController {
 
-    private final BallotService ballots;
+    private final PollChangeService changes;
     private final PollViewService views;
-    private final PollStream stream;
-    private final TallyFolding folding;
 
-    BallotController(BallotService ballots, PollViewService views, PollStream stream, TallyFolding folding) {
-        this.ballots = ballots;
+    BallotController(PollChangeService changes, PollViewService views) {
+        this.changes = changes;
         this.views = views;
-        this.stream = stream;
-        this.folding = folding;
     }
 
     /**
@@ -44,9 +39,6 @@ public class BallotController {
                          @RequestBody CastBallotRequest ballot,
                          @RequestHeader(name = InvitationController.HEADER, required = false) String invitation,
                          @RequestAttribute(VoterIdentity.ATTRIBUTE) Voter voter) {
-        var poll = ballots.cast(id, ballot, voter, invitation);
-        folding.fold();
-        stream.changed(poll.id(), () -> views.update(poll.id()));
-        return views.view(poll, voter, invitation);
+        return views.view(changes.cast(id, ballot, voter, invitation), voter, invitation);
     }
 }

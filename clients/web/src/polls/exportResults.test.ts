@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { lunchPoll, NO_JUDGMENTS } from '../test/fixtures';
+import { lunchPoll, NO_JUDGMENTS, option } from '../test/fixtures';
 import { downloadResults, resultsDocument } from './exportResults';
 
 const lunch = lunchPoll({
@@ -7,8 +7,10 @@ const lunch = lunchPoll({
   isMine: true,
   totalBallots: 3,
   options: [
-    { id: '1', label: 'Ramen', approvalCount: null, judgmentCounts: { ...NO_JUDGMENTS, Fair: 2, Bad: 1 } },
-    { id: '2', label: 'Tacos', approvalCount: null, judgmentCounts: { ...NO_JUDGMENTS, Excellent: 2, Good: 1 } },
+    option({ id: '1', label: 'Ramen', judgmentCounts: { ...NO_JUDGMENTS, Fair: 2, Bad: 1 },
+      rank: 2, majorityMention: 'Fair', score: { numerator: -1, denominator: 2 } }),
+    option({ id: '2', label: 'Tacos', judgmentCounts: { ...NO_JUDGMENTS, Excellent: 2, Good: 1 },
+      rank: 1, majorityMention: 'Excellent', score: { numerator: -1, denominator: 2 } }),
   ],
 });
 
@@ -38,8 +40,8 @@ describe('the results document', () => {
       ...lunch,
       votingSystem: 'APPROVAL',
       options: [
-        { id: '1', label: 'Ramen', approvalCount: 1, judgmentCounts: null },
-        { id: '2', label: 'Tacos', approvalCount: 3, judgmentCounts: null },
+        option({ id: '1', label: 'Ramen', approvalCount: 1, rank: 2 }),
+        option({ id: '2', label: 'Tacos', approvalCount: 3, rank: 1 }),
       ],
     });
 

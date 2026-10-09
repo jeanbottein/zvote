@@ -7,6 +7,11 @@ import java.util.List;
  * (false when left out), resultsShown (when left out: live unless the poll
  * shows names or takes invitations) and resultsAfterBallots (AFTER_BALLOTS
  * only); PollService says what is wrong and why.
+ *
+ * handover: answer with a one-time token that makes whoever brings it the
+ * poll's creator. A client creating a poll for somebody else - an agent asked
+ * to run a vote - sends the token to them, so that the poll is theirs to close
+ * and whose invitations are theirs to read.
  */
 public record CreatePollRequest(
     String title,
@@ -16,5 +21,6 @@ public record CreatePollRequest(
     Boolean invitationOnly,
     Boolean showVoterNames,
     Poll.ResultsShown resultsShown,
-    Long resultsAfterBallots
+    Long resultsAfterBallots,
+    Boolean handover
 ) {}

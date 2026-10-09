@@ -98,23 +98,48 @@ shown to people as is: write it as a sentence for them.
   Their colours (both palettes) are defined once, in `mentions.css`.
 - **The results graph and the ranking math are the owner's reference**:
   `features/VotingSystem/MajorityJudgment/MajorityJudgmentResultsGraph.tsx`
-  with `majority-judgment.css`, and `utils/majorityJudgment.ts` with its tests.
-  Change them only when the owner asks (both were revised at his request on
-  2026-09-24). How results are ranked is his call: see "Questions for the
+  with `majority-judgment.css`, and `api/Ranking.java` with `RankingTest`.
+  Change them only when the owner asks (the graph was revised at his request
+  on 2026-09-24; the ranking moved to the server at his request on
+  2026-10-09). How results are ranked is his call: see "Questions for the
   owner" in the roadmap. Decided so far: with an even number of ballots the
   majority mention is the lower of the two middle mentions (more than half the
   voters, not half); ties on the majority mention are broken by the GMJ score
   alone, computed from the counts so that equal scores stay equal, and what is
   still tied shows ex aequo.
-- **Ranking stays in the client.** The server sends seven counts per option,
-  never a ranking.
+- **Ranking lives on the server, once.** `api/Ranking.java` derives each
+  option's `rank`, `majorityMention` and `score` from the counts, and the
+  counts go out beside it so the ranking can be checked. The client renders it
+  (`features/VotingSystem/ranked.ts`) and never recomputes it: two
+  implementations of the GMJ tie-break is one too many, and an agent reading
+  the results has none of its own. A ranking is null exactly when the tallies
+  are: a held-back poll's order would say who is winning.
+- **Options go out in the poll's own order, never sorted.** That order is what
+  a ballot's bytes are positions in. `rank` is how a client orders them.
 - **Every fetch sends credentials**, and so does `EventSource`: identity is an
   HttpOnly cookie. Without it, every request is a new voter, silently. (The
   dev ballot feeder leaves it out on purpose: `castBallotAsNewVoter`.)
+- **A bearer token beats the cookie, and a bad one is 401.** A client that is
+  not a browser sends `Authorization: Bearer <voter token>`, and gets no
+  cookie back. A *cookie* the server did not issue is replaced in silence,
+  which is right for a browser; a *bearer token* it did not issue answers 401,
+  because a client that chose to send a credential must not quietly start
+  voting as somebody else. `POST /api/voters` mints and never reveals: it
+  always answers a brand new voter, never the caller's own token.
+- **A problem's `type` is contract, its `detail` is prose.** Every failure the
+  server raises has a `ProblemType`; machine clients branch on it, so adding a
+  failure means adding one. `detail` stays the sentence a person reads.
+- **`PollView.handover` is a write-once secret.** Only the answer that created
+  the poll carries it, and only when the request asked for it. A test pins
+  that `GET /api/polls/{id}` never does.
 - **Visibility is enforced in `PollService`.** Nothing else can read the poll
   repositories: they are package-private.
 - **Ballot writes are `PUT` and wholesale**: the voter's one row is replaced,
   and what changed goes into `ballot_change`. An empty ballot withdraws.
+- **A change to a poll goes through `PollChangeService`.** Casting a ballot,
+  closing a poll and deleting one each need the change, then the fold, then
+  the push to watchers. Controllers and MCP tools both call it, so that none
+  of them can do the first and forget the rest (an early MCP tool did).
 - **Tallies are stored, never recounted.** Ballots only insert into
   `ballot_change`; `TallyFolding` folds it into `tally` and `ballot_count`
   (`TallyService.fold`). Nothing on the request path may update a counter or
@@ -168,8 +193,11 @@ shown to people as is: write it as a sentence for them.
   `usePoll` then loads and watches the poll again (`PollWatcher.onLost`).
 - **Browser tests**: a poll page keeps its event stream open, so "network
   idle" never comes. Wait for an element instead.
-- **The GMJ test file uses Jest-style globals** and value-imports types:
-  Vitest runs with `globals: true`, and `verbatimModuleSyntax` stays off.
+- **Vitest runs with `globals: true`** because Testing Library unmounts
+  between tests only when it finds a global `afterEach`; without it, one
+  test's DOM is still in the next one's queries. (It was also what the old
+  Jest-style GMJ test file needed, which is gone.) `verbatimModuleSyntax`
+  stays off.
 - **Dialogs hold their content only while open**, so that a live page does not
   re-render what nobody sees (the share dialog's QR code). jsdom has no
   `showModal()`: `src/test/setup.ts` stands in for it.
@@ -178,7 +206,10 @@ shown to people as is: write it as a sentence for them.
   reflection (`PersistenceConfiguration` now declares the converter), and the
   live stream's `PollUpdate`, which no controller signature mentions
   (`@RegisterReflectionForBinding` on the endpoint). A type serialized outside
-  a controller's signature needs the same; `-PnativeTest` finds what is missed.
+  a controller's signature needs the same - an MCP tool's answer as much as a
+  stream's payload (`Decision`, on `PollTools`), and a record fails with
+  "Record components not available" rather than anything about reflection.
+  `-PnativeTest`, or simply running the image, finds what is missed.
   Tests that cannot run natively (class-file scanning, Mockito) carry
   `@DisabledInNativeImage`.
 - **Server tests are silent when green** (`logback-test.xml`,
@@ -248,14 +279,25 @@ shown to people as is: write it as a sentence for them.
   runs while `folder` is set. Started first and assigned after, the thread
   once ran before the assignment, stopped at once, and the server never
   folded a ballot again (seen once, under load).
-- **A `-PnativeTest` run leaves AOT classes in `target/test-classes`**,
-  Spring Data's generated accessors among them. After changing an entity,
-  `./mvnw test` then fails with "No accessor to get property": delete
-  `target/test-classes` and `target/spring-aot`.
+- **An AOT build leaves generated classes in `target`**, and the next
+  `./mvnw test` reads them. `-PnativeTest` fills `target/test-classes` with
+  Spring Data's generated accessors, so after changing an entity the tests
+  fail with "No accessor to get property"; `-Pnative` fills `target/classes`
+  with `*__BeanDefinitions` and `*Impl__AotRepository`, so `ArchitectureTest`
+  reports entities that are not records and a public repository. Neither is
+  your code: delete `target/classes`, `target/test-classes` and
+  `target/spring-aot`, and never run a native build beside `./mvnw test`.
 - **PostgreSQL waits for locks forever unless told**: its URL carries
   `?options=-c%20lock_timeout%3D2s`, and its timeout (SQL state `55P03`),
   which Spring leaves uncategorized, is turned into a 409 in
   `ApiExceptionHandler`.
+- **An MCP tool's error text is doubled.** Spring AI builds it as
+  `message + lineSeparator + rootCause.message`, and an exception with no
+  cause is its own root. The sentence is right, just printed twice; it is not
+  worth code to work around.
+- **A new voter token is one request away** (`POST /api/voters`), so anything
+  that assumed "a voter costs a cookie round-trip" no longer holds. Rate
+  limits, keyed by network, are phase 6 (docs/ROADMAP.md).
 - **Tests wait for their fold** (`zvote.fold-patience: 10s`), so a ballot's
   answer counts it; in production the wait is 250 ms. The server's tests
   also pass on PostgreSQL: see `servers/java/README.md`.

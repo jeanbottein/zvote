@@ -1,14 +1,15 @@
 # zvote architecture
 
-One Java server and one web client. The server stores polls and ballots and
-counts them; the client shows them, lets people vote, and ranks the results.
+One Java server and one web client. The server stores polls and ballots,
+counts them and ranks the results; the client shows them and lets people vote.
+Agents reach the same services over the same API, or as MCP tools.
 The guiding rule is to keep the design as small as the problem allows: every
 layer below exists because something needed it.
 
 ```
  phone / desktop browser
  ┌──────────────────────────────┐
- │ React client (clients/web)   │  ranks the results (GMJ) and draws them
+ │ React client (clients/web)   │  draws the results and the ballots
  └──────────────┬───────────────┘
                 │ same origin: JSON over HTTP, and one event stream per open poll
  ┌──────────────┴───────────────┐
@@ -42,9 +43,10 @@ code, in six modules, one per package under `org.zvote.server`:
 |---|---|---|
 | `polls` | `common` | `Poll`, `PollOption`, `PollService`: every rule about polls; who may vote, in `InvitationService` and `InvitationLinks` |
 | `ballots` | nothing | ballots, one byte per option; their tallies (`TallyService`); `Mention` |
-| `api` | everything | controllers, the services that join polls and ballots, DTOs, error mapping |
-| `identity` | `common` | the voter cookie and `VoterIdentityFilter` |
+| `api` | everything | controllers, the services that join polls and ballots, DTOs, the ranking, error mapping, and the MCP tools |
+| `identity` | `common` | the voter token - cookie or bearer - and `VoterIdentityFilter` |
 | `live` | nothing | `PollStream`: server-sent events |
+| `idempotency` | `common` | doing a request's work once per `Idempotency-Key` |
 | `common` | nothing | `ZVoteProperties`, `VoterSecret`, `InvalidRequestException` |
 
 Each module says what it is, and which modules it may use, in its
@@ -55,7 +57,14 @@ what a ballot's bytes mean), nothing depends on `api`, `live` and `identity`
 know nothing about the domain, and there are no cycles. ArchUnit adds what a
 module declaration cannot say: repositories are package-private (so only the
 service beside one can use it), data classes are records, and nothing imports
-Reactor.
+Reactor. (The MCP SDK brings Reactor onto the classpath; none of our code
+touches it, which is what that rule checks.)
+
+The MCP tools (`api.mcp`) sit inside `api` rather than beside it: they are a
+second protocol over the same services, not a layer, and `api` is the module
+that may use every other. Casting a ballot, closing a poll and deleting one go
+through `PollChangeService` whichever way they arrive, so that no caller can
+make the change and forget to fold the ballots in or tell the watchers.
 
 ### Casting a ballot, step by step
 
@@ -269,15 +278,30 @@ for another on a counter.
   be recomputed from the ballots (`PollApiTest.Tallies` does).
 
 A view's queries share one snapshot (a read-only, repeatable-read
-transaction), so its tallies and its ballot count always agree. The server sends
-counts, not rankings: majority judgment is ranked by the client
-(`utils/majorityJudgment.ts`). An option's majority mention is the best mention
-that more than half of the voters give it or better; with an even number of
-ballots that is the lower of the two middle mentions, as in Balinski and
-Laraki's definition. Ties between equal majority mentions are broken by the
-GMJ score. Missing grades
-on a majority judgment ballot are stored as `Bad`, the method's convention for
-"no opinion", so that every option's median is taken over the same voters.
+transaction), so its tallies and its ballot count always agree.
+
+The server sends the counts **and** the ranking it derives from them
+(`api/Ranking.java`, pinned by `RankingTest`). An option's majority mention is
+the best mention that more than half of the voters give it or better; with an
+even number of ballots that is the lower of the two middle mentions, as in
+Balinski and Laraki's definition. Ties between equal majority mentions are
+broken by the GMJ Usual score, kept as the exact fraction
+`(above - below) / at` and compared by cross-multiplication, so that equal
+scores stay equal and different ones stay apart however many ballots there
+are. What is still tied shares a rank. Approval options are ranked by their
+approvals the same way, so rank 1 means the winner in both systems.
+
+It is computed once per update, on the server, rather than once in every
+watcher's browser, and the counts travel beside it so the ranking can be
+checked rather than believed. It lives there, and only there, because an agent
+reading the results has no tested implementation of its own and would get the
+tie-break wrong; the client renders what it is sent. Results a poll keeps back
+carry no ranking either: the order would say who is winning as plainly as the
+counts would.
+
+Missing grades on a majority judgment ballot are stored as `Bad`, the method's
+convention for "no opinion", so that every option's median is taken over the
+same voters.
 
 ### Live updates
 
@@ -401,7 +425,7 @@ src/
     Approval/          ballot, results, ranking
   preferences/         theme, palette, ballot style, live/envelope submission
   ui/                  shared pieces: dialog, segmented control, toasts, icons, keys
-  utils/               majorityJudgment.ts: the GMJ ranking math; formatCount.ts
+  utils/               formatCount.ts and the like
   test/                the test setup, rendering helpers and shared fixtures
   style.css            tokens, layout, shared components
 ```
@@ -461,8 +485,8 @@ they will show.
 
 ### The results visualisation
 
-`MajorityJudgmentResultsGraph.tsx` draws one card per option, ranked by
-`utils/majorityJudgment.ts`. Its centrepiece is the option's merit profile: one
+`MajorityJudgmentResultsGraph.tsx` draws one card per option, in the order the
+server ranked them (`features/VotingSystem/ranked.ts`). Its centrepiece is the option's merit profile: one
 bar whose slices are the seven mentions, best on the left, each exactly as wide
 as its share of the ballots. A graduated axis sits right under the bar, never
 on it; its bold 50% mark points at the majority mention, the one above it.
@@ -511,7 +535,7 @@ Playwright is on the roadmap.
 | H2 in file mode | No database to install or configure; the data file moves between machines. PostgreSQL arrives with deployment. |
 | Tallies stored and folded from a change log, rebuildable from the ballots | Reading them costs the same at any size, and ballots never wait for each other on a counter. |
 | One row per ballot, one byte per option | 183 bytes a ballot, and one row to replace when it changes. |
-| Ranking in the client | Majority judgment math lives in one tested module, next to the visualisation. |
+| Ranking on the server | One tested implementation (`api/Ranking.java`), computed once per update rather than once per watcher, and sent with the counts it was derived from so it can be checked. It was the client's until agents needed the winner too, and two implementations of a tie-break is one too many. |
 | `PUT` for ballots | One ballot per voter per poll; cast, revise and withdraw are one operation, and retries are safe. |
 | Share token as the only id | One identifier, unguessable, that doubles as the unlisted-poll secret. |
 | Hashed voter ids | The database alone cannot be used to act as someone. |
