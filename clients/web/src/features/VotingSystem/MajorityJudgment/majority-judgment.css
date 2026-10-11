@@ -57,47 +57,46 @@
   width: 26px;
   height: 26px;
   border-radius: 50%;
-  background: rgba(0, 0, 0, 0.8);
-  color: white;
+  background: var(--fg); /* the page's ink and paper, so it shows in light and dark */
+  color: var(--bg);
   font-size: 15px;
   font-weight: bold;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
-/* Medals, with a metallic gradient */
+/* Medals, with a metallic gradient. Dark digits: light ones fell to 1.1:1 on the metal. */
 .mj-rank-badge[data-medal="gold"] {
   background: linear-gradient(135deg, #ffd700 0%, #ffed4e 25%, #ffd700 50%, #b8860b 75%, #ffd700 100%);
   border: 2px solid #8b6914;
-  color: #fff8dc;
+  color: #3d2c00;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.3);
-  text-shadow: 0 1px 2px rgba(139, 105, 20, 0.8);
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.35);
 }
 
 .mj-rank-badge[data-medal="silver"] {
   background: linear-gradient(135deg, #c0c0c0 0%, #e8e8e8 25%, #c0c0c0 50%, #a0a0a0 75%, #c0c0c0 100%);
   border: 2px solid #606060;
-  color: #f5f5f5;
+  color: #1f1f1f;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.3);
-  text-shadow: 0 1px 2px rgba(96, 96, 96, 0.8);
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.35);
 }
 
 .mj-rank-badge[data-medal="bronze"] {
   background: linear-gradient(135deg, #cd7f32 0%, #daa520 25%, #cd7f32 50%, #8b4513 75%, #cd7f32 100%);
   border: 2px solid #654321;
-  color: #faebd7;
+  color: #2b1708;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.2);
-  text-shadow: 0 1px 2px rgba(101, 67, 33, 0.8);
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.25);
 }
 
 .mj-ex-aequo {
   padding: 2px 6px;
   border-radius: 4px;
-  background: #fce7f3;
-  color: #065f46;
+  background: var(--surface-sunken); /* neutral: pink and green would read as mentions */
+  color: var(--muted);
   font-size: 12px;
   font-style: italic;
   white-space: nowrap;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
 }
 
 /* The winner glows */

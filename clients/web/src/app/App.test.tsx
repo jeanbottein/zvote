@@ -76,10 +76,10 @@ describe('the settings', () => {
     await userEvent.click(within(settings).getByRole('radio', { name: 'Shades of grey' }));
     await userEvent.click(within(settings).getByRole('radio', { name: 'Envelope' }));
 
-    expect(document.documentElement.dataset.theme).toBe('dark');
+    expect(document.documentElement.dataset.appearance).toBe('dark');
     expect(document.body.dataset.colorblind).toBe('true');
     expect(within(settings).getByText('Fill in your ballot, then submit it in one go.')).toBeInTheDocument();
-    expect(loadPreferences()).toMatchObject({ theme: 'dark', colorblind: true, submission: 'envelope' });
+    expect(loadPreferences()).toMatchObject({ appearance: 'dark', colorblind: true, submission: 'envelope' });
   });
 
   it('close with their button, and with a tap beside them', async () => {

@@ -14,55 +14,55 @@ afterEach(() => {
 describe('loading the preferences', () => {
   it('starts from the defaults', () => {
     expect(loadPreferences()).toEqual({
-      theme: 'system', colorblind: false, mjBallot: 'scale', submission: 'live', voterName: '',
+      appearance: 'system', colorblind: false, mjBallot: 'scale', submission: 'live', voterName: '',
     });
   });
 
   it('keeps what was saved, and the defaults for the rest', () => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ theme: 'dark', submission: 'envelope' }));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ appearance: 'dark', submission: 'envelope' }));
 
     expect(loadPreferences()).toEqual({
-      theme: 'dark', colorblind: false, mjBallot: 'scale', submission: 'envelope', voterName: '',
+      appearance: 'dark', colorblind: false, mjBallot: 'scale', submission: 'envelope', voterName: '',
     });
   });
 
   it('falls back to the defaults when what was saved cannot be read', () => {
     localStorage.setItem(STORAGE_KEY, '{not json');
 
-    expect(loadPreferences().theme).toBe('system');
+    expect(loadPreferences().appearance).toBe('system');
   });
 });
 
 describe('applying the preferences', () => {
-  it('puts the theme on <html> and the grey palette on <body>, where the stylesheets look', () => {
-    applyPreferences({ theme: 'dark', colorblind: true });
+  it('puts the appearance on <html> and the grey palette on <body>, where the stylesheets look', () => {
+    applyPreferences({ appearance: 'dark', colorblind: true });
 
-    expect(document.documentElement.dataset.theme).toBe('dark');
+    expect(document.documentElement.dataset.appearance).toBe('dark');
     expect(document.body.dataset.colorblind).toBe('true');
 
-    applyPreferences({ theme: 'system', colorblind: false });
+    applyPreferences({ appearance: 'system', colorblind: false });
 
-    expect(document.documentElement).not.toHaveAttribute('data-theme');
+    expect(document.documentElement).not.toHaveAttribute('data-appearance');
     expect(document.body).not.toHaveAttribute('data-colorblind');
   });
 });
 
 describe("the browser's own bars", () => {
-  it('take the colour of a chosen theme, and follow the device otherwise', () => {
+  it('take the colour of a chosen appearance, and follow the device otherwise', () => {
     // As in index.html.
     document.head.insertAdjacentHTML('beforeend', `
-      <meta name="theme-color" content="#68cc92" media="(prefers-color-scheme: light)" data-scheme="light">
-      <meta name="theme-color" content="#124d38" media="(prefers-color-scheme: dark)" data-scheme="dark">`);
+      <meta name="theme-color" content="#f4f5f7" media="(prefers-color-scheme: light)" data-scheme="light">
+      <meta name="theme-color" content="#0f1115" media="(prefers-color-scheme: dark)" data-scheme="dark">`);
     const media = () => [...document.querySelectorAll<HTMLMetaElement>('meta[name="theme-color"]')]
       .map((meta) => meta.media);
 
-    applyPreferences({ theme: 'dark', colorblind: false });
+    applyPreferences({ appearance: 'dark', colorblind: false });
     expect(media()).toEqual(['not all', 'all']);
 
-    applyPreferences({ theme: 'light', colorblind: false });
+    applyPreferences({ appearance: 'light', colorblind: false });
     expect(media()).toEqual(['all', 'not all']);
 
-    applyPreferences({ theme: 'system', colorblind: false });
+    applyPreferences({ appearance: 'system', colorblind: false });
     expect(media()).toEqual(['(prefers-color-scheme: light)', '(prefers-color-scheme: dark)']);
 
     document.head.querySelectorAll('meta[name="theme-color"]').forEach((meta) => meta.remove());
@@ -75,11 +75,11 @@ describe('changing a preference', () => {
   it('applies it, and remembers it for the next visit', () => {
     const { result } = renderHook(() => usePreferences(), { wrapper });
 
-    act(() => result.current[1]({ theme: 'light' }));
+    act(() => result.current[1]({ appearance: 'light' }));
 
-    expect(result.current[0].theme).toBe('light');
-    expect(document.documentElement.dataset.theme).toBe('light');
-    expect(JSON.parse(localStorage.getItem(STORAGE_KEY)!)).toMatchObject({ theme: 'light', submission: 'live' });
+    expect(result.current[0].appearance).toBe('light');
+    expect(document.documentElement.dataset.appearance).toBe('light');
+    expect(JSON.parse(localStorage.getItem(STORAGE_KEY)!)).toMatchObject({ appearance: 'light', submission: 'live' });
   });
 
   it('still applies it when this browser cannot remember it', () => {

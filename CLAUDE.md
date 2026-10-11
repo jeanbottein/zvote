@@ -81,7 +81,9 @@ not a record, or anything imports Reactor (ArchUnit).
 `useBallot`: live or envelope ballot). `src/features/VotingSystem/*` holds
 presentational ballots and results per voting system. `src/ui` holds shared
 pieces, `src/preferences` the voter's settings, `src/app` the shell and routes
-(`/`, `/new`, `/p/:id`, `/about`).
+(`/`, `/new`, `/p/:id`, `/about`). How it looks (tokens, light/dark and
+themes, components, contrast) is `docs/DESIGN.md`: read it before changing a
+stylesheet.
 
 **Contract**: `docs/API.md`. Mirror every DTO change in
 `clients/web/src/api/types.ts`. A poll's `id` is its share token, the only id
