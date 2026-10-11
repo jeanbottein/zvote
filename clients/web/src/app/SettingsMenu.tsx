@@ -17,14 +17,14 @@ export default function SettingsMenu() {
         <div className="settings">
           <SegmentedControl
             legend="Appearance"
-            name="theme"
-            value={preferences.theme}
+            name="appearance"
+            value={preferences.appearance}
             options={[
               { value: 'light', label: 'Light' },
               { value: 'system', label: 'Automatic' },
               { value: 'dark', label: 'Dark' },
             ]}
-            onChange={(theme) => update({ theme })}
+            onChange={(appearance) => update({ appearance })}
           />
           <SegmentedControl
             legend="Mention colours"

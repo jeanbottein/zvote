@@ -1,5 +1,6 @@
 import { Link, useLocation } from 'react-router';
 import { BackIcon } from '../ui/icons';
+import Logo from '../ui/Logo';
 import SettingsMenu from './SettingsMenu';
 
 export default function Header() {
@@ -15,7 +16,7 @@ export default function Header() {
             <BackIcon />
           </Link>
         )}
-        <Link to="/" className="brand">zvote</Link>
+        <Link to="/" className="brand"><Logo />zvote</Link>
         <SettingsMenu />
       </div>
     </header>

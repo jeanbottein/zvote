@@ -423,8 +423,8 @@ src/
   features/VotingSystem/
     MajorityJudgment/  ballots (colour scale, dropdowns), results, mention names
     Approval/          ballot, results, ranking
-  preferences/         theme, palette, ballot style, live/envelope submission
-  ui/                  shared pieces: dialog, segmented control, toasts, icons, keys
+  preferences/         appearance, mention palette, ballot style, live/envelope submission
+  ui/                  shared pieces: dialog, segmented control, toasts, icons, logo, keys
   utils/               formatCount.ts and the like
   test/                the test setup, rendering helpers and shared fixtures
   style.css            tokens, layout, shared components
@@ -503,9 +503,13 @@ makes iOS zoom in), nothing depends on hovering, and the header and dialogs
 respect the notch and home-bar safe areas. On phones, dialogs open as sheets
 from the bottom.
 
-Colours are CSS custom properties. The dark set applies when the device prefers
-dark, or when the voter picks a theme in Settings (`data-theme` on `<html>`).
-The seven mention colours are defined once, in
+Colours are CSS custom properties, each declared once for light and dark with
+`light-dark()`. The scheme follows the device unless the voter picks one in
+Settings (`data-appearance` on `<html>`, set by `index.html` before the first
+paint). A theme is a palette, one block of tokens under `data-theme`; there is
+one so far. The production build lowers `light-dark()` for its oldest target,
+Safari 16.4. The design system itself (tokens, themes, components, contrast)
+is in [DESIGN.md](DESIGN.md). The seven mention colours are defined once, in
 `features/VotingSystem/MajorityJudgment/mentions.css`, for the results and the
 ballots alike: anything showing a mention carries `data-judgment` or
 `data-mention` and paints itself with `--mention`. The grey palette

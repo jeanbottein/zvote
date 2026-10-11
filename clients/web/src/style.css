@@ -1,12 +1,14 @@
-/* zvote - global styles.
+/* zvote - global styles. The system behind them: docs/DESIGN.md.
  *
  * Mobile first: everything is laid out for a phone held upright, and wider
  * screens only get more room. Tap targets are at least 44px, inputs use 16px
  * text (smaller makes iOS zoom in), and nothing depends on hovering.
  *
- * Colours are tokens. The dark set applies when the device prefers dark, or
- * when the voter picks it in Settings (data-theme on <html>); keep the two
- * dark blocks identical.
+ * Colours are tokens, each defined once for both schemes with light-dark().
+ * The scheme follows the device (color-scheme: light dark) unless the voter
+ * picks one in Settings (data-appearance on <html>). A theme is a palette: a
+ * block that redefines tokens under :root[data-theme="<name>"]. The default
+ * theme is the bare :root below.
  */
 
 /* ------------------------------------------------------------------ */
@@ -14,95 +16,90 @@
 /* ------------------------------------------------------------------ */
 
 :root {
-  color-scheme: light;
-  --fg: #10241d;
-  --muted: #4b5d54;
-  --bg: #eef6f0;
-  --panel: rgba(255, 255, 255, 0.74);
-  --panel-solid: #ffffff;
-  --card: rgba(255, 255, 255, 0.8);
-  --border: rgba(16, 36, 31, 0.16);
-  --border-hover: rgba(50, 100, 200, 0.5);
-  --accent: rgb(50, 100, 200);
-  --accent-hover: rgb(40, 80, 180);
-  --accent-fg: #ffffff;
-  --accent-soft: rgba(50, 100, 200, 0.12);
-  --success: #15803d;
-  --success-fg: #ffffff;
-  --danger: #c62828;
-  --danger-fg: #ffffff;
-  --danger-text: #b3261e;
-  --focus: rgb(50, 100, 200);
-  --ballot: rgba(214, 172, 100, 0.85);
-  --ballot-fg: #231706;
-  --shadow: 0 8px 24px rgba(30, 70, 150, 0.12);
-  --gradient-a: #70b2cf;
-  --gradient-b: #68cc92;
-  --gradient-c: #ebe6a2;
+  color-scheme: light dark;
 
-  --radius: 14px;
-  --radius-small: 10px;
+  /* Surfaces, from the page up to what the voter holds. */
+  --bg: light-dark(#f4f5f7, #0f1115);
+  --surface: light-dark(#ffffff, #171a20);
+  --surface-raised: light-dark(#ffffff, #1f232a);
+  --surface-sunken: light-dark(#eef0f3, #111318);
+  --surface-hover: light-dark(#f4f5f7, #232832);
+  --field: light-dark(#ffffff, #111318);
+  --card: light-dark(#ffffff, #1b1f25);
+  --hover: color-mix(in srgb, currentColor 8%, transparent); /* a tint of the text it sits under */
+
+  /* Text, and the lines between things. */
+  --fg: light-dark(#15171c, #eceef2);
+  --muted: light-dark(#5b6170, #a3a9b6);
+  --border: light-dark(#e1e4e9, #2b3039);
+  --border-strong: light-dark(#7c8290, #727988);
+  --mention-edge: light-dark(rgb(0 0 0 / 0.14), rgb(255 255 255 / 0.16)); /* around a mention's colour */
+
+  /* Ink: what can be acted on. Never red, yellow or green: those are mentions. */
+  --accent: light-dark(#2f4ad0, #4560e8);
+  --accent-hover: light-dark(#2539a8, #3a52d6);
+  --accent-fg: #ffffff;
+  --accent-text: light-dark(#2f4ad0, #9db0ff);
+  --accent-soft: light-dark(#e9edfc, #1b2139);
+  --focus: light-dark(#2f4ad0, #9db0ff);
+
+  /* What cannot be undone, and what to be careful of. */
+  --danger: light-dark(#c42d27, #cc3a33);
+  --danger-hover: light-dark(#a6241f, #b8302a);
+  --danger-fg: #ffffff;
+  --danger-text: light-dark(#b42318, #ff8b82);
+  --danger-soft: light-dark(#fcebea, #2b1718);
+  --warning-text: light-dark(#8a4a00, #f0b45e);
+
+  /* Above the page. */
+  --backdrop: light-dark(rgb(15 17 21 / 0.45), rgb(0 0 0 / 0.6));
+  --toast: light-dark(#23272f, #eceef2);
+  --toast-fg: light-dark(#ffffff, #15171c);
+
+  /* Elevation. Shadows take a colour, so each scheme gives its own. */
+  --shadow-color: light-dark(rgb(17 24 39 / 0.07), rgb(0 0 0 / 0.4));
+  --shadow-1: 0 1px 2px var(--shadow-color);
+  --shadow-2: 0 1px 2px var(--shadow-color), 0 6px 20px var(--shadow-color);
+  --shadow-3: 0 10px 32px var(--shadow-color), 0 24px 64px var(--shadow-color);
+
+  /* The light over the top of every page, from the logo's bands. */
+  --glow-red: light-dark(rgb(242 149 140 / 0.3), rgb(242 149 140 / 0.09));
+  --glow-yellow: light-dark(rgb(250 235 158 / 0.36), rgb(250 235 158 / 0.06));
+  --glow-green: light-dark(rgb(163 220 186 / 0.3), rgb(163 220 186 / 0.07));
+
+  /* The logo's frame and paper (src/ui/Logo.tsx); its bands keep their colours. */
+  --logo-frame-start: light-dark(#333333, #eef0f3);
+  --logo-frame-end: light-dark(#1a1a1a, #cfd3da);
+  --logo-paper-start: light-dark(#ffffff, #2a2e36);
+  --logo-paper-end: light-dark(#e5e5e5, #1f2228);
+
+  /* Shape and room. */
+  --radius-large: 16px;
+  --radius: 12px;
+  --radius-small: 8px;
   --tap: 44px;
+  --header-height: 56px;
   --page-width: 760px;
   --gutter: 16px;
+  --panel-padding: 16px;
+
+  --font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  /* Icons drawn with mask-image, in the colour of the element that shows them. */
+  --icon-check: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12.5l4.5 4.5L19 7.5'/%3E%3C/svg%3E");
+  --icon-warning: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z'/%3E%3Cpath d='M12 9v4M12 17h.01'/%3E%3C/svg%3E");
 }
 
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    color-scheme: dark;
-    --fg: #e9fbef;
-    --muted: #a5c9b6;
-    --bg: #0b1210;
-    --panel: rgba(16, 24, 21, 0.74);
-    --panel-solid: #131d19;
-    --card: rgba(0, 0, 0, 0.55);
-    --border: rgba(140, 180, 160, 0.26);
-    --border-hover: rgba(120, 160, 245, 0.65);
-    --accent: rgb(84, 132, 232);
-    --accent-hover: rgb(104, 150, 245);
-    --accent-fg: #ffffff;
-    --accent-soft: rgba(84, 132, 232, 0.22);
-    --success: #4ade80;
-    --success-fg: #06230f;
-    --danger: #c62828;
-    --danger-fg: #ffffff;
-    --danger-text: #ff8a80;
-    --focus: rgb(150, 185, 255);
-    --ballot: rgba(122, 90, 42, 0.85);
-    --ballot-fg: #fbf1dc;
-    --shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
-    --gradient-a: #0f2f3d;
-    --gradient-b: #124d38;
-    --gradient-c: #3a3614;
-  }
+/* The appearance chosen in Settings. Nothing else sets color-scheme: the
+   production build turns light-dark() into variables that resolve on :root,
+   where the tokens are declared, so a subtree cannot switch scheme alone. */
+:root[data-appearance="light"] {
+  color-scheme: light;
 }
 
-:root[data-theme="dark"] {
+:root[data-appearance="dark"] {
   color-scheme: dark;
-  --fg: #e9fbef;
-  --muted: #a5c9b6;
-  --bg: #0b1210;
-  --panel: rgba(16, 24, 21, 0.74);
-  --panel-solid: #131d19;
-  --card: rgba(0, 0, 0, 0.55);
-  --border: rgba(140, 180, 160, 0.26);
-  --border-hover: rgba(120, 160, 245, 0.65);
-  --accent: rgb(84, 132, 232);
-  --accent-hover: rgb(104, 150, 245);
-  --accent-fg: #ffffff;
-  --accent-soft: rgba(84, 132, 232, 0.22);
-  --success: #4ade80;
-  --success-fg: #06230f;
-  --danger: #c62828;
-  --danger-fg: #ffffff;
-  --danger-text: #ff8a80;
-  --focus: rgb(150, 185, 255);
-  --ballot: rgba(122, 90, 42, 0.85);
-  --ballot-fg: #fbf1dc;
-  --shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
-  --gradient-a: #0f2f3d;
-  --gradient-b: #124d38;
-  --gradient-c: #3a3614;
 }
 
 /* ------------------------------------------------------------------ */
@@ -126,35 +123,50 @@ body {
   min-height: 100dvh;
   background: var(--bg);
   color: var(--fg);
-  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-family: var(--font);
   font-size: 16px;
   line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
   -webkit-tap-highlight-color: transparent;
 }
 
-/* A fixed layer rather than background-attachment: fixed, which iOS ignores. */
+/* A faint light at the top of the page, in the logo's colours, red to green
+   as its bands run. It scrolls away: ballots and results sit on plain paper. */
 body::before {
   content: "";
-  position: fixed;
-  inset: 0;
+  position: absolute;
+  inset: 0 0 auto;
   z-index: -1;
-  background: linear-gradient(42deg, var(--gradient-a) 0%, var(--gradient-b) 50%, var(--gradient-c) 100%);
+  height: 480px;
+  background: linear-gradient(200deg, var(--glow-red), var(--glow-yellow) 50%, var(--glow-green));
+  mask-image: linear-gradient(#000 20%, transparent);
+  pointer-events: none;
 }
 
 h1,
-h2 {
+h2,
+h3 {
   line-height: 1.2;
   text-wrap: balance;
 }
 
 h1 {
   margin: 0 0 12px;
-  font-size: clamp(24px, 6vw, 32px);
+  font-size: clamp(24px, 6.2vw, 32px);
+  font-weight: 700;
+  letter-spacing: -0.02em;
 }
 
 h2 {
   margin: 0 0 12px;
   font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+h3 {
+  font-weight: 600;
 }
 
 p {
@@ -162,11 +174,17 @@ p {
 }
 
 a {
-  color: var(--accent);
+  color: var(--accent-text);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+
+a:hover {
+  text-decoration-thickness: 2px;
 }
 
 :focus-visible {
-  outline: 3px solid var(--focus);
+  outline: 2px solid var(--focus);
   outline-offset: 2px;
 }
 
@@ -193,14 +211,21 @@ a {
   font-weight: 600;
 }
 
+.panel.error-text {
+  border-color: transparent;
+  background: var(--danger-soft);
+  box-shadow: none;
+}
+
 .badge {
   display: inline-block;
   padding: 1px 8px;
   border-radius: 999px;
-  background: var(--accent-soft);
-  color: var(--fg);
+  background: var(--surface-sunken);
+  color: var(--muted);
   font-size: 12px;
   font-weight: 600;
+  line-height: 1.5;
   vertical-align: middle;
 }
 
@@ -224,9 +249,9 @@ a {
   z-index: 10;
   padding-top: env(safe-area-inset-top);
   border-bottom: 1px solid var(--border);
-  background: var(--panel);
-  -webkit-backdrop-filter: saturate(140%) blur(12px);
-  backdrop-filter: saturate(140%) blur(12px);
+  background: color-mix(in srgb, var(--bg) 82%, transparent);
+  -webkit-backdrop-filter: saturate(180%) blur(16px);
+  backdrop-filter: saturate(180%) blur(16px);
 }
 
 .app-header-inner {
@@ -234,18 +259,33 @@ a {
   grid-template-columns: var(--tap) 1fr var(--tap);
   align-items: center;
   max-width: var(--page-width);
-  min-height: 56px;
+  min-height: var(--header-height);
   margin: 0 auto;
   padding: 0 max(8px, env(safe-area-inset-right)) 0 max(8px, env(safe-area-inset-left));
 }
 
+/* The mark and the name, as one link home. */
 .brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   justify-self: center;
+  padding: 4px 8px;
+  border-radius: var(--radius-small);
   color: var(--fg);
-  font-size: 22px;
-  font-weight: 800;
-  letter-spacing: -0.02em;
+  font-size: 21px;
+  font-weight: 750;
+  letter-spacing: -0.03em;
+  line-height: 1;
   text-decoration: none;
+}
+
+.logo {
+  display: block;
+  flex: none;
+  width: 30px;
+  height: auto;
+  aspect-ratio: 230 / 202;
 }
 
 .page {
@@ -256,18 +296,16 @@ a {
   margin: 0 auto;
   padding: var(--gutter)
     max(var(--gutter), env(safe-area-inset-right))
-    24px
+    32px
     max(var(--gutter), env(safe-area-inset-left));
 }
 
 .panel {
-  padding: 16px;
+  padding: var(--panel-padding);
   border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--panel);
-  box-shadow: var(--shadow);
-  -webkit-backdrop-filter: saturate(120%) blur(12px);
-  backdrop-filter: saturate(120%) blur(12px);
+  border-radius: var(--radius-large);
+  background: var(--surface);
+  box-shadow: var(--shadow-1);
 }
 
 .section-header {
@@ -286,10 +324,11 @@ a {
 @media (min-width: 640px) {
   :root {
     --gutter: 24px;
+    --panel-padding: 24px;
   }
 
-  .panel {
-    padding: 20px 24px;
+  .page {
+    gap: 20px;
   }
 }
 
@@ -305,13 +344,14 @@ a {
   min-height: var(--tap);
   padding: 0 18px;
   border: 1px solid transparent;
-  border-radius: var(--radius-small);
+  border-radius: var(--radius);
   font: inherit;
   font-weight: 600;
+  line-height: 1.2;
   text-align: center;
   text-decoration: none;
   cursor: pointer;
-  transition: background-color 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+  transition: background-color 0.12s ease, border-color 0.12s ease, color 0.12s ease, transform 0.1s ease;
 }
 
 .button:active:not(:disabled) {
@@ -319,18 +359,20 @@ a {
 }
 
 .button:disabled {
-  opacity: 0.55;
+  opacity: 0.5;
   cursor: not-allowed;
 }
 
 .button .icon {
   width: 20px;
   height: 20px;
+  margin-inline-start: -2px; /* an icon looks indented by its own padding */
 }
 
 .button.primary {
   background: var(--accent);
   color: var(--accent-fg);
+  box-shadow: var(--shadow-1);
 }
 
 .button.primary:hover:not(:disabled) {
@@ -338,26 +380,36 @@ a {
 }
 
 .button.secondary {
-  border-color: var(--border);
-  background: var(--panel-solid);
+  border-color: var(--border-strong);
+  background: var(--surface);
   color: var(--fg);
 }
 
 .button.secondary:hover:not(:disabled) {
-  border-color: var(--border-hover);
+  background: var(--surface-hover);
 }
 
 .button.danger {
   background: var(--danger);
   color: var(--danger-fg);
+  box-shadow: var(--shadow-1);
+}
+
+.button.danger:hover:not(:disabled) {
+  background: var(--danger-hover);
 }
 
 .button.link {
   padding: 0 8px;
   background: none;
-  color: inherit;
+  color: var(--accent-text);
   text-decoration: underline;
+  text-decoration-thickness: 1px;
   text-underline-offset: 3px;
+}
+
+.button.link:hover:not(:disabled) {
+  text-decoration-thickness: 2px;
 }
 
 .button.wide {
@@ -374,6 +426,7 @@ a {
 .icon-button-placeholder {
   display: inline-grid;
   place-items: center;
+  flex: none;
   width: var(--tap);
   height: var(--tap);
   padding: 0;
@@ -382,10 +435,11 @@ a {
   background: transparent;
   color: inherit;
   cursor: pointer;
+  transition: background-color 0.12s ease;
 }
 
 .icon-button:hover {
-  background: var(--accent-soft);
+  background: var(--hover);
 }
 
 /* ------------------------------------------------------------------ */
@@ -397,27 +451,40 @@ select {
   width: 100%;
   min-height: var(--tap);
   padding: 10px 12px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-small);
-  background: var(--panel-solid);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  background: var(--field);
   color: var(--fg);
   font: inherit;
   font-size: max(16px, 1em);
+  transition: border-color 0.12s ease;
 }
 
+input::placeholder {
+  color: var(--muted);
+  opacity: 1;
+}
+
+/* One grey for the arrow that reads on light and dark fields alike. */
 select {
   appearance: none;
-  padding-right: 36px;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
-  background-position: right 10px center;
+  padding-right: 40px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%237d8492' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-position: right 12px center;
   background-repeat: no-repeat;
   background-size: 18px;
   cursor: pointer;
 }
 
-input:hover:not(:disabled),
-select:hover:not(:disabled) {
-  border-color: var(--border-hover);
+input:hover:not(:disabled, :focus),
+select:hover:not(:disabled, :focus) {
+  border-color: var(--muted);
+}
+
+/* The ring sits over the border, so the field keeps its size. */
+input:focus-visible,
+select:focus-visible {
+  outline-offset: -1px;
 }
 
 input[aria-invalid="true"] {
@@ -441,11 +508,26 @@ fieldset.field {
 .field > legend,
 .segmented > legend {
   padding: 0;
-  font-weight: 700;
+  font-weight: 600;
 }
 
+/* A hint that warns of a consequence: its own colour, and an icon, so that
+   colour is not the only sign. Amber, not red: nothing is wrong yet. */
 .hint[data-tone="warning"] {
-  color: var(--danger-text);
+  position: relative;
+  padding-left: 24px;
+  color: var(--warning-text);
+}
+
+.hint[data-tone="warning"]::before {
+  content: "";
+  position: absolute;
+  top: 1px;
+  left: 0;
+  width: 17px;
+  height: 17px;
+  background: currentColor;
+  mask: var(--icon-warning) center / contain no-repeat;
 }
 
 .results-after input {
@@ -472,12 +554,14 @@ fieldset.field {
   margin-bottom: 8px;
 }
 
+/* A track, and the chosen option lifted out of it. */
 .segmented-options {
   display: flex;
   gap: 4px;
   padding: 4px;
-  border-radius: 12px;
-  background: var(--accent-soft);
+  border-radius: var(--radius);
+  background: var(--surface-sunken);
+  box-shadow: inset 0 0 0 1px var(--border);
 }
 
 .segmented-option {
@@ -502,22 +586,27 @@ fieldset.field {
   justify-content: center;
   min-height: 40px;
   padding: 4px 8px;
-  border-radius: 9px;
+  border-radius: var(--radius-small);
   color: var(--muted);
   font-size: 15px;
   font-weight: 600;
   line-height: 1.2;
   text-align: center;
+  transition: background-color 0.12s ease, color 0.12s ease;
+}
+
+.segmented-option:hover input:not(:checked) + span {
+  color: var(--fg);
 }
 
 .segmented-option input:checked + span {
-  background: var(--panel-solid);
+  background: var(--surface-raised);
   color: var(--fg);
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.18);
+  box-shadow: 0 1px 3px var(--shadow-color), 0 0 0 1px var(--border);
 }
 
 .segmented-option input:focus-visible + span {
-  outline: 3px solid var(--focus);
+  outline: 2px solid var(--focus);
   outline-offset: 1px;
 }
 
@@ -529,24 +618,30 @@ fieldset.field {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 14px;
-  padding: 16px 4px 8px;
+  gap: 16px;
+  padding: 20px 4px 12px;
+}
+
+.hero .logo {
+  width: 64px;
+  margin-bottom: 4px;
 }
 
 .hero h1 {
   margin: 0;
-  font-size: clamp(30px, 8vw, 42px);
-  letter-spacing: -0.02em;
+  font-size: clamp(32px, 9vw, 44px);
+  letter-spacing: -0.03em;
+  line-height: 1.1;
 }
 
 .hero p {
-  max-width: 36em;
+  max-width: 34em;
   font-size: 17px;
 }
 
 /* A join code, typed or shown: capitals and digits that stay apart. */
 .join-code {
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-family: var(--font-mono);
   font-weight: 700;
   letter-spacing: 0.08em;
 }
@@ -558,7 +653,7 @@ fieldset.field {
 }
 
 .join-form > label {
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .join-row {
@@ -572,13 +667,17 @@ fieldset.field {
   text-transform: uppercase;
 }
 
+/* Rows that run to the panel's edges, so the whole width is the tap target. */
 .poll-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  margin: 0;
+  margin: 4px calc(-1 * var(--panel-padding)) calc(-1 * var(--panel-padding) + 8px);
   padding: 0;
   list-style: none;
+}
+
+.poll-list li + li {
+  border-top: 1px solid var(--border);
 }
 
 .poll-list-item {
@@ -586,27 +685,32 @@ fieldset.field {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  min-height: 56px;
-  padding: 10px 36px 10px 14px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-small);
-  background: var(--panel-solid);
+  min-height: 60px;
+  padding: 10px 44px 10px var(--panel-padding);
   color: var(--fg);
   text-decoration: none;
+  transition: background-color 0.12s ease;
 }
 
 .poll-list-item::after {
-  content: "›";
+  content: "";
   position: absolute;
   top: 50%;
-  right: 14px;
-  color: var(--muted);
-  font-size: 24px;
-  transform: translateY(-50%);
+  right: calc(var(--panel-padding) - 2px);
+  width: 9px;
+  height: 9px;
+  border-top: 2px solid var(--muted);
+  border-right: 2px solid var(--muted);
+  transform: translate(-25%, -50%) rotate(45deg);
 }
 
 .poll-list-item:hover {
-  border-color: var(--border-hover);
+  background: var(--hover);
+}
+
+.poll-list-item:focus-visible {
+  outline-offset: -2px;
+  border-radius: var(--radius-small);
 }
 
 .poll-list-title {
@@ -631,7 +735,7 @@ fieldset.field {
 .create-poll {
   display: flex;
   flex-direction: column;
-  gap: 22px;
+  gap: 24px;
 }
 
 .create-poll h1 {
@@ -657,15 +761,13 @@ fieldset.field {
 /* A poll                                                             */
 /* ------------------------------------------------------------------ */
 
+/* The poll's title is the page's: on the page itself, not in a card. */
 .poll-header {
-  padding: 16px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--panel);
-  box-shadow: var(--shadow);
+  padding: 8px 4px 0;
 }
 
 .poll-header h1 {
+  margin-bottom: 8px;
   overflow-wrap: anywhere;
 }
 
@@ -683,20 +785,21 @@ fieldset.field {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  border-color: transparent;
   background: var(--accent-soft);
+  box-shadow: none;
 }
 
-/* The ballot looks like paper in the voter's hand. */
+/* The ballot is the one sheet the voter holds: raised above the rest. */
 .ballot {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  padding: 16px;
+  padding: var(--panel-padding);
   border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--ballot);
-  color: var(--ballot-fg);
-  box-shadow: var(--shadow);
+  border-radius: var(--radius-large);
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-2);
 }
 
 .ballot .section-header {
@@ -706,17 +809,12 @@ fieldset.field {
 .ballot-body {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 16px;
 }
 
 .ballot-body > .button.link {
   align-self: flex-start;
   margin-left: -8px; /* its text lines up with the text above */
-}
-
-.ballot .hint {
-  color: inherit;
-  opacity: 0.85;
 }
 
 .ballot-status {
@@ -725,13 +823,21 @@ fieldset.field {
 }
 
 .ballot-status[data-counted="true"]::before {
-  content: "✓ ";
+  content: "";
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  margin-right: 6px;
+  vertical-align: -3px;
+  background: var(--accent-text);
+  mask: var(--icon-check) center / contain no-repeat;
 }
 
 .results-count,
 .invitation-count {
   color: var(--muted);
   font-size: 14px;
+  font-variant-numeric: tabular-nums;
 }
 
 .live-status {
@@ -740,10 +846,10 @@ fieldset.field {
   gap: 6px;
   padding: 2px 10px;
   border-radius: 999px;
-  background: var(--accent-soft);
+  background: var(--surface-sunken);
   color: var(--muted);
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .live-status::before {
@@ -755,7 +861,8 @@ fieldset.field {
 }
 
 .live-status[data-state="live"] {
-  color: var(--success);
+  background: var(--accent-soft);
+  color: var(--accent-text);
 }
 
 .live-status[data-state="live"]::before {
@@ -763,7 +870,7 @@ fieldset.field {
 }
 
 .live-status[data-state="offline"] {
-  color: var(--danger-text);
+  color: var(--warning-text);
 }
 
 @keyframes live-pulse {
@@ -786,9 +893,9 @@ fieldset.field {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   margin-top: 20px;
-  padding-top: 16px;
+  padding-top: 20px;
   border-top: 1px solid var(--border);
   text-align: center;
 }
@@ -815,7 +922,7 @@ fieldset.field {
 
 .name-cloud li {
   max-width: 100%;
-  padding: 6px 14px;
+  padding: 5px 14px;
   overflow: hidden;
   border-radius: 999px;
   background: var(--accent-soft);
@@ -836,13 +943,20 @@ fieldset.field {
   text-align: center;
 }
 
+/* Asks before what cannot be undone; tinted when that is a deletion. */
 .confirm {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  padding: 12px;
-  border: 1px solid var(--danger-text);
-  border-radius: var(--radius-small);
+  padding: 14px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  background: var(--surface-sunken);
+}
+
+.confirm:has(.button.danger) {
+  border-color: var(--danger-text);
+  background: var(--danger-soft);
 }
 
 .owner-actions .confirm {
@@ -910,7 +1024,7 @@ fieldset.field {
 }
 
 .invitation[data-used="true"] .invitation-status {
-  color: var(--success);
+  color: var(--accent-text);
   font-weight: 600;
 }
 
@@ -931,7 +1045,7 @@ fieldset.field {
 }
 
 .invite-form > label {
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .invite-row {
@@ -944,8 +1058,12 @@ fieldset.field {
   min-width: 0;
 }
 
+/* Development only: dashed, so it never passes for part of the product. */
 .dev-tool {
   border-style: dashed;
+  border-color: var(--border-strong);
+  background: transparent;
+  box-shadow: none;
 }
 
 .dev-tool input {
@@ -972,14 +1090,25 @@ fieldset.field {
   max-height: calc(100dvh - 32px);
   padding: 0;
   border: 1px solid var(--border);
-  border-radius: 18px;
-  background: var(--panel-solid);
+  border-radius: 20px;
+  background: var(--surface-raised);
   color: var(--fg);
-  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.35);
+  box-shadow: var(--shadow-3);
+}
+
+.dialog[open] {
+  animation: dialog-in 0.18s ease-out;
 }
 
 .dialog::backdrop {
-  background: rgba(0, 0, 0, 0.45);
+  background: var(--backdrop);
+}
+
+@keyframes dialog-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
 }
 
 .dialog-body {
@@ -994,7 +1123,7 @@ fieldset.field {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin-right: -10px;
+  margin-right: -10px; /* the close icon lines up with the content's edge */
 }
 
 .dialog-header h2 {
@@ -1002,13 +1131,18 @@ fieldset.field {
   font-size: 20px;
 }
 
-@media (max-width: 599px) {
+@media (max-width: 639px) {
   .dialog {
     width: 100%;
     max-width: 100%;
     margin: auto 0 0;
     border-bottom: none;
-    border-radius: 18px 18px 0 0;
+    border-radius: 20px 20px 0 0;
+  }
+
+  .dialog[open] {
+    animation-name: sheet-in;
+    animation-duration: 0.22s;
   }
 
   .dialog-body {
@@ -1016,10 +1150,17 @@ fieldset.field {
   }
 }
 
+@keyframes sheet-in {
+  from {
+    transform: translateY(24px);
+    opacity: 0;
+  }
+}
+
 .settings {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 24px;
 }
 
 .share-link {
@@ -1030,15 +1171,16 @@ fieldset.field {
 .share-link input {
   flex: 1;
   min-width: 0;
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-family: var(--font-mono);
   font-size: 16px;
 }
 
 .share-qr {
   align-self: center;
   padding: 8px;
-  border-radius: 12px;
+  border-radius: var(--radius);
   background: #ffffff; /* QR codes need a light background in every theme */
+  box-shadow: 0 0 0 1px var(--border);
   line-height: 0;
 }
 
@@ -1047,16 +1189,17 @@ fieldset.field {
   flex-direction: column;
   align-items: center;
   gap: 2px;
-  padding: 12px;
-  border-radius: var(--radius-small);
-  background: var(--accent-soft);
+  padding: 14px 12px;
+  border-radius: var(--radius);
+  background: var(--surface-sunken);
 }
 
 .share-code-label {
-  font-size: 13px;
+  color: var(--muted);
+  font-size: 12px;
   font-weight: 700;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
 }
 
 .share-code .join-code {
@@ -1096,6 +1239,11 @@ fieldset.field {
 .app-footer a {
   display: inline-block;
   padding: 10px 2px;
+  color: inherit;
+}
+
+.app-footer a:hover {
+  color: var(--fg);
 }
 
 .about-section h2 {
@@ -1103,8 +1251,12 @@ fieldset.field {
 }
 
 .about-section h3 {
-  margin: 20px 0 4px;
+  margin: 24px 0 4px;
   font-size: 17px;
+}
+
+.about-section p + p {
+  margin-top: 12px;
 }
 
 .references {
@@ -1113,6 +1265,10 @@ fieldset.field {
   gap: 14px;
   margin: 16px 0 0;
   padding-left: 22px;
+}
+
+.references li::marker {
+  color: var(--muted);
 }
 
 .references li > .hint {
@@ -1129,7 +1285,7 @@ fieldset.field {
    button, so a toast never swallows a tap meant for what lies beneath. */
 .toasts {
   position: fixed;
-  top: calc(56px + env(safe-area-inset-top));
+  top: calc(var(--header-height) + env(safe-area-inset-top));
   right: 0;
   left: 0;
   z-index: 50;
@@ -1148,10 +1304,10 @@ fieldset.field {
   width: 100%;
   max-width: 480px;
   padding: 4px 4px 4px 16px;
-  border-radius: 12px;
-  background: var(--fg);
-  color: var(--bg);
-  box-shadow: var(--shadow);
+  border-radius: var(--radius);
+  background: var(--toast);
+  color: var(--toast-fg);
+  box-shadow: var(--shadow-3);
   font-weight: 600;
   animation: toast-in 0.2s ease-out;
 }

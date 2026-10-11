@@ -4,8 +4,11 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 
 export interface Preferences {
-  /** "system" follows the device, through the CSS prefers-color-scheme media feature. */
-  theme: 'system' | 'light' | 'dark';
+  /**
+   * Light or dark. "system" follows the device, through the CSS color-scheme. Not to be confused with a
+   * theme, which is a palette (data-theme, docs/DESIGN.md): there is one so far, so nothing chooses it.
+   */
+  appearance: 'system' | 'light' | 'dark';
   /** A grey mention ramp that does not rely on telling red from green. */
   colorblind: boolean;
   /** How a majority judgment ballot is filled in: a colour scale per option, or a dropdown per option. */
@@ -16,8 +19,8 @@ export interface Preferences {
   voterName: string;
 }
 
-const DEFAULTS: Preferences = { theme: 'system', colorblind: false, mjBallot: 'scale', submission: 'live', voterName: '' };
-const STORAGE_KEY = 'zvote.preferences';
+const DEFAULTS: Preferences = { appearance: 'system', colorblind: false, mjBallot: 'scale', submission: 'live', voterName: '' };
+const STORAGE_KEY = 'zvote.preferences'; // index.html reads it too, to set the appearance before the first paint
 
 export function loadPreferences(): Preferences {
   try {
@@ -28,17 +31,17 @@ export function loadPreferences(): Preferences {
 }
 
 /** Reflects the preferences on the document, where the stylesheets look for them. */
-export function applyPreferences({ theme, colorblind }: Pick<Preferences, 'theme' | 'colorblind'>) {
+export function applyPreferences({ appearance, colorblind }: Pick<Preferences, 'appearance' | 'colorblind'>) {
   const root = document.documentElement;
-  if (theme === 'system') {
-    delete root.dataset.theme;
+  if (appearance === 'system') {
+    delete root.dataset.appearance;
   } else {
-    root.dataset.theme = theme;
+    root.dataset.appearance = appearance;
   }
-  // The browser's own bars (index.html's theme-color tags) follow a chosen theme too.
+  // The browser's own bars (index.html's theme-color tags) follow a chosen appearance too.
   for (const meta of document.querySelectorAll<HTMLMetaElement>('meta[name="theme-color"][data-scheme]')) {
     const scheme = meta.dataset.scheme;
-    meta.media = theme === 'system' ? `(prefers-color-scheme: ${scheme})` : theme === scheme ? 'all' : 'not all';
+    meta.media = appearance === 'system' ? `(prefers-color-scheme: ${scheme})` : appearance === scheme ? 'all' : 'not all';
   }
   // The grey mention palette (mentions.css) reads this attribute from <body>.
   if (colorblind) {

@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { Link } from 'react-router';
+import Logo from '../ui/Logo';
 import JoinForm from './JoinForm';
 import PollList from './PollList';
 import { usePollLists } from './usePollLists';
@@ -13,6 +14,7 @@ export default function HomePage() {
     <>
       <title>zvote · decide together</title>
       <section className="hero">
+        <Logo />
         <h1>Decide together, fairly.</h1>
         <p>
           Create a private poll, share its link or code with your group, and watch
