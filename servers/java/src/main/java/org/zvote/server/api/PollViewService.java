@@ -16,6 +16,8 @@ import org.zvote.server.polls.InvitationService;
 import org.zvote.server.polls.Poll;
 import org.zvote.server.polls.PollOption;
 import org.zvote.server.polls.PollService;
+import org.zvote.server.statistics.PollPlaces;
+import org.zvote.server.statistics.StatisticsService;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -42,13 +44,25 @@ public class PollViewService {
     private final InvitationService invitations;
     private final BallotBoxService ballotBox;
     private final TallyService tallies;
+    private final StatisticsService statistics;
 
     public PollViewService(PollService polls, InvitationService invitations, BallotBoxService ballotBox,
-                           TallyService tallies) {
+                           TallyService tallies, StatisticsService statistics) {
         this.polls = polls;
         this.invitations = invitations;
         this.ballotBox = ballotBox;
         this.tallies = tallies;
+        this.statistics = statistics;
+    }
+
+    /**
+     * Where the poll's ballots come from, as of the last hour: shown when its
+     * results are, for the same reason (a place appearing as the tallies move
+     * would say where that ballot came from).
+     */
+    public PollPlaces places(String shareToken) {
+        var poll = polls.find(shareToken);
+        return statistics.placesOf(poll.id(), poll.showsResults(tallies.ballotsOf(poll.id())));
     }
 
     /** invitation: the token from the invitation link the voter came with, if any. */

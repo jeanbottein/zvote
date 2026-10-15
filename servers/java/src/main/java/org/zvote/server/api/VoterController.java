@@ -6,6 +6,8 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.zvote.server.api.dto.NewVoter;
 import org.zvote.server.identity.VoterIdentity;
+import org.zvote.server.statistics.Activity;
+import org.zvote.server.statistics.StatisticsService;
 
 /**
  * Mints a voter identity for a client that keeps its own credential instead of
@@ -20,8 +22,15 @@ import org.zvote.server.identity.VoterIdentity;
 @RestController
 public class VoterController {
 
+    private final StatisticsService statistics;
+
+    VoterController(StatisticsService statistics) {
+        this.statistics = statistics;
+    }
+
     @PostMapping("/api/voters")
     public ResponseEntity<NewVoter> mint() {
+        statistics.count(Activity.VOTER);
         return ResponseEntity.status(HttpStatus.CREATED).body(new NewVoter(VoterIdentity.newToken()));
     }
 }

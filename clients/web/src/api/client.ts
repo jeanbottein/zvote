@@ -7,13 +7,19 @@
  *
  * A voter's invitation travels in a header, never in a URL, so that no log
  * along the way keeps it.
+ *
+ * Every call also says the device's time zone, which is where the server's
+ * statistics place it: so that it never needs the address.
  */
-import type { BallotRequest, InvitationPage, NewPoll, Poll, PollSummary, PollUpdate, ServerInfo } from './types';
+import type {
+  BallotRequest, InvitationPage, NewPoll, Poll, PollPlaces, PollSummary, PollUpdate, ServerInfo, Statistics,
+} from './types';
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '';
 
 const INVITATION_HEADER = 'Zvote-Invitation';
 const HANDOVER_HEADER = 'Zvote-Handover';
+const TIME_ZONE_HEADER = 'Zvote-Time-Zone';
 
 /** A failed call. The message is written for the person using the app. */
 export class ApiError extends Error {
@@ -40,12 +46,33 @@ interface RequestOptions {
   credentials?: RequestCredentials;
 }
 
+/**
+ * The page's first call, which the others wait for. A browser without its
+ * cookie yet would otherwise be given one per call made at once (the home
+ * page makes two), keep only the last, and count as several visitors.
+ */
+let firstCall: Promise<unknown> | null = null;
+
 async function request<T>(
   method: string,
   path: string,
-  { body, invitation, handover, credentials = 'include' }: RequestOptions = {},
+  options: RequestOptions = {},
 ): Promise<T> {
-  const headers: Record<string, string> = {};
+  if (firstCall === null) {
+    const call = send<T>(method, path, options);
+    firstCall = call.catch(() => {});
+    return call;
+  }
+  await firstCall;
+  return send<T>(method, path, options);
+}
+
+async function send<T>(
+  method: string,
+  path: string,
+  { body, invitation, handover, credentials = 'include' }: RequestOptions,
+): Promise<T> {
+  const headers: Record<string, string> = { [TIME_ZONE_HEADER]: timeZone() };
   if (body !== undefined) {
     headers['Content-Type'] = 'application/json';
   }
@@ -72,6 +99,11 @@ async function request<T>(
   return (response.status === 204 ? undefined : await response.json()) as T;
 }
 
+/** "Europe/Paris", or what the device says; the server counts a name it does not know nowhere. */
+function timeZone(): string {
+  return Intl.DateTimeFormat().resolvedOptions().timeZone;
+}
+
 /** Errors are RFC 9457 problem documents whose "detail" is meant for people. */
 async function problemDetail(response: Response): Promise<string> {
   try {
@@ -89,6 +121,9 @@ const pollPath = (id: string) => `/api/polls/${encodeURIComponent(id)}`;
 
 export const getServerInfo = () => request<ServerInfo>('GET', '/api/server-info');
 
+/** How much zvote is used, and where, as of the last hour. */
+export const getStatistics = () => request<Statistics>('GET', '/api/statistics');
+
 export const listPublicPolls = () => request<PollSummary[]>('GET', '/api/polls');
 
 export const listMyPolls = () => request<PollSummary[]>('GET', '/api/polls/mine');
@@ -98,6 +133,9 @@ export const getPoll = (id: string, invitation?: string | null) => request<Poll>
 
 /** The poll behind a join code: its letters and digits. */
 export const joinPoll = (code: string) => request<PollSummary>('GET', `/api/join/${encodeURIComponent(code)}`);
+
+/** Where the poll's ballots come from, as of the last hour; nothing while its results are kept back. */
+export const getPollPlaces = (id: string) => request<PollPlaces>('GET', `${pollPath(id)}/places`);
 
 export const createPoll = (poll: NewPoll) => request<Poll>('POST', '/api/polls', { body: poll });
 

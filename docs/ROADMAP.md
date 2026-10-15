@@ -63,7 +63,8 @@ builds the image, pushes it to GHCR and deploys it.
   cookie and voter names are personal data, so GDPR applies already: a privacy
   page (what is stored, why, for how long, your rights, a contact address;
   and plainly, that ballots are unlinkable at rest but the server operator
-  is trusted),
+  is trusted, and that the device's time zone is read for statistics, and
+  kept only as totals),
   answering access and deletion requests, a one-page record of processing,
   and telling the CNIL of a breach within 72 hours. No cookie banner as long
   as the only cookie is the one the service needs (CNIL exemption for strictly

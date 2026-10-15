@@ -11,6 +11,7 @@ import org.zvote.server.polls.InvitationService;
 import org.zvote.server.polls.Poll;
 import org.zvote.server.polls.PollOption;
 import org.zvote.server.polls.PollService;
+import org.zvote.server.statistics.StatisticsService;
 
 import java.util.Arrays;
 import java.util.HashMap;
@@ -40,11 +41,14 @@ public class BallotService {
     private final PollService polls;
     private final InvitationService invitations;
     private final BallotBoxService ballotBox;
+    private final StatisticsService statistics;
 
-    public BallotService(PollService polls, InvitationService invitations, BallotBoxService ballotBox) {
+    public BallotService(PollService polls, InvitationService invitations, BallotBoxService ballotBox,
+                         StatisticsService statistics) {
         this.polls = polls;
         this.invitations = invitations;
         this.ballotBox = ballotBox;
+        this.statistics = statistics;
     }
 
     /**
@@ -61,7 +65,7 @@ public class BallotService {
             case APPROVAL -> approvals(ballot, options);
             case MAJORITY_JUDGMENT -> judgments(ballot, options);
         };
-        ballotBox.cast(poll.id(), voter.ballotKey(poll.id()), choices);
+        statistics.countBallots(poll.id(), ballotBox.cast(poll.id(), voter.ballotKey(poll.id()), choices));
         polls.nameVoter(poll, voter.nameKey(poll.id()), choices.length == 0 ? null : ballot.voterName());
         return poll;
     }

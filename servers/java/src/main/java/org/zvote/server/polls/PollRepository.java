@@ -49,6 +49,8 @@ interface PollRepository extends ListCrudRepository<Poll, Long> {
     @Query("DELETE FROM poll_removal WHERE poll_id = :pollId")
     void removalDone(Long pollId);
 
+    long countByClosedAtIsNull();
+
     List<Poll> findTop50ByVisibilityOrderByCreatedAtDesc(Poll.Visibility visibility);
 
     List<Poll> findTop100ByCreatorIdOrderByCreatedAtDesc(String creatorId);

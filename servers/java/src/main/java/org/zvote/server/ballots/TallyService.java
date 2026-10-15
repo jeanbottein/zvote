@@ -51,10 +51,15 @@ public class TallyService {
         batches.batchUpdate("INSERT INTO tally (poll_id, position, choice, total) VALUES (?, ?, ?, 0)", rows);
     }
 
-    public Tally tallyOf(long pollId) {
-        var ballots = jdbc.sql("SELECT total FROM ballot_count WHERE poll_id = :poll")
+    /** How many ballots the poll has, as of the last fold. */
+    public long ballotsOf(long pollId) {
+        return jdbc.sql("SELECT total FROM ballot_count WHERE poll_id = :poll")
             .param("poll", pollId)
             .query(Long.class).optional().orElse(0L);
+    }
+
+    public Tally tallyOf(long pollId) {
+        var ballots = ballotsOf(pollId);
         var counts = jdbc.sql("SELECT position, total FROM tally WHERE poll_id = :poll ORDER BY position, choice")
             .param("poll", pollId)
             .query((row, number) -> Map.entry(row.getInt(1), row.getLong(2)))

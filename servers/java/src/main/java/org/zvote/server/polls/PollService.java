@@ -172,6 +172,11 @@ public class PollService {
         return polls.findTop100ByCreatorIdOrderByCreatedAtDesc(voterId);
     }
 
+    /** How many polls take ballots now: a count over at most a lifetime of polls, so asked once an hour. */
+    public long countOpen() {
+        return polls.countByClosedAtIsNull();
+    }
+
     /**
      * Closing stops new ballots and shows the results, for good: reopening
      * would let a creator read results kept for the closing, then watch the

@@ -73,6 +73,11 @@
   --logo-paper-start: light-dark(#ffffff, #2a2e36);
   --logo-paper-end: light-dark(#e5e5e5, #1f2228);
 
+  /* The statistics (src/statistics): land on the panel's sea, and the ink for
+     what is counted, its dots and bars a little lighter in dark. */
+  --map-land: light-dark(#e3e6eb, #2a2f38);
+  --map-ink: light-dark(#2f4ad0, #6f86f0);
+
   /* Shape and room. */
   --radius-large: 16px;
   --radius: 12px;

@@ -28,6 +28,7 @@ import org.zvote.server.identity.VoterIdentity;
 import org.zvote.server.live.PollStream;
 import org.zvote.server.polls.CreatePollRequest;
 import org.zvote.server.polls.PollService;
+import org.zvote.server.statistics.PollPlaces;
 
 import java.net.URI;
 import java.time.Duration;
@@ -129,6 +130,17 @@ public class PollController {
         return ResponseEntity.ok()
             .cacheControl(CacheControl.maxAge(Duration.ofSeconds(1)))
             .body(views.results(id));
+    }
+
+    /**
+     * Where the poll's ballots come from, by time zone and region, once its
+     * results show. Written hourly, so it may be cached a minute.
+     */
+    @GetMapping("/{id}/places")
+    public ResponseEntity<PollPlaces> places(@PathVariable String id) {
+        return ResponseEntity.ok()
+            .cacheControl(CacheControl.maxAge(Duration.ofMinutes(1)))
+            .body(views.places(id));
     }
 
     /**
