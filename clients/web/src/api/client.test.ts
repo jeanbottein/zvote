@@ -27,6 +27,32 @@ describe('the API client', () => {
     }));
   });
 
+  it('sends nothing else until the first call is answered, so that a new browser gets one cookie', async () => {
+    let answer: (response: Response) => void = () => {};
+    fetchMock.mockReturnValueOnce(new Promise((resolve) => { answer = resolve; }));
+    fetchMock.mockResolvedValue(Response.json([]));
+
+    vi.resetModules(); // a fresh page load
+    const fresh = await import('./client');
+    const first = fresh.getPoll('abc');
+    const second = fresh.getPoll('def');
+    await Promise.resolve();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    answer(Response.json({ id: 'abc' }));
+    await Promise.all([first, second]);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("says the device's time zone, for the statistics, and never more", async () => {
+    fetchMock.mockResolvedValue(Response.json({ id: 'abc' }));
+
+    await getPoll('abc');
+
+    const [, init] = fetchMock.mock.calls[0];
+    expect(init?.headers).toEqual({ 'Zvote-Time-Zone': Intl.DateTimeFormat().resolvedOptions().timeZone });
+  });
+
   it('sends bodies as JSON', async () => {
     fetchMock.mockResolvedValue(Response.json({ id: 'abc' }, { status: 201 }));
 
@@ -38,7 +64,7 @@ describe('the API client', () => {
     await createPoll(poll);
 
     const [, init] = fetchMock.mock.calls[0];
-    expect(init?.headers).toEqual({ 'Content-Type': 'application/json' });
+    expect(init?.headers).toMatchObject({ 'Content-Type': 'application/json' });
     expect(JSON.parse(init?.body as string)).toEqual(poll);
   });
 

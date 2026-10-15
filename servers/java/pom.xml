@@ -143,6 +143,8 @@
                     <!-- spring-boot:run only, for development: a deployed server sets its own. -->
                     <environmentVariables>
                         <ZVOTE_VOTER_SECRET>development-only-voter-secret-never-deployed</ZVOTE_VOTER_SECRET>
+                        <!-- Statistics every minute rather than every hour, to see them move. -->
+                        <ZVOTE_STATISTICS_CRON>0 * * * * *</ZVOTE_STATISTICS_CRON>
                     </environmentVariables>
                 </configuration>
             </plugin>

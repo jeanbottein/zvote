@@ -12,10 +12,14 @@ interface ResultsSectionProps {
   connection: Connection;
 }
 
+/** The server sends no tallies while the poll keeps its results back. */
+export function resultsKeptBack(poll: Poll): boolean {
+  return poll.options.every((option) => option.approvalCount === null && option.judgmentCounts === null);
+}
+
 export default function ResultsSection({ poll, connection }: ResultsSectionProps) {
   const titleId = useId();
-  // The server sends no tallies while the poll keeps its results back.
-  const hidden = poll.options.every((option) => option.approvalCount === null && option.judgmentCounts === null);
+  const hidden = resultsKeptBack(poll);
 
   return (
     <section className="panel results" aria-labelledby={titleId}>

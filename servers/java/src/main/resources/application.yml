@@ -60,6 +60,10 @@ zvote:
   # would count them twice, and their invitation links would stop working.
   voter-secret: ${ZVOTE_VOTER_SECRET:}
 
+  # When the usage statistics are written and published (StatisticsService):
+  # hourly, so that they cannot be matched with one poll's ballots as they come.
+  statistics-cron: ${ZVOTE_STATISTICS_CRON:0 0 * * * *}
+
 # The same services as tools, for an agent (org.zvote.server.api.mcp).
 # Stateless: a tool call is one request in and one answer out, on a virtual
 # thread, with nothing kept between them - so any instance can answer, and no

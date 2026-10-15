@@ -5,10 +5,11 @@ spring:
   main:
     banner-mode: off
 
-# No poll retention running in the middle of a test: tests call it themselves.
+# No poll retention or statistics running in the middle of a test: tests call them themselves.
 # A ballot's answer waits for its fold, so that tests read exact tallies.
 zvote:
   retention-cron: "-"
+  statistics-cron: "-"
   fold-patience: 10s
   public-url: https://zvote.test
   voter-secret: test-voter-secret-0123456789abcdef

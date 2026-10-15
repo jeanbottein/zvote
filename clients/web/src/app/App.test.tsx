@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { getServerInfo, listMyPolls, listPublicPolls } from '../api/client';
+import { getServerInfo, getStatistics, listMyPolls, listPublicPolls } from '../api/client';
 import { applyPreferences, loadPreferences } from '../preferences/preferences';
 import App from './App';
 
@@ -10,6 +10,7 @@ vi.mock('../api/client', async (importOriginal) => ({
   listMyPolls: vi.fn(),
   listPublicPolls: vi.fn(),
   getServerInfo: vi.fn(),
+  getStatistics: vi.fn(),
 }));
 
 beforeEach(() => {
@@ -44,6 +45,18 @@ describe('the app', () => {
     await userEvent.click(screen.getByRole('link', { name: 'Home' }));
 
     expect(await screen.findByRole('heading', { name: 'Decide together, fairly.' })).toBeInTheDocument();
+  });
+
+  it('shows the statistics from every page, once their page has loaded', async () => {
+    vi.mocked(getStatistics).mockResolvedValue({
+      asOf: '2026-10-12T14:00:00Z', polls: 3, openPolls: 1, ballots: 7, voters: 4, places: [], regions: [], days: [],
+    });
+    openAt('/new');
+
+    await userEvent.click(screen.getByRole('link', { name: 'Statistics' }));
+
+    expect(await screen.findByRole('heading', { name: 'zvote around the world' })).toBeInTheDocument();
+    expect(await screen.findByRole('img', { name: /World map/ })).toBeInTheDocument();
   });
 
   it('says how results are decided, and cites the research, from every page', async () => {
