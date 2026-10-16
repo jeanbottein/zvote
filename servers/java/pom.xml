@@ -12,11 +12,11 @@
         <relativePath/>
     </parent>
 
-    <groupId>org.zvote</groupId>
-    <artifactId>zvote-server</artifactId>
+    <groupId>org.supervote</groupId>
+    <artifactId>super-vote-server</artifactId>
     <version>0.1.0-SNAPSHOT</version>
-    <name>zvote server</name>
-    <description>zvote server: REST + Server-Sent Events on Spring MVC and virtual threads</description>
+    <name>super-vote server</name>
+    <description>super-vote server: REST + Server-Sent Events on Spring MVC and virtual threads</description>
 
     <properties>
         <java.version>25</java.version>
@@ -92,7 +92,7 @@
             <artifactId>spring-boot-starter-actuator</artifactId>
         </dependency>
 
-        <!-- Spring Modulith: each package under org.zvote.server is a module, and its
+        <!-- Spring Modulith: each package under org.supervote.server is a module, and its
              package-info.java says which modules it may depend on. Only the annotations
              ship; ArchitectureTest verifies them. -->
         <dependency>
@@ -142,14 +142,14 @@
                 <configuration>
                     <!-- spring-boot:run only, for development: a deployed server sets its own. -->
                     <environmentVariables>
-                        <ZVOTE_VOTER_SECRET>development-only-voter-secret-never-deployed</ZVOTE_VOTER_SECRET>
+                        <SUPER_VOTE_VOTER_SECRET>development-only-voter-secret-never-deployed</SUPER_VOTE_VOTER_SECRET>
                         <!-- Statistics every minute rather than every hour, to see them move. -->
-                        <ZVOTE_STATISTICS_CRON>0 * * * * *</ZVOTE_STATISTICS_CRON>
+                        <SUPER_VOTE_STATISTICS_CRON>0 * * * * *</SUPER_VOTE_STATISTICS_CRON>
                     </environmentVariables>
                 </configuration>
             </plugin>
             <!-- GraalVM native image, on a GraalVM JDK: ./mvnw -Pnative native:compile builds
-                 target/zvote-server (Spring Boot's native profile runs its AOT processing first). -->
+                 target/super-vote-server (Spring Boot's native profile runs its AOT processing first). -->
             <plugin>
                 <groupId>org.graalvm.buildtools</groupId>
                 <artifactId>native-maven-plugin</artifactId>

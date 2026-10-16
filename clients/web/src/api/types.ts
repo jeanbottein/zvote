@@ -1,5 +1,5 @@
 /**
- * The shapes the zvote API sends and receives. They mirror the server's DTOs
+ * The shapes the super-vote API sends and receives. They mirror the server's DTOs
  * (servers/java/.../api/dto) one to one.
  */
 
@@ -187,7 +187,7 @@ export interface ServerInfo {
   publicUrl: string | null;
 }
 
-/** What zvote counts: polls created, first ballots cast, voters (browsers and apps) met. */
+/** What super-vote counts: polls created, first ballots cast, voters (browsers and apps) met. */
 export interface Activity {
   polls: number;
   ballots: number;
@@ -195,7 +195,7 @@ export interface Activity {
 }
 
 /**
- * How much zvote is used, as of the last hour (`asOf`, ISO 8601): totals;
+ * How much super-vote is used, as of the last hour (`asOf`, ISO 8601): totals;
  * where, by time zone (as tzdata's zone.tab names it: "Europe/Paris") and by
  * region (its first part: "Europe"), for those with enough voters to show;
  * and per UTC day, over the last 90 days (days without any are left out).

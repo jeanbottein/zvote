@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
- * Builds what zvote knows of geography, from two public-domain sources, and
- * keeps it out of politics: no country, no border, only land, sea and the
+ * Builds what super-vote knows of geography, from two public-domain sources,
+ * and keeps it out of politics: no country, no border, only land, sea and the
  * cities that name time zones.
  *
  * - servers/java/.../statistics/TimeZones.java: every IANA time zone name a
@@ -23,7 +23,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
-const JAVA_OUT = join(ROOT, 'servers/java/src/main/java/org/zvote/server/statistics/TimeZones.java');
+const JAVA_OUT = join(ROOT, 'servers/java/src/main/java/org/supervote/server/statistics/TimeZones.java');
 const MAP_OUT = join(ROOT, 'clients/web/src/statistics/worldMap.json');
 
 const LAND = 'https://raw.githubusercontent.com/nvkelso/natural-earth-vector/v5.1.2/geojson/ne_50m_land.geojson';
@@ -33,7 +33,7 @@ const MAPSHAPER = 'mapshaper@0.7.83';
 /** Antarctica is left off the map, which it would make a third taller: its stations are listed only. */
 const SOUTHMOST = -60;
 
-const work = mkdtempSync(join(tmpdir(), 'zvote-geography-'));
+const work = mkdtempSync(join(tmpdir(), 'super-vote-geography-'));
 const file = (name) => join(work, name);
 const readJson = (path) => JSON.parse(readFileSync(path, 'utf8'));
 
@@ -83,7 +83,7 @@ function timeZones() {
 
 function javaSource({ version, canonical }) {
   const entries = canonical.map(([name, zone]) => `        Map.entry("${name}", "${zone}")`).join(',\n');
-  return `package org.zvote.server.statistics;
+  return `package org.supervote.server.statistics;
 
 import java.util.Map;
 

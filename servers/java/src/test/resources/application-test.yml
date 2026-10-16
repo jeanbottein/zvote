@@ -1,17 +1,17 @@
 # Tests run against an in-memory database, migrated by Flyway like the real one.
 spring:
   datasource:
-    url: jdbc:h2:mem:zvote;DB_CLOSE_DELAY=-1
+    url: jdbc:h2:mem:super-vote;DB_CLOSE_DELAY=-1
   main:
     banner-mode: off
 
 # No poll retention or statistics running in the middle of a test: tests call them themselves.
 # A ballot's answer waits for its fold, so that tests read exact tallies.
-zvote:
+super-vote:
   retention-cron: "-"
   statistics-cron: "-"
   fold-patience: 10s
-  public-url: https://zvote.test
+  public-url: https://super-vote.test
   voter-secret: test-voter-secret-0123456789abcdef
 
 # Warnings and errors only (see logback-test.xml), minus the expected ones.

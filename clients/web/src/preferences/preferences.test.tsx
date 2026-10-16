@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { applyPreferences, loadPreferences, PreferencesProvider, usePreferences } from './preferences';
 
-const STORAGE_KEY = 'zvote.preferences';
+const STORAGE_KEY = 'super-vote.preferences';
 
 afterEach(() => {
   localStorage.clear();

@@ -10,12 +10,12 @@
     <link rel="icon" href="/favicon-32.png" sizes="32x32" type="image/png" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-    <title>zvote</title>
+    <title>super-vote</title>
     <script>
       // Before the first paint, the appearance chosen in Settings (src/preferences/preferences.tsx), so that
       // it never flashes the device's: the app's own script may arrive after the page is first drawn.
       try {
-        const appearance = JSON.parse(localStorage.getItem('zvote.preferences') ?? '{}').appearance;
+        const appearance = JSON.parse(localStorage.getItem('super-vote.preferences') ?? '{}').appearance;
         if (appearance === 'light' || appearance === 'dark') {
           document.documentElement.dataset.appearance = appearance;
         }

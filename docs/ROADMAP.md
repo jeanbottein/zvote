@@ -1,4 +1,4 @@
-# zvote roadmap
+# super-vote roadmap
 
 Where the project stands and what comes next, in order. Each phase should leave
 the codebase as simple as it found it: add what the phase needs, no more.
@@ -21,11 +21,12 @@ the codebase as simple as it found it: add what the phase needs, no more.
 
 ### 6. Deployment (OVHcloud)
 
-Before accounts, which need an HTTPS domain. A small OVHcloud VPS in France is
-enough (the native image serves on about 100 MB): Docker Compose with Caddy
-(automatic Let's Encrypt certificates) in front of the server and PostgreSQL,
-and a nightly `pg_dump` to OVH Object Storage. GitHub Actions runs the tests,
-builds the image, pushes it to GHCR and deploys it.
+Before accounts, which need an HTTPS domain: super-vote.org, the project's
+own. A small OVHcloud VPS in France is enough (the native image serves on
+about 100 MB): Docker Compose with Caddy (automatic Let's Encrypt certificates)
+in front of the server and PostgreSQL, and a nightly `pg_dump` to OVH Object
+Storage. GitHub Actions runs the tests, builds the image, pushes it to GHCR
+and deploys it.
 
 - **PostgreSQL**: supported already, and the test suite passes on it (see
   the server's README). Left for CI: a PostgreSQL profile (a service
@@ -38,8 +39,9 @@ builds the image, pushes it to GHCR and deploys it.
   cache and Spring AOT starts in 1.1 s at no cost. Choose on the target (Linux,
   PostgreSQL), and run `-PnativeTest` in CI if the native image is chosen.
 - **One origin.** The server serves the built client, which keeps cookies
-  first-party and enables the Open Graph pages above. Set `zvote.public-url`
-  (`ZVOTE_PUBLIC_URL`) to that address: invitation links are built from it, and
+  first-party and enables the Open Graph pages above. Set
+  `super-vote.public-url` (`SUPER_VOTE_PUBLIC_URL`) to that address,
+  `https://super-vote.org`: invitation links are built from it, and
   `/api/server-info` advertises it.
 - **Hardening.** TLS (the cookie turns `Secure` on its own behind HTTPS), a
   Content Security Policy, and rate limits on poll creation, ballots and join
@@ -50,7 +52,7 @@ builds the image, pushes it to GHCR and deploys it.
   the one the server cannot do alone. The error vocabulary already reserves
   `429` with `Retry-After` (docs/API.md), so adding them needs no contract
   change.
-- **The voter secret.** `ZVOTE_VOTER_SECRET` (`openssl rand -base64 48`)
+- **The voter secret.** `SUPER_VOTE_VOTER_SECRET` (`openssl rand -base64 48`)
   comes from the host's secrets: never from the image, the repository or
   the database backups. The server refuses to start without it. Losing or
   changing it orphans every ballot: still counted, but voters are told they
@@ -214,9 +216,9 @@ Decided:
   results kept for the closing cannot be peeked at.
 - Invitation polls (2026-10-08): for votes that must count each person once,
   the creator sends each voter a link of their own, named or anonymous. The
-  creation form warns that otherwise zvote counts on good faith. The creator
-  sees which links were used (a used link says so to anyone opening it
-  anyway), never what anyone chose.
+  creation form warns that otherwise super-vote counts on good faith. The
+  creator sees which links were used (a used link says so to anyone opening
+  it anyway), never what anyone chose.
 
 - With an even number of ballots, the majority mention is the lower of the two
   middle mentions (classic majority judgment), so five `Excellent` and five

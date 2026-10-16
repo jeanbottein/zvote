@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# zvote local development.
+# super-vote local development.
 #
 #   ./dev.sh            start the server (:8080) and the web client (:5173)
 #   ./dev.sh server     start only the Java server
@@ -13,8 +13,8 @@ set -euo pipefail
 # required: the committed wrapper (servers/java/mvnw) is used instead.
 #
 # No database setup is needed. H2 runs inside the server process and stores its
-# data in ZVOTE_DATA_DIR below, so the repo folder stays self-contained and can
-# be copied between machines with its data intact.
+# data in SUPER_VOTE_DATA_DIR below, so the repo folder stays self-contained and
+# can be copied between machines with its data intact.
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SERVER_DIR="$ROOT/servers/java"
@@ -22,7 +22,7 @@ CLIENT_DIR="$ROOT/clients/web"
 
 # Absolute, repo-rooted data directory. Exported so the server never depends on
 # the working directory it happens to be launched from.
-export ZVOTE_DATA_DIR="${ZVOTE_DATA_DIR:-$ROOT/data}"
+export SUPER_VOTE_DATA_DIR="${SUPER_VOTE_DATA_DIR:-$ROOT/data}"
 
 HEALTH_URL="http://localhost:8080/actuator/health"
 MODE="${1:-all}"
@@ -75,8 +75,8 @@ require_node() {
 
 start_server() {
   require_java
-  mkdir -p "$ZVOTE_DATA_DIR"
-  echo "Starting the server on :8080 (data in $ZVOTE_DATA_DIR)"
+  mkdir -p "$SUPER_VOTE_DATA_DIR"
+  echo "Starting the server on :8080 (data in $SUPER_VOTE_DATA_DIR)"
   (cd "$SERVER_DIR" && ./mvnw -q spring-boot:run) &
   SERVER_PID=$!
 }

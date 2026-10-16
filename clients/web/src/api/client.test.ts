@@ -50,7 +50,7 @@ describe('the API client', () => {
     await getPoll('abc');
 
     const [, init] = fetchMock.mock.calls[0];
-    expect(init?.headers).toEqual({ 'Zvote-Time-Zone': Intl.DateTimeFormat().resolvedOptions().timeZone });
+    expect(init?.headers).toEqual({ 'Super-Vote-Time-Zone': Intl.DateTimeFormat().resolvedOptions().timeZone });
   });
 
   it('sends bodies as JSON', async () => {
@@ -76,7 +76,7 @@ describe('the API client', () => {
 
     for (const [url, init] of fetchMock.mock.calls) {
       expect(url).not.toContain('t0k3n');
-      expect(init?.headers).toMatchObject({ 'Zvote-Invitation': 't0k3n' });
+      expect(init?.headers).toMatchObject({ 'Super-Vote-Invitation': 't0k3n' });
     }
   });
 

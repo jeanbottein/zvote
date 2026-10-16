@@ -10,7 +10,7 @@ interface NoticeProps {
 export default function Notice({ title, children, action }: NoticeProps) {
   return (
     <section className="panel notice">
-      <title>{`${title} · zvote`}</title>
+      <title>{`${title} · super-vote`}</title>
       <h1>{title}</h1>
       {children && <div className="notice-text">{children}</div>}
       {action}

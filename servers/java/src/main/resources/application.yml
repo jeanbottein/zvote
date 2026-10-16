@@ -1,6 +1,6 @@
 spring:
   application:
-    name: zvote-server
+    name: super-vote-server
 
   # Blocking code on virtual threads: request handling reads top to bottom,
   # stack traces point at our own code, and @Transactional means what everyone
@@ -14,7 +14,7 @@ spring:
   # credentials. The data is one file under the data directory, which keeps the
   # repo folder self-contained and portable across machines.
   #
-  # ./dev.sh exports ZVOTE_DATA_DIR as an absolute path. The fallback uses
+  # ./dev.sh exports SUPER_VOTE_DATA_DIR as an absolute path. The fallback uses
   # ${user.dir} rather than "./data" because H2 rejects implicitly relative paths.
   #
   # Deliberately no DATABASE_TO_LOWER and no MODE=PostgreSQL: both break the
@@ -22,13 +22,13 @@ spring:
   # V1__init.sql), and MODE=PostgreSQL also makes Spring Data pick the wrong
   # dialect.
   datasource:
-    url: jdbc:h2:file:${ZVOTE_DATA_DIR:${user.dir}/data}/zvote;AUTO_SERVER=TRUE
+    url: jdbc:h2:file:${SUPER_VOTE_DATA_DIR:${user.dir}/data}/super-vote;AUTO_SERVER=TRUE
     username: sa
     password:
 
 # What this server offers. Advertised at GET /api/server-info so the client can
 # adapt its UI, and enforced when polls are created.
-zvote:
+super-vote:
   features:
     # Off until accounts arrive: a listed poll will need a signed-in creator.
     public-polls: false
@@ -50,7 +50,7 @@ zvote:
   # links and invitation links are built from it, for clients that cannot know
   # their own address (an agent) or run on another one (a packaged app). In
   # development the app is the Vite server, which proxies /api here.
-  public-url: ${ZVOTE_PUBLIC_URL:http://localhost:5173}
+  public-url: ${SUPER_VOTE_PUBLIC_URL:http://localhost:5173}
 
   # Keys who owns each ballot, so that the database never says (see Voter.java),
   # and signs invitation links (InvitationLinks.java). No default: a server must
@@ -58,20 +58,20 @@ zvote:
   # ./dev.sh) sets a development one, in pom.xml. Never change it while polls
   # are open: their voters would be told they have not voted, voting again
   # would count them twice, and their invitation links would stop working.
-  voter-secret: ${ZVOTE_VOTER_SECRET:}
+  voter-secret: ${SUPER_VOTE_VOTER_SECRET:}
 
   # When the usage statistics are written and published (StatisticsService):
   # hourly, so that they cannot be matched with one poll's ballots as they come.
-  statistics-cron: ${ZVOTE_STATISTICS_CRON:0 0 * * * *}
+  statistics-cron: ${SUPER_VOTE_STATISTICS_CRON:0 0 * * * *}
 
-# The same services as tools, for an agent (org.zvote.server.api.mcp).
+# The same services as tools, for an agent (org.supervote.server.api.mcp).
 # Stateless: a tool call is one request in and one answer out, on a virtual
 # thread, with nothing kept between them - so any instance can answer, and no
 # call costs more because a poll is large. It is served under /api, where
 # VoterIdentityFilter resolves the caller: an agent sends its voter token as
 # "Authorization: Bearer <token>", exactly as it would to the HTTP API.
 spring.ai.mcp.server:
-  name: zvote
+  name: super-vote
   version: 0.1.0
   type: SYNC
   protocol: STATELESS

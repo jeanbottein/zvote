@@ -4,13 +4,13 @@ Guidance for Claude Code (claude.ai/code) working in this repository.
 
 ## Project
 
-zvote is an open-source, live voting platform: **majority judgment** (with the
-graduated GMJ tie-break) and **approval voting**. One Java server (REST +
-server-sent events) and one React web app, mobile first. Nothing is in
-production, so bold refactors are welcome, but the owner's criteria are clean
-architecture, YAGNI, industry standards and the lowest cognitive complexity
-that works. When those pull apart, pick YAGNI and simplicity: no ports and
-adapters, no interface per implementation, no mapper per boundary.
+super-vote (super-vote.org) is an open-source, live voting platform: **majority
+judgment** (with the graduated GMJ tie-break) and **approval voting**. One Java
+server (REST + server-sent events) and one React web app, mobile first. Nothing
+is in production, so bold refactors are welcome, but the owner's criteria are
+clean architecture, YAGNI, industry standards and the lowest cognitive
+complexity that works. When those pull apart, pick YAGNI and simplicity: no
+ports and adapters, no interface per implementation, no mapper per boundary.
 
 The MVP is for groups deciding together: private polls shared by link or join
 code, or by invitation (one link per voter, sent by the creator), optional
@@ -37,7 +37,7 @@ Server (`servers/java`, Java 25, Maven wrapper; Maven itself is not needed):
 ./mvnw test                         # silent when green; see src/test for the classes
 ./mvnw test -Dtest=PollApiTest      # one class
 ./mvnw test -Pcoverage              # + JaCoCo report: target/site/jacoco/index.html
-SPRING_DATASOURCE_URL='jdbc:postgresql://localhost:5432/zvote_test?options=-c%20lock_timeout%3D2s' \
+SPRING_DATASOURCE_URL='jdbc:postgresql://localhost:5432/super_vote_test?options=-c%20lock_timeout%3D2s' \
   SPRING_DATASOURCE_USERNAME=... ./mvnw test   # the same tests on PostgreSQL, on an empty database
 ./mvnw spring-boot:run
 ./mvnw -Pnative native:compile      # native image (GraalVM as JAVA_HOME), ~10 min
@@ -60,7 +60,7 @@ npm run build        # typecheck + production bundle
 
 Read `docs/ARCHITECTURE.md` for the reasoning; the essentials:
 
-**Server**: one Spring Modulith module per package under `org.zvote.server`:
+**Server**: one Spring Modulith module per package under `org.supervote.server`:
 `polls` (the question; every poll rule is in `PollService`, who may vote in
 `InvitationService`), `ballots` (one
 row per ballot, one byte per option, for every voting system; the tallies,
@@ -152,7 +152,7 @@ shown to people as is: write it as a sentence for them.
   (docs/PERFORMANCE.md, "Ballots at scale"). A poll gets its counters when it
   is created (`PollCreationService`), so polls are created through it.
 - **Statistics are totals by time zone, published hourly, from 3 up.** The
-  place comes from the `Zvote-Time-Zone` header the web app sends, never
+  place comes from the `Super-Vote-Time-Zone` header the web app sends, never
   from an address, and nothing is kept about a ballot or a voter. Counting is
   an addition in memory (`StatisticsService`); the hourly job writes and
   publishes. A time zone or region shows once it counts 3 (`VISIBLE`), and a
@@ -189,9 +189,9 @@ shown to people as is: write it as a sentence for them.
 - **An `SseEventBuilder` can only be built once**: create one per recipient.
 - **A module that needs another one says so** in its `package-info.java`
   (`allowedDependencies`), or `ArchitectureTest` fails. A new module is a new
-  package under `org.zvote.server`; what it shares goes in its root package.
+  package under `org.supervote.server`; what it shares goes in its root package.
 - **`PollStream` runs on Spring Boot's task scheduler**, which Boot provides
-  only because of `@EnableScheduling` on `ZVoteServerApplication`; with
+  only because of `@EnableScheduling` on `SuperVoteServerApplication`; with
   virtual threads enabled, each flush and heartbeat gets a virtual thread.
 - **Maven 3.9 on JDK 24+** warns that its own Guice calls `sun.misc.Unsafe`:
   `servers/java/.mvn/jvm.config` allows it (that file cannot hold comments).
@@ -238,26 +238,26 @@ shown to people as is: write it as a sentence for them.
 - **Jackson 3 fails on a missing primitive** (`FAIL_ON_NULL_FOR_PRIMITIVES` is
   on): an optional request field is a `Boolean`, not a `boolean`, or leaving
   it out answers "could not be read".
-- **Scheduled jobs are off in tests** (`zvote.retention-cron: "-"`). Running
-  at startup, `PollRetention` raced Mockito's stubbing in
+- **Scheduled jobs are off in tests** (`super-vote.retention-cron: "-"`).
+  Running at startup, `PollRetention` raced Mockito's stubbing in
   `UnexpectedFailureTest` and stole the stub. Tests call the job themselves.
 - **Voter names are per poll and go with the ballot**: a `PUT` without
   `voterName` makes the voter anonymous, and withdrawing forgets the name.
   They never say who chose what: names, ballots and used invitations are
   keyed apart (`Voter.nameKey` / `ballotKey` / `invitationKey`, HMACs per
-  poll under `ZVOTE_VOTER_SECRET`). Never store two of them under the same
+  poll under `SUPER_VOTE_VOTER_SECRET`). Never store two of them under the same
   key or the voter id, never add a timestamp to any, and keep the name cloud
   alphabetical.
 - **Invitation links are signed, never stored** (`InvitationLinks`: the
   invitation's number and an HMAC of it), and the token never goes in a URL
   the server sees: the link carries it in the fragment
   (`/p/{id}#invitation=...`), and the client sends it in the
-  `Zvote-Invitation` header. The first ballot cast with it binds it to that
+  `Super-Vote-Invitation` header. The first ballot cast with it binds it to that
   browser (`InvitationService.admit`): the creator can read every link, and
   a used one must show them nothing. An invitation has a row only once it is
   named, used or taken back: never read or count a poll's invitations
   beyond a page.
-- **The server will not start without `ZVOTE_VOTER_SECRET`** (32+
+- **The server will not start without `SUPER_VOTE_VOTER_SECRET`** (32+
   characters, `VoterSecret`). It keys voters' records and signs invitation
   links: changing it orphans every ballot and voids every link. `spring-boot:run` and `./dev.sh` get a development one from
   `pom.xml`, tests from `application-test.yml`; `java -jar`, a native image
@@ -314,6 +314,6 @@ shown to people as is: write it as a sentence for them.
 - **A new voter token is one request away** (`POST /api/voters`), so anything
   that assumed "a voter costs a cookie round-trip" no longer holds. Rate
   limits, keyed by network, are phase 6 (docs/ROADMAP.md).
-- **Tests wait for their fold** (`zvote.fold-patience: 10s`), so a ballot's
+- **Tests wait for their fold** (`super-vote.fold-patience: 10s`), so a ballot's
   answer counts it; in production the wait is 250 ms. The server's tests
   also pass on PostgreSQL: see `servers/java/README.md`.

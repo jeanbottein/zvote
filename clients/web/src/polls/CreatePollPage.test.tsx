@@ -87,7 +87,7 @@ describe('creating a poll', () => {
     await userEvent.type(screen.getByLabelText('Option 1'), 'Ana');
     await userEvent.type(screen.getByLabelText('Option 2'), 'Bob');
 
-    expect(screen.getByText(/zvote counts on good faith/)).toHaveAttribute('data-tone', 'warning');
+    expect(screen.getByText(/counts on good faith/)).toHaveAttribute('data-tone', 'warning');
     await userEvent.click(screen.getByRole('radio', { name: 'Invited only' }));
     expect(screen.getByText(/a link of their own/)).not.toHaveAttribute('data-tone');
     await userEvent.click(screen.getByRole('button', { name: 'Create poll' }));

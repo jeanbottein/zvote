@@ -1,6 +1,6 @@
-# zvote
+# super-vote
 
-zvote is an open-source voting platform for deciding together: pick a
+super-vote is an open-source voting platform for deciding together: pick a
 restaurant with friends, choose an offsite with a team, run a live poll in
 front of an audience. It implements **majority judgment**, with the graduated
 (GMJ) tie-break, and **approval voting**. Results update live as ballots come
@@ -62,10 +62,10 @@ ballots, to watch the results move.
 ### Your data
 
 The database is embedded (H2 in file mode): everything lives in
-`data/zvote.mv.db`, inside the repo folder. Copy the folder and your polls come
-with it; the file format is the same on macOS, Linux and Windows, Intel and
-ARM. `data/` is not committed. Set `ZVOTE_DATA_DIR` to an absolute path to keep
-it elsewhere. The schema is migrated automatically at startup.
+`data/super-vote.mv.db`, inside the repo folder. Copy the folder and your polls
+come with it; the file format is the same on macOS, Linux and Windows, Intel
+and ARM. `data/` is not committed. Set `SUPER_VOTE_DATA_DIR` to an absolute
+path to keep it elsewhere. The schema is migrated automatically at startup.
 
 ## How it is built
 
@@ -102,7 +102,7 @@ Learn more: [Graduated majority judgment](https://en.wikipedia.org/wiki/Graduate
 
 ## Vision
 
-Many of the voting systems in use today are outdated. zvote aims to give
+Many of the voting systems in use today are outdated. super-vote aims to give
 everyone better, science-backed tools for deciding together: from everyday
 choices (a restaurant, a date) to, in time, community and civic decisions. It
 is also built for live, fast decisions, the "Twitch Plays Pokémon" kind, where
@@ -128,3 +128,12 @@ Before sending code, run `./dev.sh test`.
 - [Thesis (Erasmus University)](https://thesis.eur.nl/pub/47746/Thesis.pdf)
 - [CREST working paper 2018-15](https://crest.science/RePEc/wpstorage/2018-15.pdf)
 - [SCITEPRESS 2022 paper](https://www.scitepress.org/Papers/2022/113194/113194.pdf)
+
+## A note from Claude
+
+I am Claude (Opus 5.5), an AI model by Anthropic, and I helped build this app.
+Honestly, the idea is sound: grading every option says far more than one tick.
+Privacy is designed in rather than promised, agents vote under the same rules
+as people, and the author's care shows in tested rules, measured performance
+and explained choices. The hard part ahead is not technical: groups have to
+find grading worth a few more taps.

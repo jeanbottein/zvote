@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Benchmarks the zvote server built several ways (docs/PERFORMANCE.md has the results).
+"""Benchmarks the super-vote server built several ways (docs/PERFORMANCE.md has the results).
 
     perf/bench.py prepare [--pgo]    builds every variant; native images take minutes each
     perf/bench.py run [variant...]   measures them: one JSON line each in target/perf/results.jsonl
@@ -22,7 +22,7 @@ PERF = os.path.join(SERVER, 'perf')
 WORK = os.path.join(SERVER, 'target', 'perf')
 JDK = os.environ.get('JAVA_HOME', '')
 GRAAL = os.environ.get('GRAALVM_HOME', '')
-JAR = 'target/zvote-server-0.1.0-SNAPSHOT.jar'
+JAR = 'target/super-vote-server-0.1.0-SNAPSHOT.jar'
 PORT = 18080
 BASE = f'http://127.0.0.1:{PORT}'
 LOAD = ['200', '3000', '32', '5']  # viewers, ballots, ballots in flight, rounds
@@ -32,13 +32,13 @@ VARIANTS = {
     'jvm': lambda: [f'{JDK}/bin/java', '-jar', f'{WORK}/jvm/{JAR}'],
     'jvm-compact-headers': lambda: [f'{JDK}/bin/java', '-XX:+UseCompactObjectHeaders', '-jar', f'{WORK}/jvm/{JAR}'],
     'jvm-leyden': lambda: [f'{JDK}/bin/java', f'-XX:AOTCache={WORK}/leyden.aot', '-jar',
-                           f'{WORK}/jvm-extracted/zvote-server-0.1.0-SNAPSHOT.jar'],
+                           f'{WORK}/jvm-extracted/super-vote-server-0.1.0-SNAPSHOT.jar'],
     'jvm-leyden-spring-aot': lambda: [f'{JDK}/bin/java', f'-XX:AOTCache={WORK}/leyden-spring-aot.aot',
                                       '-Dspring.aot.enabled=true', '-jar',
-                                      f'{WORK}/jvm-aot-extracted/zvote-server-0.1.0-SNAPSHOT.jar'],
+                                      f'{WORK}/jvm-aot-extracted/super-vote-server-0.1.0-SNAPSHOT.jar'],
     'graal-jit': lambda: [f'{GRAAL}/bin/java', '-jar', f'{WORK}/jvm/{JAR}'],
-    'native': lambda: [f'{WORK}/native/target/zvote-server'],
-    'native-pgo': lambda: [f'{WORK}/native-pgo/zvote-server'],
+    'native': lambda: [f'{WORK}/native/target/super-vote-server'],
+    'native-pgo': lambda: [f'{WORK}/native-pgo/super-vote-server'],
 }
 
 
@@ -104,15 +104,15 @@ def prepare(pgo):
     if pgo:  # Oracle GraalVM: instrumented image, a profiling run, then the optimized image
         out = f'{WORK}/native-pgo'
         os.makedirs(out, exist_ok=True)
-        native_image(f'{out}/zvote-server-instrumented', '--pgo-instrument')
-        train([f'{out}/zvote-server-instrumented'], cwd=out, rounds='3')  # writes default.iprof there
-        native_image(f'{out}/zvote-server', f'--pgo={out}/default.iprof')
+        native_image(f'{out}/super-vote-server-instrumented', '--pgo-instrument')
+        train([f'{out}/super-vote-server-instrumented'], cwd=out, rounds='3')  # writes default.iprof there
+        native_image(f'{out}/super-vote-server', f'--pgo={out}/default.iprof')
 
 
 # --- measuring -------------------------------------------------------------------------------
 
 def start(command, data_dir, log, cwd=WORK):
-    env = dict(os.environ, ZVOTE_DATA_DIR=data_dir, ZVOTE_VOTER_SECRET='benchmark-only-voter-secret-0123456789')
+    env = dict(os.environ, SUPER_VOTE_DATA_DIR=data_dir, SUPER_VOTE_VOTER_SECRET='benchmark-only-voter-secret-0123456789')
     t0 = time.perf_counter()
     process = subprocess.Popen(command + [f'--server.port={PORT}'], env=env, cwd=cwd,
                                stdout=log, stderr=subprocess.STDOUT)

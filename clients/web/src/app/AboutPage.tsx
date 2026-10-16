@@ -1,7 +1,8 @@
 import type { ReactNode } from 'react';
 import { useServerInfo } from '../polls/useServerInfo';
+import AppName from '../ui/AppName';
 
-export const SOURCE_CODE_URL = 'https://github.com/jeanbottein/zvote';
+export const SOURCE_CODE_URL = 'https://github.com/jeanbottein/super-vote';
 
 interface Reference {
   authors: string;
@@ -10,8 +11,8 @@ interface Reference {
   /** Journal, volume and pages, or publisher. */
   source: string;
   url: string;
-  /** What the work brings to zvote. */
-  note: string;
+  /** What the work brings to super-vote. */
+  note: ReactNode;
 }
 
 const REFERENCES: Reference[] = [
@@ -45,7 +46,7 @@ const REFERENCES: Reference[] = [
     title: 'Tie-breaking the highest median: alternatives to the majority judgment',
     source: 'Social Choice and Welfare 56, 101–124',
     url: 'https://doi.org/10.1007/s00355-020-01269-9',
-    note: 'The "usual judgment" score zvote uses to break ties between equal majority mentions.',
+    note: <>The "usual judgment" score <AppName /> uses to break ties between equal majority mentions.</>,
   },
   {
     authors: 'Steven J. Brams and Peter C. Fishburn',
@@ -81,14 +82,14 @@ const REFERENCES: Reference[] = [
   },
 ];
 
-/** What zvote is, how it decides, the research it rests on, and who makes it. */
+/** What super-vote is, how it decides, the research it rests on, and who makes it. */
 export default function AboutPage() {
   const { limits } = useServerInfo();
   return (
     <>
-      <title>About · zvote</title>
+      <title>About · super-vote</title>
       <section className="hero">
-        <h1>About zvote</h1>
+        <h1>About <AppName /></h1>
         <p>
           A free, open-source way for a group to decide together: where to eat, where to go, what to
           pick. No account, no ads, no tracking. Polls are deleted {limits.pollLifetimeDays} days after they
@@ -100,7 +101,7 @@ export default function AboutPage() {
         <p>
           Picking a single favourite throws most of what people think away. Two similar options split
           their supporters, and an option most people find fine can lose to one that half the group
-          dislikes. zvote asks for more than a single choice, in one of two ways.
+          dislikes. <AppName /> asks for more than a single choice, in one of two ways.
         </p>
         <h3>Majority judgment</h3>
         <p>
@@ -139,7 +140,7 @@ export default function AboutPage() {
 
       <Section title="Who makes it">
         <p>
-          zvote is made by one person in Québec, in their free time, and is free for everyone. Its code
+          <AppName /> is made by one person in Québec, in their free time, and is free for everyone. Its code
           is open: anyone can read how ballots are counted, run their own copy, or suggest a change.
         </p>
         <p>

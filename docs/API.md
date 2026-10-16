@@ -1,4 +1,4 @@
-# zvote HTTP API
+# super-vote HTTP API
 
 The contract between the server (`servers/java`) and its clients. JSON over
 HTTP, plus one server-sent event stream per poll. The TypeScript mirror of
@@ -14,7 +14,7 @@ There are no accounts yet. The first `/api` request from a browser gets a
 voter token in a cookie:
 
 ```
-Set-Cookie: zvote_voter=<43 url-safe characters>; Path=/; Max-Age=31536000; HttpOnly; SameSite=Lax
+Set-Cookie: super_vote_voter=<43 url-safe characters>; Path=/; Max-Age=31536000; HttpOnly; SameSite=Lax
 ```
 
 Send it back on every request (`fetch(..., { credentials: 'include' })`,
@@ -46,7 +46,7 @@ Every request may also say the device's IANA time zone, which the web app
 always sends:
 
 ```
-Zvote-Time-Zone: Europe/Paris
+Super-Vote-Time-Zone: Europe/Paris
 ```
 
 It is only used to place polls, ballots and voters in the
@@ -66,14 +66,14 @@ send a credential casting ballots as a stranger is not.
 |---|---|---|
 | `GET` | `/api/server-info` | `ServerInfo`: what this server offers |
 | `POST` | `/api/voters` | `201` + `{"token"}`: a voter token, for a client that keeps its own |
-| `GET` | `/api/statistics` | `Statistics`: how much zvote is used, and where, as of the last hour; `Cache-Control: max-age=300, public` |
+| `GET` | `/api/statistics` | `Statistics`: how much super-vote is used, and where, as of the last hour; `Cache-Control: max-age=300, public` |
 | `GET` | `/api/polls` | `PollSummary[]`: the 50 most recent public polls (none while `publicPolls` is off) |
 | `GET` | `/api/polls/mine` | `PollSummary[]`: the caller's polls, newest first |
 | `POST` | `/api/polls` | `201` + `PollView`, `Location: /api/polls/{id}` |
 | `GET` | `/api/polls/{id}` | `PollView` |
 | `GET` | `/api/polls/{id}/places` | `PollPlaces`: where its ballots come from, once its results show; `Cache-Control: max-age=60` |
 | `GET` | `/api/polls/{id}/results` | `PollUpdate`: the results, the same for everyone, `Cache-Control: max-age=1` |
-| `POST` | `/api/polls/{id}/creator` | `PollView`: becomes the poll's creator, with `Zvote-Handover` |
+| `POST` | `/api/polls/{id}/creator` | `PollView`: becomes the poll's creator, with `Super-Vote-Handover` |
 | `GET` | `/api/join/{code}` | `PollSummary`: the poll behind a join code (only its letters and digits count, in any case) |
 | `PATCH` | `/api/polls/{id}` | `PollView`: creator only, `{"closed": true}` closes it for good; anything else answers `400` |
 | `DELETE` | `/api/polls/{id}` | `204`: creator only |
@@ -210,17 +210,17 @@ rather ask than hold a stream open. Being identical for everyone it carries
   "features": { "publicPolls": false, "unlistedPolls": true, "approvalVoting": true, "majorityJudgment": true },
   "limits": { "maxOptions": 20, "maxTitleLength": 200, "maxOptionLength": 100,
               "maxVoterNameLength": 40, "maxInvitations": 1000, "pollLifetimeDays": 30 },
-  "publicUrl": "https://zvote.example"
+  "publicUrl": "https://super-vote.org"
 }
 ```
 
 `publicUrl` is where this server's polls are reached, without a trailing
 slash: what a client that cannot know its own address builds a share link
 from, and what the server builds invitation links from. Null when it was not
-told (`zvote.public-url`).
+told (`super-vote.public-url`).
 
-From `zvote.features` and `zvote.limits` in `application.yml`. The server
-enforces them when a poll is created.
+From `super-vote.features` and `super-vote.limits` in `application.yml`. The
+server enforces them when a poll is created.
 
 ### Statistics
 
@@ -258,7 +258,7 @@ that got a voter identity), and the polls open at that time.
 - `days`: per UTC day, the last 90, oldest first; days without any are left
   out.
 
-Counted in memory and published once an hour (`zvote.statistics-cron`), so
+Counted in memory and published once an hour (`super-vote.statistics-cron`), so
 that the statistics cannot be matched with one poll's ballots as they come.
 
 ### PollPlaces
@@ -322,7 +322,7 @@ Send its person the poll's address with the token in the fragment, which
 browsers never send on:
 
 ```
-https://zvote.example/p/R0JsGfPEiNuO7CoMMd_I5g#handover=qWsD_0PPBuKgjv6h9yEQxA
+https://super-vote.org/p/R0JsGfPEiNuO7CoMMd_I5g#handover=qWsD_0PPBuKgjv6h9yEQxA
 ```
 
 Opening it makes them the poll's creator - theirs to close, to delete, and
@@ -331,7 +331,7 @@ none of that. A client doing this itself sends the token in a header:
 
 ```
 POST /api/polls/{id}/creator
-Zvote-Handover: qWsD_0PPBuKgjv6h9yEQxA
+Super-Vote-Handover: qWsD_0PPBuKgjv6h9yEQxA
 ```
 
 The token works once: a handover link that leaked afterwards - into a chat, a
@@ -389,7 +389,7 @@ POST /api/polls/{id}/invitations
 
 201 { "count": 3, "next": null, "invitations": [
       { "number": 3, "token": "3.qWsD_0PPBuKgjv6h9yEQxA",
-        "link": "https://zvote.example/p/{id}#invitation=3.qWsD_0PPBuKgjv6h9yEQxA",
+        "link": "https://super-vote.org/p/{id}#invitation=3.qWsD_0PPBuKgjv6h9yEQxA",
         "label": "Bo", "used": false }, ... ] }
 ```
 
@@ -403,7 +403,7 @@ never in a URL: browsers do not send a fragment, so no server or proxy log
 keeps it.
 
 ```
-Zvote-Invitation: 3.qWsD_0PPBuKgjv6h9yEQxA
+Super-Vote-Invitation: 3.qWsD_0PPBuKgjv6h9yEQxA
 ```
 
 - The first ballot cast with an invitation makes it the caller's browser's

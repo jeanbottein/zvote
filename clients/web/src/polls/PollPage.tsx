@@ -65,7 +65,7 @@ function PollScreen({ id, invitation }: { id: string; invitation: string | null 
 
   return (
     <>
-      <title>{`${poll.title} · zvote`}</title>
+      <title>{`${poll.title} · super-vote`}</title>
       <PollHeader poll={poll} />
       {justCreated && poll.isMine && poll.totalBallots === 0 && (poll.invitationOnly
         ? <p className="panel callout">

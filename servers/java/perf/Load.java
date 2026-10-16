@@ -19,7 +19,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.regex.Pattern;
 
 /**
- * One zvote workload: V live viewers on a poll, B ballots from B new voters,
+ * One super-vote workload: V live viewers on a poll, B ballots from B new voters,
  * C in flight at a time. Prints one JSON line per round.
  *
  *   java Load.java http://127.0.0.1:18080 <viewers> <ballots> <concurrency> <rounds>
@@ -158,7 +158,7 @@ public class Load {
     static HttpRequest.Builder request(String url, String voter) {
         return HttpRequest.newBuilder(URI.create(url))
             .header("Content-Type", "application/json")
-            .header("Cookie", "zvote_voter=" + voter)
+            .header("Cookie", "super_vote_voter=" + voter)
             .timeout(Duration.ofSeconds(30));
     }
 
