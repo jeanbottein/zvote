@@ -52,9 +52,14 @@ it takes. Load tests: [docs/PERFORMANCE.md](../../docs/PERFORMANCE.md).
 | `super-vote.limits.poll-lifetime-days` | `30` | days before a poll is deleted, with its ballots (1 at least) |
 | `super-vote.retention-cron` | `0 * * * * *` | when expired polls are deleted, and deleted polls' ballots removed (every minute); `-` turns it off |
 | `super-vote.fold-patience` | `250ms` | how long a ballot's answer waits for its ballot to be folded into the tallies |
+| `super-vote.rate-limits.polls-per-day` | `20` | polls one network (an IPv4 address, an IPv6 /64) may create in a day |
+| `super-vote.rate-limits.wrong-codes-in-a-row` | `5` | wrong join codes in a row before a network is refused codes for a day |
+| `super-vote.rate-limits.wrong-codes-per-day` | `20` | the same over a day, right codes in between or not |
+| `server.forward-headers-strategy` | `native` | the client's address and scheme from `X-Forwarded-For` and `-Proto`, believed from a private address only (the reverse proxy) |
 
 Features and limits are advertised at `GET /api/server-info` and enforced when
-a poll is created. A limit out of range stops the server at startup.
+a poll is created; the rate limits are said where they apply (docs/API.md,
+"Fair use"). A limit out of range stops the server at startup.
 
 ## Layout
 
@@ -68,6 +73,7 @@ org.supervote.server
 │               PollRetention; DTOs, errors
 ├── identity/   the voter cookie
 ├── live/       PollStream: server-sent events
+├── ratelimit/  what one network may do in a day: PollQuota, WrongCodes, Network
 └── common/     SuperVoteProperties, InvalidRequestException
 ```
 

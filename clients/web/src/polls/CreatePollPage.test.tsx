@@ -22,7 +22,7 @@ const openForm = () => renderAt('/new', [{ path: '/new', element: <CreatePollPag
 
 describe('creating a poll', () => {
   it('sends the poll and opens it', async () => {
-    vi.mocked(createPoll).mockResolvedValue({ id: 'fresh' } as Poll);
+    vi.mocked(createPoll).mockResolvedValue({ poll: { id: 'fresh' } as Poll, pollsLeft: null });
     openForm();
 
     await userEvent.type(screen.getByLabelText('Question'), 'Where do we eat?');
@@ -81,7 +81,7 @@ describe('creating a poll', () => {
   });
 
   it('warns that anyone with the link can vote again from another browser, unless invited', async () => {
-    vi.mocked(createPoll).mockResolvedValue({ id: 'fresh' } as Poll);
+    vi.mocked(createPoll).mockResolvedValue({ poll: { id: 'fresh' } as Poll, pollsLeft: null });
     openForm();
     await userEvent.type(await screen.findByLabelText('Question'), 'Who chairs?');
     await userEvent.type(screen.getByLabelText('Option 1'), 'Ana');
@@ -99,7 +99,7 @@ describe('creating a poll', () => {
   });
 
   it('shows the results after a number of ballots, at least three', async () => {
-    vi.mocked(createPoll).mockResolvedValue({ id: 'fresh' } as Poll);
+    vi.mocked(createPoll).mockResolvedValue({ poll: { id: 'fresh' } as Poll, pollsLeft: null });
     openForm();
     await userEvent.type(await screen.findByLabelText('Question'), 'Lunch?');
     await userEvent.type(screen.getByLabelText('Option 1'), 'Ramen');

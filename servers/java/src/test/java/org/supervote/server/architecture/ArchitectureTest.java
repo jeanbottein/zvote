@@ -15,9 +15,10 @@ import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
  * Executable architecture rules.
  *
  * Each package under org.supervote.server is a module, and its package-info.java
- * says which modules it may depend on: polls and idempotency on common only;
- * statistics on polls; identity on common and statistics; ballots, live and
- * common on none; the api on all of them.
+ * says which modules it may depend on: polls on common and ratelimit;
+ * idempotency on common only; statistics on polls; identity on common and
+ * statistics; ballots, live, ratelimit and common on none; the api on all of
+ * them.
  * Spring Modulith verifies those declarations, that no module reaches into
  * another's sub-packages, and that there are no cycles. The rules below are
  * the ones a module declaration cannot state.

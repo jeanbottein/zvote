@@ -24,7 +24,9 @@ layer below exists because something needed it.
 
 In development the Vite dev server serves the client on `:5173` and forwards
 `/api` to the Java server on `:8080`, so the browser only ever talks to one
-origin: cookies and event streams need no CORS.
+origin: cookies and event streams need no CORS. Deployed, Caddy does the
+same on `:443`, HTTPS only, and the Java server is reachable through it
+alone ([deploy/README.md](../deploy/README.md)).
 
 ## Vocabulary
 
@@ -37,17 +39,18 @@ stand-in to type on a phone (`K7M-4QX`).
 
 Java 25, Spring Boot 4.1: Spring MVC on virtual threads, Spring Data JDBC,
 Flyway, H2 in file mode or PostgreSQL, Spring Modulith. About 1,500 lines of
-code, in eight modules, one per package under `org.supervote.server`:
+code, in nine modules, one per package under `org.supervote.server`:
 
 | Module | Uses | Holds |
 |---|---|---|
-| `polls` | `common` | `Poll`, `PollOption`, `PollService`: every rule about polls; who may vote, in `InvitationService` and `InvitationLinks` |
+| `polls` | `common`, `ratelimit` | `Poll`, `PollOption`, `PollService`: every rule about polls; who may vote, in `InvitationService` and `InvitationLinks` |
 | `ballots` | nothing | ballots, one byte per option; their tallies (`TallyService`); `Mention` |
 | `api` | everything | controllers, the services that join polls and ballots, DTOs, the ranking, error mapping, and the MCP tools |
 | `identity` | `common`, `statistics` | the voter token - cookie or bearer - and `VoterIdentityFilter` |
 | `statistics` | `polls` | `StatisticsService`: polls, ballots and voters by time zone, day and poll, published hourly |
 | `live` | nothing | `PollStream`: server-sent events |
 | `idempotency` | `common` | doing a request's work once per `Idempotency-Key` |
+| `ratelimit` | nothing | what one network may do in a day: create polls (`PollQuota`), get join codes wrong (`WrongCodes`) |
 | `common` | nothing | `SuperVoteProperties`, `VoterSecret`, `InvalidRequestException` |
 
 Each module says what it is, and which modules it may use, in its
@@ -204,8 +207,8 @@ away.
 
 A join code is drawn at random from 31 characters without look-alikes
 (887 million codes), unique among polls. It is shorter than the 128-bit share
-token, so it is guessable in principle: lookups (`GET /api/join/{code}`) get a
-rate limit at deployment.
+token, so it is guessable in principle: a network that tries too many wrong
+ones is refused codes for a day (see [Fair use](#fair-use)).
 
 ### Invitations
 
@@ -241,6 +244,41 @@ device's share sheet).
   write the counters: voters never wait on them.
 - An invitation nobody voted with can be taken back; one that was used
   cannot, since its ballot cannot be found to remove it.
+
+### Fair use
+
+super-vote is free and runs on one small server, so what one network may do
+in a day is limited (the `ratelimit` module), and what could be guessed is
+guarded. `PollService` applies both, so the HTTP API and the MCP tools cannot
+differ.
+
+- **A network** is an IPv4 address, or an IPv6 address's /64: a household or
+  a phone holds a whole /64, and counting its addresses one by one would make
+  it as many networks as it likes. Behind the reverse proxy, Tomcat takes the
+  address from `X-Forwarded-For`, believed from a private address only
+  (`server.forward-headers-strategy: native`), and Caddy sets that header
+  afresh: a client cannot choose its own.
+- **Polls**: 20 a day per network (`PollQuota`), counted once a poll is known
+  to be valid, so that an invalid one costs nothing, and never for a retry
+  with the same `Idempotency-Key`, which does not reach it. The answer says
+  how many are left, in the IETF draft's `RateLimit` fields, and the web app
+  warns its creator from the last five.
+- **Join codes**: with ten thousand polls open, about one guess in 89,000
+  finds one; a share token cannot be found that way (128 random bits). A
+  network that tries 5 wrong codes in a row, or 20 in a day, is refused codes
+  for a day (`WrongCodes`). A right code ends a run of wrong ones, so that a
+  room sharing one connection, where a few people mistype the code on the
+  screen, is not barred; the daily count stops a guesser who slips right
+  codes in between. Only what could be a code counts (an expired link handed
+  to an MCP tool is no guess), and links are never refused: a barred office
+  still opens its polls.
+- **In memory, for a day at most.** Nothing about a network is written. Each
+  limit remembers the most recent 100,000 networks, so that no flood of
+  addresses can fill the memory, and forgets a network once its day is over.
+  A restart forgets them all.
+- **Ballots are not limited by network.** A room voting together comes from
+  one address: hundreds of ballots from one network is what super-vote is
+  for. Counting each person once is what invitations do.
 
 ### Retention
 
@@ -423,8 +461,10 @@ counter), but someone has to hand each link to its person.
 whose `detail` can be shown to people as is: `InvalidRequestException` → 400,
 `NotPollCreatorException` → 403, `PollNotFoundException` → 404,
 `PollClosedException`, simultaneous ballots and lock time-outs → 409 ("try
-again"). Spring MVC's own errors use the same format, and anything unexpected
-is logged in full and answered 500 with a plain sentence and no details.
+again"), `TooManyPollsException` and `TooManyWrongCodesException` → 429 with
+`Retry-After`. Spring MVC's own errors use the same format, and anything
+unexpected is logged in full and answered 500 with a plain sentence and no
+details.
 
 ### Tests
 
@@ -441,8 +481,13 @@ is logged in full and answered 500 with a plain sentence and no details.
   heartbeat, shutdown).
 - `PollEventsTest`: the live stream over a real socket: first event,
   coalescing, names, results shown at closing, deletion, unknown poll.
+- `RateLimitApiTest`: a network's polls and wrong codes, through the API and
+  the MCP tools; `BehindAProxyTest`: the client's address and scheme, read
+  from the proxy's headers over a real socket.
+- `LlmsTxtTest`: what an agent reads at `/llms.txt`.
 - Unit tests for what needs no server: the ballot format (`BallotFormatTest`),
-  a voter's keys, the mentions, the configuration's limits, the error mapping.
+  a voter's keys, the mentions, the configuration's limits, the error mapping,
+  networks and the rate limits' counts.
 
 The same suite runs on PostgreSQL (see the server's README) and as a native
 image (`./mvnw -PnativeTest test`). `./mvnw test -Pcoverage` adds a JaCoCo
@@ -595,6 +640,10 @@ Playwright is on the roadmap.
 | Invitation tokens in the fragment and a header | No server or proxy log ever holds one. |
 | Names per poll, optional | A cloud of who took part, without an account and without a profile kept across polls. |
 | Polls deleted after 30 days | Data minimisation (GDPR), and nothing to archive for a group decision. |
+| Rate limits in the server, by network | Only the server knows what a guess is (a join code leading nowhere, through the API or the MCP tools alike) and when a poll counts (once valid, never on a retry); a proxy sees statuses, and an MCP refusal is not even one. Its refusals are sentences for people. |
+| Join codes barred, links never | A link cannot be guessed: barring it would only punish people opening a poll deleted since. |
+| Caddy in front, one origin | HTTPS with certificates it renews itself, the security headers, the web app's files, and the server behind it on a private network: one address for people and agents alike. |
+| `/llms.txt` written by the server | From `ApiRules`, like the OpenAPI document and the MCP tools: one set of sentences for every reader. |
 | Statistics by time zone, hourly, from 3 up | No address is ever read or located, no country named, nothing kept about a ballot or a voter; an hour's delay and the threshold keep them from pointing at anyone. |
 | A map of land and time-zone cities, no borders | Borders are claims; a country map has to take sides (Taiwan, Kashmir, Crimea). Land and cities do not, and the time zone is all the server knows anyway. |
 | No client state library | Two data hooks and one ballot hook are all the state there is. |
@@ -611,4 +660,9 @@ Playwright is on the roadmap.
   cannot give them another link without counting them twice. Accounts will
   carry a ballot across devices.
 - **Live updates are single-node** (see above), though folding is not.
+- **Limits are per network.** People behind one address (an office, a phone
+  carrier's NAT, an agent platform calling for its users) share one day's
+  polls, and someone with many addresses gets many shares. Accounts (roadmap,
+  phase 7) will let limits follow people instead. Each server counts its own,
+  so behind several a network gets each one's share.
 - **Lists are capped** (50 public polls, 100 of your own) and not paginated.

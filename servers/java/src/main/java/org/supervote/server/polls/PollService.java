@@ -5,6 +5,9 @@ import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.supervote.server.common.InvalidRequestException;
 import org.supervote.server.common.SuperVoteProperties;
+import org.supervote.server.ratelimit.Network;
+import org.supervote.server.ratelimit.PollQuota;
+import org.supervote.server.ratelimit.WrongCodes;
 
 import java.security.SecureRandom;
 import java.text.Collator;
@@ -34,6 +37,8 @@ public class PollService {
     private static final String JOIN_CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
     private static final int JOIN_CODE_LENGTH = 6;
     private static final Pattern NOT_IN_JOIN_CODES = Pattern.compile("[^A-Z0-9]");
+    private static final Pattern JOIN_CODE = Pattern.compile("[" + JOIN_CODE_ALPHABET + "]{" + JOIN_CODE_LENGTH + "}");
+    private static final String NO_POLL_WITH_THIS_CODE = "No poll has this code. Check it with the person who shared it.";
     /** Tabs, line breaks and every Unicode space: a name keeps single spaces between its words. */
     private static final Pattern SPACES = Pattern.compile("[\\s\\p{Z}]+");
     /** Controls and invisible format characters (bidi overrides, zero widths), but the joiner of emoji sequences. */
@@ -46,37 +51,48 @@ public class PollService {
     private final PollOptionRepository options;
     private final VoterNameRepository voterNames;
     private final HandoverLinks handovers;
+    private final PollQuota quota;
+    private final WrongCodes wrongCodes;
     private final SuperVoteProperties settings;
 
     public PollService(PollRepository polls, PollOptionRepository options, VoterNameRepository voterNames,
-                       HandoverLinks handovers, SuperVoteProperties settings) {
+                       HandoverLinks handovers, PollQuota quota, WrongCodes wrongCodes, SuperVoteProperties settings) {
         this.polls = polls;
         this.options = options;
         this.voterNames = voterNames;
         this.handovers = handovers;
+        this.quota = quota;
+        this.wrongCodes = wrongCodes;
         this.settings = settings;
     }
 
+    /** A valid poll counts against its network's polls for the day; an invalid one does not. */
     @Transactional
-    public Poll create(CreatePollRequest request, String creatorId) {
+    public Poll create(CreatePollRequest request, String creatorId, Network network) {
         var title = validTitle(request.title());
         var labels = validLabels(request.options());
+        var votingSystem = offered(request.votingSystem());
+        var visibility = offered(request.visibility());
         var invitationOnly = Boolean.TRUE.equals(request.invitationOnly());
         var showVoterNames = Boolean.TRUE.equals(request.showVoterNames());
         var resultsShown = resultsShown(request.resultsShown(), invitationOnly || showVoterNames);
+        var resultsAfterBallots = resultsShown == Poll.ResultsShown.AFTER_BALLOTS
+            ? validThreshold(request.resultsAfterBallots())
+            : null;
         var handover = Boolean.TRUE.equals(request.handover());
+        quota.take(network);
         var poll = polls.save(new Poll(
             null,
             randomToken(),
             newJoinCode(),
             creatorId,
             title,
-            offered(request.votingSystem()),
-            offered(request.visibility()),
+            votingSystem,
+            visibility,
             invitationOnly,
             showVoterNames,
             resultsShown,
-            resultsShown == Poll.ResultsShown.AFTER_BALLOTS ? validThreshold(request.resultsAfterBallots()) : null,
+            resultsAfterBallots,
             now(),
             null,
             handover));
@@ -129,12 +145,23 @@ public class PollService {
     /**
      * The poll behind a join code, typed or pasted by a person: case, spaces
      * and dashes of any kind do not matter. Like the link, knowing the code is
-     * what grants access.
+     * what grants access; unlike it, a code can be guessed, so a network that
+     * tries too many wrong ones is refused codes for a while (WrongCodes).
+     * What cannot be a code is no guess: it is not looked up, nor counted.
      */
-    public Poll findByJoinCode(String joinCode) {
-        var code = NOT_IN_JOIN_CODES.matcher(joinCode.toUpperCase(Locale.ROOT)).replaceAll("");
-        return polls.findByJoinCode(code).orElseThrow(() -> new PollNotFoundException(
-            "No poll has this code. Check it with the person who shared it."));
+    public Poll findByJoinCode(String typed, Network network) {
+        var code = NOT_IN_JOIN_CODES.matcher(typed.toUpperCase(Locale.ROOT)).replaceAll("");
+        if (!JOIN_CODE.matcher(code).matches()) {
+            throw new PollNotFoundException(NO_POLL_WITH_THIS_CODE);
+        }
+        wrongCodes.check(network);
+        var poll = polls.findByJoinCode(code);
+        if (poll.isEmpty()) {
+            wrongCodes.wrong(network);
+            throw new PollNotFoundException(NO_POLL_WITH_THIS_CODE);
+        }
+        wrongCodes.right(network);
+        return poll.get();
     }
 
     /**

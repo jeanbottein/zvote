@@ -1,6 +1,7 @@
 import { lazy, Suspense } from 'react';
 import { Link, useLocation, useParams } from 'react-router';
-import type { Poll } from '../api/types';
+import type { Poll, PollsLeft } from '../api/types';
+import AppName from '../ui/AppName';
 import Notice from '../ui/Notice';
 import BallotSection from './BallotSection';
 import DevBallotFeeder from './DevBallotFeeder';
@@ -18,6 +19,9 @@ const PollPlacesSection = lazy(() => import('../statistics/PollPlacesSection'));
 
 /** Fewer ballots than a place needs to show (StatisticsService.VISIBLE): nothing to ask for. */
 const FEWEST_PLACED = 3;
+
+/** The last polls a connection may create today come with a warning, so that running out is no surprise. */
+const LAST_POLLS = 5;
 
 /**
  * A poll: your ballot, and the results as they come in. Its address is its
@@ -41,7 +45,9 @@ const home = <Link className="button primary" to="/">Back to the home page</Link
 
 function PollScreen({ id, invitation }: { id: string; invitation: string | null }) {
   const { poll, error, deleted, connection, setPoll } = usePoll(id, invitation);
-  const justCreated = (useLocation().state as { created?: boolean } | null)?.created === true;
+  const arrival = useLocation().state as { created?: boolean; pollsLeft?: PollsLeft | null } | null;
+  const justCreated = arrival?.created === true;
+  const pollsLeft = arrival?.pollsLeft ?? null;
 
   if (deleted) {
     return <Notice title="This poll was deleted" action={home}><p>It was deleted, and its results with it.</p></Notice>;
@@ -75,6 +81,7 @@ function PollScreen({ id, invitation }: { id: string; invitation: string | null 
           <p><strong>Your poll is ready.</strong> Share its link to collect ballots.</p>
           <ShareButton poll={poll} className="button primary" />
         </section>)}
+      {pollsLeft && pollsLeft.count < LAST_POLLS && <PollsLeftHint pollsLeft={pollsLeft} />}
       {poll.closedAt
         ? <p className="panel callout">Voting closed {timeAgo(poll.closedAt)}. These are the final results.</p>
         : <BallotSection poll={poll} invitation={invitation} onCast={setPoll} />}
@@ -90,6 +97,18 @@ function PollScreen({ id, invitation }: { id: string; invitation: string | null 
       {poll.isMine && <OwnerActions poll={poll} onChange={setPoll} />}
       {import.meta.env.DEV && poll.isMine && !poll.invitationOnly && <DevBallotFeeder poll={poll} />}
     </>
+  );
+}
+
+function PollsLeftHint({ pollsLeft: { count, perDay, resetsAt } }: { pollsLeft: PollsLeft }) {
+  return (
+    <p className="hint" data-tone="warning">
+      {count === 0
+        ? `That was your last poll for now: you can create more ${timeAgo(new Date(resetsAt).toISOString())}.`
+        : `You can create ${count} more ${count === 1 ? 'poll' : 'polls'} today.`}
+      {' '}As <AppName />'s resources are limited, each connection can create {perDay} polls a day, to be fair to
+      everyone.
+    </p>
   );
 }
 

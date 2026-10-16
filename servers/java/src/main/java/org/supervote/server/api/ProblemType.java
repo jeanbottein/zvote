@@ -43,6 +43,12 @@ enum ProblemType {
     /** Another change landed at the same moment. Sending it again is safe. */
     COLLISION("collision"),
 
+    /** The caller's network created as many polls as it may today; Retry-After says when it may again. */
+    TOO_MANY_POLLS("too-many-polls"),
+
+    /** The caller's network tried too many wrong join codes, and is refused codes for a while. Links still work. */
+    TOO_MANY_WRONG_CODES("too-many-wrong-codes"),
+
     /** A bug, or the database away. */
     SERVER_ERROR("server-error");
 

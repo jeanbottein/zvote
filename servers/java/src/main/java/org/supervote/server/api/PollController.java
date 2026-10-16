@@ -1,5 +1,6 @@
 package org.supervote.server.api;
 
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.aot.hint.annotation.RegisterReflectionForBinding;
 import org.springframework.http.CacheControl;
@@ -28,6 +29,9 @@ import org.supervote.server.identity.VoterIdentity;
 import org.supervote.server.live.PollStream;
 import org.supervote.server.polls.CreatePollRequest;
 import org.supervote.server.polls.PollService;
+import org.supervote.server.ratelimit.Allowance;
+import org.supervote.server.ratelimit.Network;
+import org.supervote.server.ratelimit.PollQuota;
 import org.supervote.server.statistics.PollPlaces;
 
 import java.net.URI;
@@ -47,15 +51,17 @@ public class PollController {
     private final PollViewService views;
     private final PollStream stream;
     private final IdempotencyService idempotency;
+    private final PollQuota quota;
 
     PollController(PollService polls, PollCreationService creations, PollChangeService changes,
-                   PollViewService views, PollStream stream, IdempotencyService idempotency) {
+                   PollViewService views, PollStream stream, IdempotencyService idempotency, PollQuota quota) {
         this.polls = polls;
         this.creations = creations;
         this.changes = changes;
         this.views = views;
         this.stream = stream;
         this.idempotency = idempotency;
+        this.quota = quota;
     }
 
     @GetMapping
@@ -72,14 +78,21 @@ public class PollController {
      * A client that may have to retry - an agent whose request timed out -
      * sends an Idempotency-Key, and a second attempt answers the poll the
      * first one made instead of making another.
+     *
+     * The answer says how many more polls the caller's network may create
+     * today, so that a person can be warned before running out.
      */
     @PostMapping
     public ResponseEntity<PollView> create(@RequestBody CreatePollRequest request,
                                            @RequestHeader(name = IdempotencyService.HEADER, required = false) String key,
-                                           @RequestAttribute(VoterIdentity.ATTRIBUTE) Voter voter) {
-        var shareToken = idempotency.once(voter.id(), key, () -> creations.create(request, voter.id()).shareToken());
+                                           @RequestAttribute(VoterIdentity.ATTRIBUTE) Voter voter,
+                                           HttpServletRequest http) {
+        var network = Network.of(http);
+        var shareToken = idempotency.once(voter.id(), key,
+            () -> creations.create(request, voter.id(), network).shareToken());
         var poll = polls.find(shareToken);
         return ResponseEntity.created(URI.create("/api/polls/" + shareToken))
+            .headers(pollsLeft(quota.allowance(network)))
             .body(views.view(poll, voter, null, polls.handoverTokenOf(poll, voter.id()).orElse(null)));
     }
 
@@ -154,5 +167,15 @@ public class PollController {
         response.setHeader(HttpHeaders.CACHE_CONTROL, "no-store");
         response.setHeader("X-Accel-Buffering", "no"); // reverse proxies: stream, do not buffer
         return stream.watch(poll.id(), () -> views.update(poll.id()));
+    }
+
+    /** The IETF draft's RateLimit fields (draft-ietf-httpapi-ratelimit-headers). */
+    private static HttpHeaders pollsLeft(Allowance allowance) {
+        var headers = new HttpHeaders();
+        headers.add("RateLimit-Policy",
+            "\"polls\";q=%d;w=%d".formatted(allowance.limit(), allowance.window().toSeconds()));
+        headers.add("RateLimit",
+            "\"polls\";r=%d;t=%d".formatted(allowance.remaining(), allowance.resetsIn().toSeconds()));
+        return headers;
     }
 }

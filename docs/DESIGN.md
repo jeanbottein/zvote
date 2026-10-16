@@ -255,7 +255,8 @@ lines.
   translucent over a blur: back on the left (not on Home), the brand in the
   middle, Settings on the right. Toasts sit just under it.
 - A poll's page: its title on the page itself (not in a card), any callout,
-  the ballot, the invitations (the creator's), the results, when the poll will
+  the polls its creator has left today when few are (a warning hint), the
+  ballot, the invitations (the creator's), the results, when the poll will
   be deleted, the creator's actions, and in development the ballot feeder.
 
 ## Components

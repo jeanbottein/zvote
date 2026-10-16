@@ -56,10 +56,14 @@ class OpenApiConfiguration {
 
                 %s
 
+                ## Fair use
+
+                %s
+
                 ## Errors
 
                 %s
                 """.formatted(ApiRules.IDENTITY, ApiRules.BALLOTS, ApiRules.INVITATIONS, ApiRules.RESULTS,
-                ApiRules.CLOSING, ApiRules.HANDOVER, ApiRules.IDEMPOTENCY, ApiRules.ERRORS)));
+                ApiRules.CLOSING, ApiRules.HANDOVER, ApiRules.IDEMPOTENCY, ApiRules.FAIR_USE, ApiRules.ERRORS)));
     }
 }

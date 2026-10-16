@@ -69,7 +69,10 @@ public class PollTools {
         the "invite" tool and send each the link it answers. Set handover to
         true when the poll is for somebody else: the answer then carries a
         one-time token, and whoever opens /p/{id}#handover={token} becomes the
-        poll's creator.""")
+        poll's creator.
+
+        Each connection can create a limited number of polls a day, to be fair
+        to everyone: create only the polls you need.""")
     public PollView createPoll(
         @McpToolParam(description = "The question being decided.", required = true) String title,
         @McpToolParam(description = "What to decide between: 2 to 20, each one distinct.", required = true)
@@ -94,7 +97,7 @@ public class PollTools {
         var request = new CreatePollRequest(title, options,
             votingSystem == null ? Poll.VotingSystem.MAJORITY_JUDGMENT : votingSystem,
             Poll.Visibility.UNLISTED, invitationOnly, showVoterNames, resultsShown, resultsAfterBallots, handover);
-        var poll = creations.create(request, voter.id());
+        var poll = creations.create(request, voter.id(), caller.network());
         return views.view(poll, voter, null, polls.handoverTokenOf(poll, voter.id()).orElse(null));
     }
 
@@ -215,7 +218,7 @@ public class PollTools {
         try {
             return polls.find(poll);
         } catch (PollNotFoundException notAnId) {
-            return polls.findByJoinCode(poll);
+            return polls.findByJoinCode(poll, caller.network());
         }
     }
 }

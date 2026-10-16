@@ -26,6 +26,13 @@ spring:
     username: sa
     password:
 
+# Behind the reverse proxy (deploy/Caddyfile), the caller's address and scheme
+# come in X-Forwarded-For and X-Forwarded-Proto. Tomcat believes them only from
+# a private address, such as the proxy's: they are what the rate limits count
+# by, and what makes the voter cookie Secure.
+server:
+  forward-headers-strategy: native
+
 # What this server offers. Advertised at GET /api/server-info so the client can
 # adapt its UI, and enforced when polls are created.
 super-vote:
@@ -59,6 +66,17 @@ super-vote:
   # are open: their voters would be told they have not voted, voting again
   # would count them twice, and their invitation links would stop working.
   voter-secret: ${SUPER_VOTE_VOTER_SECRET:}
+
+  # What one network (an IPv4 address, or an IPv6 /64) may do in a day, held in
+  # memory only (org.supervote.server.ratelimit). super-vote is free and its
+  # resources are limited, so polls are shared out fairly; and a join code is
+  # short enough to guess, unlike a link, so a network trying wrong ones is
+  # refused codes for a day: after some in a row (a right one ends the run, so
+  # a room mistyping the code on the screen is spared), or more over the day.
+  rate-limits:
+    polls-per-day: 20
+    wrong-codes-in-a-row: 5
+    wrong-codes-per-day: 20
 
   # When the usage statistics are written and published (StatisticsService):
   # hourly, so that they cannot be matched with one poll's ballots as they come.

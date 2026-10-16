@@ -6,7 +6,9 @@ these shapes is `clients/web/src/api/types.ts`.
 
 In development the web client reaches the API through the Vite dev server
 (`http://localhost:5173/api/...`, proxied to `:8080`), so every call is
-same-origin.
+same-origin. Deployed, Caddy does the same on `https://super-vote.org`
+([deploy/Caddyfile](../deploy/Caddyfile)): the web app, the API, the MCP
+tools and the documents for agents share one origin.
 
 ## Identity
 
@@ -84,6 +86,7 @@ send a credential casting ballots as a stranger is not.
 | `DELETE` | `/api/polls/{id}/invitations/{number}` | `204`: creator only, an invitation nobody voted with |
 | `POST` | `/api/mcp` | the same services as Model Context Protocol tools |
 | `GET` | `/v3/api-docs` | this API as OpenAPI (`.yaml` too) |
+| `GET` | `/llms.txt` | this API for agents, in Markdown ([llmstxt.org](https://llmstxt.org)) |
 | `GET` | `/actuator/health` | `{"status":"UP"}`: readiness probe |
 
 A poll's `id` is its **share token**: 22 url-safe characters, unguessable. It
@@ -297,6 +300,14 @@ creator. Title and options are trimmed. There must be 2 to
 `maxOptions` options, none empty, none longer than `maxOptionLength`, and no two
 the same (ignoring case).
 
+The answer says how many more polls the caller's network may create today
+(see [Fair use](#fair-use)):
+
+```
+RateLimit-Policy: "polls";q=20;w=86400
+RateLimit: "polls";r=4;t=3600
+```
+
 Send an `Idempotency-Key` header (1 to 64 printable characters without spaces,
 such as a UUID) when the request may have to be sent again: a second attempt
 with the same key answers the poll the first one made, rather than making
@@ -438,6 +449,36 @@ Super-Vote-Invitation: 3.qWsD_0PPBuKgjv6h9yEQxA
 - Anyone holding the poll's own link or code can still open it, and see its
   results when they show: only voting needs an invitation.
 
+## Fair use
+
+super-vote is free, and runs on limited resources. Limits apply to a
+**network**: an IPv4 address, or an IPv6 address's /64, which a household or a
+phone holds whole. Behind the reverse proxy, that is the address the proxy
+saw (`X-Forwarded-For`), believed from a private address only. Nothing about
+a network is written anywhere: limits are counted in memory, and a network is
+forgotten once its day is over.
+
+- **Polls.** A network can create 20 polls a day, its first poll starting
+  the day. Every `201` from `POST /api/polls` carries the IETF draft's
+  [RateLimit fields](https://datatracker.ietf.org/doc/draft-ietf-httpapi-ratelimit-headers/):
+  `RateLimit-Policy: "polls";q=20;w=86400` (the quota, per day) and
+  `RateLimit: "polls";r=4;t=3600` (4 more, and the count starts again in an
+  hour). The web app warns its creator from the last five. One more answers
+  `429`, `/problems/too-many-polls`, with `Retry-After`. A refused poll, an
+  invalid one or a retry with the same `Idempotency-Key` costs nothing.
+- **Join codes.** A code is six characters, so it could be guessed, where a
+  poll's id (128 random bits) cannot. A network that tries 5 wrong codes in a
+  row, or 20 in a day, is refused codes for a day: `429`,
+  `/problems/too-many-wrong-codes`, with `Retry-After`, even for a right code.
+  A right code ends a run of wrong ones, so a room sharing one connection,
+  where a few people mistype the code on the screen, is not barred; the
+  daily count stops a guesser who slips right codes in between. Only what
+  could be a code counts: six of its letters and digits. Links, and a poll's
+  id anywhere, are never refused.
+
+Through MCP the same limits apply (`create_poll`, and the tools given a join
+code), and a refusal is a tool error with the same sentence.
+
 ## Live updates
 
 ```
@@ -490,14 +531,16 @@ to a machine, and is what to branch on.
 | `/problems/poll-closed` | `409` | The poll is closed |
 | `/problems/invitation-used` | `409` | Someone has already voted with that invitation |
 | `/problems/collision` | `409` | Another change landed at the same moment; sending it again is safe (`Retry-After: 1`) |
+| `/problems/too-many-polls` | `429` | The caller's network created its polls for the day; `Retry-After` says when it may again |
+| `/problems/too-many-wrong-codes` | `429` | The caller's network tried too many wrong join codes, and is refused codes for a day; links still work |
 | `/problems/server-error` | `500` | Something unexpected failed on the server; the `detail` says so and nothing more |
 
 The `type` is a relative URI, which RFC 9457 resolves against the request, so
 it holds whatever address the server answers on. Spring's own refusals (`405`,
 `415`, a route that does not exist) are problem documents too, but carry no
 `type`: RFC 9457 reads a missing one as `about:blank`, "no more than the
-status". `429` is reserved for the rate limits of the deployment phase
-(ROADMAP.md), so adding them will need no change here.
+status". Deployed, a request body over 64 KB is refused before it reaches
+the server: `413`, from the reverse proxy, without a problem document.
 
 ## Trying it with curl
 
@@ -525,6 +568,15 @@ curl -s localhost:8080/api/polls/$ID/results
 ```
 
 ## For agents
+
+An agent that is handed a link to super-vote, or told to use it, finds its
+way: `/llms.txt` says what super-vote is, where the API and the MCP tools are,
+and every rule below, written by the server from the same sentences as the
+OpenAPI document. The web app's pages are JavaScript, which an agent reading
+a page without running it sees nothing of, so each page carries a short
+version in its `<head>` (`<script type="text/llms.txt">`, which browsers
+ignore), pointing there. Both ask an agent to cast a ballot only when the
+person it acts for asked it to.
 
 Everything above is reachable two ways, and both go through the same services,
 so there is one set of rules and no second contract.

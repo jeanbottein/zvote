@@ -4,6 +4,11 @@ import {
 } from './client';
 import type { NewPoll } from './types';
 
+const lunch: NewPoll = {
+  title: 'Lunch?', options: ['Ramen', 'Tacos'], votingSystem: 'APPROVAL', visibility: 'UNLISTED',
+  invitationOnly: false, showVoterNames: false, resultsShown: 'LIVE', resultsAfterBallots: null,
+};
+
 describe('the API client', () => {
   const fetchMock = vi.fn<typeof fetch>();
 
@@ -56,16 +61,32 @@ describe('the API client', () => {
   it('sends bodies as JSON', async () => {
     fetchMock.mockResolvedValue(Response.json({ id: 'abc' }, { status: 201 }));
 
-    const poll: NewPoll = {
-      title: 'Lunch?', options: ['Ramen', 'Tacos'], votingSystem: 'APPROVAL', visibility: 'UNLISTED',
-      invitationOnly: false, showVoterNames: false, resultsShown: 'LIVE', resultsAfterBallots: null,
-    };
-
-    await createPoll(poll);
+    await createPoll(lunch);
 
     const [, init] = fetchMock.mock.calls[0];
     expect(init?.headers).toMatchObject({ 'Content-Type': 'application/json' });
-    expect(JSON.parse(init?.body as string)).toEqual(poll);
+    expect(JSON.parse(init?.body as string)).toEqual(lunch);
+  });
+
+  it('says how many more polls this connection may create today, from the RateLimit fields', async () => {
+    fetchMock.mockResolvedValue(Response.json({ id: 'abc' }, {
+      status: 201,
+      headers: { 'RateLimit-Policy': '"polls";q=20;w=86400', RateLimit: '"polls";r=4;t=3600' },
+    }));
+    const before = Date.now();
+
+    const { poll, pollsLeft } = await createPoll(lunch);
+
+    expect(poll).toEqual({ id: 'abc' });
+    expect(pollsLeft).toMatchObject({ count: 4, perDay: 20 });
+    expect(pollsLeft?.resetsAt).toBeGreaterThanOrEqual(before + 3_600_000);
+    expect(pollsLeft?.resetsAt).toBeLessThanOrEqual(Date.now() + 3_600_000);
+  });
+
+  it('knows of no polls left from a server that does not say', async () => {
+    fetchMock.mockResolvedValue(Response.json({ id: 'abc' }, { status: 201 }));
+
+    expect((await createPoll(lunch)).pollsLeft).toBeNull();
   });
 
   it('sends the invitation a voter came with in a header, never in an address', async () => {

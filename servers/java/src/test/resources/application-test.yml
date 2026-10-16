@@ -13,9 +13,18 @@ super-vote:
   fold-patience: 10s
   public-url: https://super-vote.test
   voter-secret: test-voter-secret-0123456789abcdef
+  # Every test calls from 127.0.0.1, so none may run out; RateLimitApiTest sets its own.
+  rate-limits:
+    polls-per-day: 1000000
+    wrong-codes-in-a-row: 1000000
+    wrong-codes-per-day: 1000000
 
 # Warnings and errors only (see logback-test.xml), minus the expected ones.
 logging:
   level:
     org.flywaydb.core.internal.database.base.Database: ERROR # "H2 is newer than Flyway verified"
     org.springframework.web.servlet.PageNotFound: ERROR # the tests send wrong requests on purpose
+    # Said again by every context the tests start: Spring AI's MCP annotations and springdoc.
+    "[org.springframework.context.support.PostProcessorRegistrationDelegate$BeanPostProcessorChecker]": ERROR
+    org.springframework.ai.mcp.annotation.provider: ERROR
+    org.springdoc.core.events.SpringDocAppInitializer: ERROR

@@ -16,6 +16,7 @@ the codebase as simple as it found it: add what the phase needs, no more.
 | 5b | Ballots at scale, first step (see [Scale](#scale)): one row per ballot, tallies folded from a change log, deleted polls removed in batches, PostgreSQL supported and tested; 41 times faster on PostgreSQL, and as fast on a poll of 10 million ballots as on a new one |
 | 5c | Invitation polls: the creator sends each voter a link of their own, good for one ballot in the browser that first votes with it, and sees which links were used, never what anyone chose. Links are signed, not stored: a billion invitations cost a counter |
 | 5d | A backend agents can use: voter tokens as bearer tokens, `Idempotency-Key` on the two creating POSTs, invitations named a hundred at a time with their links, a cacheable `GET /api/polls/{id}/results`, a one-time handover so a poll made for someone becomes theirs, machine-readable problem types, OpenAPI at `/v3/api-docs`, and the same services as MCP tools at `/api/mcp`. The ranking moved to the server, so the winner is in the results and the GMJ math has one home |
+| 5e | Ready for the internet: limits by network, in memory (20 polls a day, said in the `RateLimit` fields and warned of from the last five; join codes refused for a day after 5 wrong in a row or 20 in a day, links never), the client's address read from the proxy, the edge configuration (`deploy/Caddyfile`: HTTPS only, one origin, security headers, body limit), and super-vote described for agents (`/llms.txt`, and in each page's `<head>`) |
 
 ## Next
 
@@ -38,20 +39,23 @@ and deploys it.
   in 0.13 s on 100 MB and serves as much as the JVM; the JVM with a Leyden AOT
   cache and Spring AOT starts in 1.1 s at no cost. Choose on the target (Linux,
   PostgreSQL), and run `-PnativeTest` in CI if the native image is chosen.
-- **One origin.** The server serves the built client, which keeps cookies
-  first-party and enables the Open Graph pages above. Set
+- **One origin.** Done in phase 5e: Caddy serves the built client and passes
+  the API, the MCP tools, the OpenAPI document and `/llms.txt` to the server
+  (`deploy/Caddyfile`), which keeps cookies first-party. Rich links (phase 7)
+  will pass `/p/*` to the server too, to render its Open Graph tags. Set
   `super-vote.public-url` (`SUPER_VOTE_PUBLIC_URL`) to that address,
   `https://super-vote.org`: invitation links are built from it, and
   `/api/server-info` advertises it.
-- **Hardening.** TLS (the cookie turns `Secure` on its own behind HTTPS), a
-  Content Security Policy, and rate limits on poll creation, ballots and join
-  code lookups (a join code is guessable in principle; the link is not). More
-  pressing since phase 5d: a client can mint a voter token in one call, which
-  makes scripted use pleasant and scripted abuse no harder than clearing a
-  cookie was. Caddy can limit by network, which is the keying that matters and
-  the one the server cannot do alone. The error vocabulary already reserves
-  `429` with `Retry-After` (docs/API.md), so adding them needs no contract
-  change.
+- **Hardening.** Done in phase 5e: TLS (the cookie turns `Secure` on its own
+  behind HTTPS), a Content Security Policy and the other security headers, a
+  64 KB body limit, and limits by network on poll creation and join codes
+  (ARCHITECTURE.md, "Fair use"). Left, and only if abuse shows them needed: a
+  general request rate per network at the edge (the `caddy-ratelimit`
+  plugin, or CrowdSec reading Caddy's logs), a cap on open event streams per
+  network, and limits on ballots, which must stay generous for a room voting
+  from one address (see "Questions for the owner"). A client can still mint a
+  voter token in one call, which makes scripted ballots no harder than
+  clearing a cookie. The VPS itself: [deploy/README.md](../deploy/README.md).
 - **The voter secret.** `SUPER_VOTE_VOTER_SECRET` (`openssl rand -base64 48`)
   comes from the host's secrets: never from the image, the repository or
   the database backups. The server refuses to start without it. Losing or
@@ -200,6 +204,14 @@ Choices that change results or meaning, deliberately left as they are:
    ballot than invitations used. Making the creator invite themselves would
    keep the count exact, at the price of opening their own link to vote
    (one condition in `InvitationService`).
+4. **Ballots per connection.** Anyone holding a poll's link can vote again
+   from a fresh browser, and a script can do it a thousand times: nothing
+   limits ballots by network, because a room voting together comes from one
+   address. Invitations count each person once. A creator could also be
+   offered "one ballot per connection" for polls shared widely, at the price
+   of refusing everyone after the first behind a shared address (an office,
+   a phone carrier's NAT). It changes who can vote, so it is the owner's
+   call.
 
 Decided:
 

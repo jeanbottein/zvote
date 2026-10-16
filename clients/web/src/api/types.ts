@@ -123,6 +123,17 @@ export type PollSummary = Pick<
   'id' | 'title' | 'votingSystem' | 'visibility' | 'createdAt' | 'closedAt' | 'isMine'
 >;
 
+/**
+ * How many more polls this connection may create (`count`, of `perDay`), until
+ * `resetsAt` (milliseconds since the epoch), from the headers that answer a
+ * new poll: super-vote's resources are shared out fairly.
+ */
+export interface PollsLeft {
+  count: number;
+  perDay: number;
+  resetsAt: number;
+}
+
 export interface NewPoll {
   title: string;
   options: string[];

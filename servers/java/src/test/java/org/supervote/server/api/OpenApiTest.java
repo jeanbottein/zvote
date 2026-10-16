@@ -49,6 +49,7 @@ class OpenApiTest {
             .contains("Super-Vote-Invitation")            // how an invited voter is let in
             .contains("rank 1 is the winner")        // how to read the results
             .contains("Idempotency-Key")             // how to retry safely
+            .contains("RateLimit")                   // how many more polls a network may create
             .contains("/problems/poll-closed");      // what to branch on when something fails
     }
 

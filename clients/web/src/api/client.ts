@@ -12,7 +12,7 @@
  * statistics place it: so that it never needs the address.
  */
 import type {
-  BallotRequest, InvitationPage, NewPoll, Poll, PollPlaces, PollSummary, PollUpdate, ServerInfo, Statistics,
+  BallotRequest, InvitationPage, NewPoll, Poll, PollPlaces, PollsLeft, PollSummary, PollUpdate, ServerInfo, Statistics,
 } from './types';
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '';
@@ -58,20 +58,26 @@ async function request<T>(
   path: string,
   options: RequestOptions = {},
 ): Promise<T> {
-  if (firstCall === null) {
-    const call = send<T>(method, path, options);
-    firstCall = call.catch(() => {});
-    return call;
-  }
-  await firstCall;
-  return send<T>(method, path, options);
+  const response = await call(method, path, options);
+  return (response.status === 204 ? undefined : await response.json()) as T;
 }
 
-async function send<T>(
+/** A successful answer, its headers included. */
+async function call(method: string, path: string, options: RequestOptions = {}): Promise<Response> {
+  if (firstCall === null) {
+    const answer = send(method, path, options);
+    firstCall = answer.catch(() => {});
+    return answer;
+  }
+  await firstCall;
+  return send(method, path, options);
+}
+
+async function send(
   method: string,
   path: string,
   { body, invitation, handover, credentials = 'include' }: RequestOptions,
-): Promise<T> {
+): Promise<Response> {
   const headers: Record<string, string> = { [TIME_ZONE_HEADER]: timeZone() };
   if (body !== undefined) {
     headers['Content-Type'] = 'application/json';
@@ -96,7 +102,7 @@ async function send<T>(
   if (!response.ok) {
     throw new ApiError(response.status, await problemDetail(response));
   }
-  return (response.status === 204 ? undefined : await response.json()) as T;
+  return response;
 }
 
 /** "Europe/Paris", or what the device says; the server counts a name it does not know nowhere. */
@@ -137,7 +143,27 @@ export const joinPoll = (code: string) => request<PollSummary>('GET', `/api/join
 /** Where the poll's ballots come from, as of the last hour; nothing while its results are kept back. */
 export const getPollPlaces = (id: string) => request<PollPlaces>('GET', `${pollPath(id)}/places`);
 
-export const createPoll = (poll: NewPoll) => request<Poll>('POST', '/api/polls', { body: poll });
+/** The new poll, and how many more this connection may create today. */
+export async function createPoll(poll: NewPoll): Promise<{ poll: Poll; pollsLeft: PollsLeft | null }> {
+  const response = await call('POST', '/api/polls', { body: poll });
+  return { poll: (await response.json()) as Poll, pollsLeft: pollsLeftIn(response.headers) };
+}
+
+/** From the IETF draft's RateLimit fields: `RateLimit: "polls";r=4;t=3600` and the policy's quota, `q`. */
+function pollsLeftIn(headers: Headers): PollsLeft | null {
+  const count = parameter(headers.get('RateLimit'), 'r');
+  const seconds = parameter(headers.get('RateLimit'), 't');
+  const perDay = parameter(headers.get('RateLimit-Policy'), 'q');
+  if (count === null || seconds === null || perDay === null) {
+    return null;
+  }
+  return { count, perDay, resetsAt: Date.now() + seconds * 1000 };
+}
+
+function parameter(field: string | null, name: string): number | null {
+  const value = field?.match(new RegExp(`;${name}=(\\d+)`))?.[1];
+  return value === undefined ? null : Number(value);
+}
 
 /** With the invitation the voter came with, if any: their first ballot makes it theirs. */
 export const castBallot = (id: string, ballot: BallotRequest, invitation?: string | null) =>
