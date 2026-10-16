@@ -161,3 +161,31 @@ CREATE TABLE idempotent_request (
 );
 
 CREATE INDEX idempotent_request_by_age ON idempotent_request (created_at);
+
+-- How much zvote is used, and where: totals by time zone (as tzdata's
+-- zone.tab names them; Etc/Unknown when the request named none it knows) and
+-- by UTC day, and each poll's ballots by time zone. Never anything about a
+-- ballot or a voter. Counted in memory and added here once an hour
+-- (StatisticsService).
+CREATE TABLE activity_by_place (
+    time_zone VARCHAR(64) NOT NULL PRIMARY KEY,
+    polls     BIGINT      NOT NULL,
+    ballots   BIGINT      NOT NULL,
+    voters    BIGINT      NOT NULL
+);
+
+CREATE TABLE activity_by_day (
+    utc_day DATE   NOT NULL PRIMARY KEY,
+    polls   BIGINT NOT NULL,
+    ballots BIGINT NOT NULL,
+    voters  BIGINT NOT NULL
+);
+
+-- At most one row per time zone (about 420), so unlike ballots these go with
+-- their poll at once.
+CREATE TABLE poll_place (
+    poll_id   BIGINT      NOT NULL REFERENCES poll (id) ON DELETE CASCADE,
+    time_zone VARCHAR(64) NOT NULL,
+    ballots   BIGINT      NOT NULL,
+    PRIMARY KEY (poll_id, time_zone)
+);

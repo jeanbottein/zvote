@@ -7,6 +7,7 @@ export default function Footer() {
       <p>zvote is free and open source.</p>
       <nav aria-label="About zvote">
         <Link to="/about">About and the science behind it</Link>
+        <Link to="/statistics">Statistics</Link>
         <a href={SOURCE_CODE_URL} target="_blank" rel="noreferrer">Source code</a>
       </nav>
     </footer>

@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react';
 import { Link, useLocation, useParams } from 'react-router';
 import type { Poll } from '../api/types';
 import Notice from '../ui/Notice';
@@ -7,10 +8,16 @@ import { formatDate, timeAgo, VISIBILITY_NAMES, VOTING_SYSTEM_NAMES } from './fo
 import Invitations from './Invitations';
 import { handoverIn, invitationIn } from './links';
 import OwnerActions from './OwnerActions';
-import ResultsSection from './ResultsSection';
+import ResultsSection, { resultsKeptBack } from './ResultsSection';
 import ShareButton from './ShareButton';
 import { useHandover } from './useHandover';
 import { usePoll } from './usePoll';
+
+/** Loaded with its map, only on polls that may have places to show. */
+const PollPlacesSection = lazy(() => import('../statistics/PollPlacesSection'));
+
+/** Fewer ballots than a place needs to show (StatisticsService.VISIBLE): nothing to ask for. */
+const FEWEST_PLACED = 3;
 
 /**
  * A poll: your ballot, and the results as they come in. Its address is its
@@ -73,6 +80,12 @@ function PollScreen({ id, invitation }: { id: string; invitation: string | null 
         : <BallotSection poll={poll} invitation={invitation} onCast={setPoll} />}
       {poll.isMine && poll.invitationOnly && <Invitations poll={poll} />}
       <ResultsSection poll={poll} connection={connection} />
+      {!resultsKeptBack(poll) && poll.totalBallots >= FEWEST_PLACED && (
+        <Suspense fallback={null}>
+          {/* Asked again when the poll closes, which may be when it shows its places. */}
+          <PollPlacesSection key={poll.closedAt ?? 'open'} pollId={poll.id} />
+        </Suspense>
+      )}
       <p className="hint expiry">This poll and its ballots will be deleted on {formatDate(poll.expiresAt)}.</p>
       {poll.isMine && <OwnerActions poll={poll} onChange={setPoll} />}
       {import.meta.env.DEV && poll.isMine && !poll.invitationOnly && <DevBallotFeeder poll={poll} />}

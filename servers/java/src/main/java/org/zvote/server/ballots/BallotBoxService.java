@@ -37,17 +37,18 @@ public class BallotBoxService {
 
     /**
      * Replaces this voter's ballot; no choices withdraws it. Runs in the
-     * caller's transaction, which holds the poll open until it ends.
+     * caller's transaction, which holds the poll open until it ends. Returns
+     * how the poll's number of ballots changed: 1, 0 or -1.
      */
     @Transactional(propagation = Propagation.MANDATORY)
-    public void cast(long pollId, String ballotKey, byte[] choices) {
+    public int cast(long pollId, String ballotKey, byte[] choices) {
         var before = jdbc.sql("SELECT choices FROM ballot WHERE poll_id = :poll AND ballot_key = :key FOR UPDATE")
             .param("poll", pollId)
             .param("key", ballotKey)
             .query(byte[].class).optional().orElse(null);
         var after = choices.length == 0 ? null : choices;
         if (Arrays.equals(before, after)) {
-            return;
+            return 0;
         }
         String write;
         if (after == null) {
@@ -63,6 +64,7 @@ public class BallotBoxService {
             .param("before", before, Types.BINARY)
             .param("after", after, Types.BINARY)
             .update();
+        return before == null ? 1 : after == null ? -1 : 0;
     }
 
     /** Removes up to {@code limit} ballots of a deleted poll, in one transaction; returns how many. */

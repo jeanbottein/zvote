@@ -118,6 +118,10 @@ in dark), gone by 480 px so that ballots and results sit on plain surfaces;
 `--logo-frame-start`, `--logo-frame-end`, `--logo-paper-start`,
 `--logo-paper-end`, the mark's frame and paper.
 
+**The statistics** (`src/statistics`): `--map-land`, the land, on the
+panel's surface as the sea; `--map-ink`, the dots and bars, a little lighter
+in dark. No country is drawn, only land and a dot per time zone.
+
 **Mentions** (`mentions.css`): whatever shows one carries `data-mention` (the
 ballots) or `data-judgment` (the results) and paints with `--mention`,
 writing on it with `--mention-fg`. The grey palette, `body[data-colorblind]`,
@@ -270,6 +274,7 @@ lines.
 | Dialog | `.dialog`, `.dialog-body`, `.dialog-header`; `.share-code`, `.share-link`, `.share-qr` (white in every theme: QR codes need it) | |
 | Toasts | `.toasts`, `.toast`, `.toast[data-kind="error"]` | under the header |
 | Badge | `.badge` | neutral pill |
+| Statistics (`statistics.css`) | `.statistics-totals`, `.statistics-panel`, `.world-map`, `.world-map-view`, `.world-map-land`, `.world-map-dot`, `.world-map-chosen`, `.world-map-legend`, `.world-map-zoom`, `.statistics-chosen`, `.activity-chart`, `.places-table` | the map runs to the panel's edges; a dot's area is its count, and dots keep their size on screen when zoomed; the chosen dot gets a 2 px `--fg` ring drawn on top, so nothing moves; the zoom buttons sit under the map, never over it |
 
 States, the same everywhere:
 

@@ -186,3 +186,35 @@ export interface ServerInfo {
   /** Where this server's polls are reached, without a trailing slash, or null. */
   publicUrl: string | null;
 }
+
+/** What zvote counts: polls created, first ballots cast, voters (browsers and apps) met. */
+export interface Activity {
+  polls: number;
+  ballots: number;
+  voters: number;
+}
+
+/**
+ * How much zvote is used, as of the last hour (`asOf`, ISO 8601): totals;
+ * where, by time zone (as tzdata's zone.tab names it: "Europe/Paris") and by
+ * region (its first part: "Europe"), for those with enough voters to show;
+ * and per UTC day, over the last 90 days (days without any are left out).
+ */
+export interface Statistics extends Activity {
+  asOf: string;
+  openPolls: number;
+  places: (Activity & { timeZone: string })[];
+  regions: (Activity & { region: string })[];
+  days: (Activity & { day: string })[];
+}
+
+/**
+ * Where one poll's ballots come from, as of the last hour, by time zone and
+ * region, for those with enough ballots to show. Null while the poll keeps
+ * its results back.
+ */
+export interface PollPlaces {
+  asOf: string;
+  places: { timeZone: string; ballots: number }[] | null;
+  regions: { region: string; ballots: number }[] | null;
+}

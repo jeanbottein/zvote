@@ -1,0 +1,284 @@
+/* The statistics page and a poll's places (src/statistics). Colours: --map-land and --map-ink in style.css. */
+
+.statistics-totals {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin: 0;
+}
+
+.statistics-totals .panel {
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 2px;
+}
+
+.statistics-totals dt {
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.statistics-totals dd {
+  margin: 0;
+  font-size: clamp(24px, 7vw, 32px);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+@media (min-width: 640px) {
+  .statistics-totals {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.statistics-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.statistics-panel > h2,
+.statistics-panel > p {
+  margin: 0;
+}
+
+/* --- The map ------------------------------------------------------------- */
+
+/* It runs to the panel's edges, on the panel's own surface: the sea. */
+.world-map-view {
+  display: block;
+  width: calc(100% + 2 * var(--panel-padding));
+  height: auto;
+  aspect-ratio: 1000 / 448;
+  margin: 0 calc(-1 * var(--panel-padding));
+  border-block: 1px solid var(--border);
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Zoomed in, a finger drags the map rather than the page. */
+.world-map-view[data-zoomed] {
+  touch-action: none;
+  cursor: grab;
+}
+
+.world-map-view[data-dragging] {
+  cursor: grabbing;
+}
+
+.world-map-land {
+  fill: var(--map-land);
+}
+
+.world-map-dot {
+  fill: var(--map-ink);
+  fill-opacity: 0.72;
+  stroke: var(--surface);
+  stroke-width: 1px;
+  vector-effect: non-scaling-stroke;
+}
+
+/* The chosen dot, ringed on top: nothing under it moves. */
+.world-map-chosen {
+  fill: none;
+  stroke: var(--fg);
+  stroke-width: 2px;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+}
+
+.world-map-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.world-map-legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.world-map-legend-dot {
+  display: inline-block;
+  border: 1px solid var(--surface);
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--map-ink) 72%, var(--surface));
+}
+
+.world-map-legend-dot[data-size="small"] {
+  width: 6px;
+  height: 6px;
+}
+
+.world-map-legend-dot[data-size="large"] {
+  width: 18px;
+  height: 18px;
+  margin-left: 8px;
+}
+
+.world-map-zoom {
+  display: flex;
+  flex: none;
+  gap: 8px;
+}
+
+.world-map-zoom .icon-button {
+  border: 1px solid var(--border);
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-1);
+}
+
+.world-map-zoom .icon-button:hover:not(:disabled) {
+  background: var(--surface-hover);
+}
+
+.world-map-zoom .icon-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.world-map-zoom .icon-button:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.statistics-chosen {
+  min-height: 52px;
+}
+
+.statistics-chosen h3 {
+  margin: 0 0 2px;
+  font-size: 17px;
+}
+
+.statistics-chosen h3 .hint {
+  font-weight: 400;
+}
+
+.statistics-chosen p {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+p.statistics-chosen {
+  display: flex;
+  align-items: center;
+  margin: 0;
+}
+
+/* --- The last 90 days ------------------------------------------------------ */
+
+.activity-chart {
+  margin: 0;
+}
+
+.activity-chart-reading {
+  margin: 0 0 8px;
+  font-variant-numeric: tabular-nums;
+}
+
+.activity-chart svg {
+  display: block;
+  width: 100%;
+  height: 120px;
+  touch-action: pan-y;
+  cursor: crosshair;
+}
+
+.activity-chart-bar {
+  fill: var(--map-ink);
+  fill-opacity: 0.72;
+}
+
+.activity-chart-bar[data-pointed] {
+  fill-opacity: 1;
+}
+
+.activity-chart-grid,
+.activity-chart-axis {
+  stroke-width: 1px;
+  vector-effect: non-scaling-stroke;
+}
+
+.activity-chart-grid {
+  stroke: var(--border);
+  stroke-dasharray: 3 3;
+}
+
+.activity-chart-axis {
+  stroke: var(--border-strong);
+}
+
+.activity-chart-scale {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- Regions and their cities --------------------------------------------- */
+
+.places-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+
+.places-table th,
+.places-table td {
+  padding: 0 0 0 12px;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.places-table thead th {
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.places-table thead th[aria-sort] {
+  color: var(--fg);
+}
+
+.places-table th:first-child {
+  width: 100%;
+  padding-left: 0;
+  text-align: left;
+  white-space: normal;
+}
+
+.places-table-region > * {
+  height: var(--tap);
+  border-top: 1px solid var(--border);
+  font-weight: 600;
+}
+
+.places-table tbody:first-of-type .places-table-region > * {
+  border-top: none;
+}
+
+/* A city is a button that shows it on the map, under its region. */
+.places-table tbody th .button.link {
+  min-height: 40px;
+  padding: 0 0 0 16px;
+  font-weight: 400;
+  text-align: left;
+}

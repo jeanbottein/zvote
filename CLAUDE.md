@@ -67,7 +67,8 @@ row per ballot, one byte per option, for every voting system; the tallies,
 folded from a change log; `Mention`), `api` (controllers, `PollViewService`,
 DTOs, error mapping; the only module that knows both polls and ballots, and
 what a ballot's bytes mean: `BallotFormat`),
-`identity` (voter cookie), `live` (`PollStream`, server-sent events), `common`
+`identity` (voter cookie), `live` (`PollStream`, server-sent events),
+`statistics` (usage by time zone, day and poll, `StatisticsService`), `common`
 (config, the server's secret `VoterSecret`, the invalid-request exception). Each module's `package-info.java`
 declares the modules it may use (`@ApplicationModule(allowedDependencies)`);
 its API is its root package, and its sub-packages (`api.dto`) are its own.
@@ -81,7 +82,9 @@ not a record, or anything imports Reactor (ArchUnit).
 `useBallot`: live or envelope ballot). `src/features/VotingSystem/*` holds
 presentational ballots and results per voting system. `src/ui` holds shared
 pieces, `src/preferences` the voter's settings, `src/app` the shell and routes
-(`/`, `/new`, `/p/:id`, `/about`). How it looks (tokens, light/dark and
+(`/`, `/new`, `/p/:id`, `/about`, `/statistics`). `src/statistics` holds the
+statistics page, its chart and world map, and a poll's places, loaded only
+when opened. How it looks (tokens, light/dark and
 themes, components, contrast) is `docs/DESIGN.md`: read it before changing a
 stylesheet.
 
@@ -148,6 +151,17 @@ shown to people as is: write it as a sentence for them.
   `GROUP BY` the ballots: that is what made a poll slower with every ballot
   (docs/PERFORMANCE.md, "Ballots at scale"). A poll gets its counters when it
   is created (`PollCreationService`), so polls are created through it.
+- **Statistics are totals by time zone, published hourly, from 3 up.** The
+  place comes from the `Zvote-Time-Zone` header the web app sends, never
+  from an address, and nothing is kept about a ballot or a voter. Counting is
+  an addition in memory (`StatisticsService`); the hourly job writes and
+  publishes. A time zone or region shows once it counts 3 (`VISIBLE`), and a
+  poll's places only when its results show: sooner or smaller, they could
+  point at someone.
+- **No countries, no borders.** Regions are tzdata's (Europe, Pacific) and the
+  map is land with a dot per time zone's city: a country map has to take
+  sides. `tools/geography/build.mjs` generates `TimeZones.java` and
+  `worldMap.json`; never edit them by hand.
 
 ## Traps already paid for
 

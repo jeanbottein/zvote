@@ -42,6 +42,18 @@ has been before, never the caller's own token, so a script on a page that
 called it would learn nothing. It grants nothing new either, since any `/api`
 request already hands a fresh identity to whoever has none.
 
+Every request may also say the device's IANA time zone, which the web app
+always sends:
+
+```
+Zvote-Time-Zone: Europe/Paris
+```
+
+It is only used to place polls, ballots and voters in the
+[statistics](#statistics), and is stored only as totals per time zone: the
+server makes no use of addresses, and names no country. A name it does not
+know, or none, counts in the totals only.
+
 A bearer token comes before the cookie, and no cookie is set when one is sent.
 A bearer token this server could not have issued answers `401` with
 `WWW-Authenticate: Bearer`, rather than quietly becoming a new voter the way a
@@ -54,10 +66,12 @@ send a credential casting ballots as a stranger is not.
 |---|---|---|
 | `GET` | `/api/server-info` | `ServerInfo`: what this server offers |
 | `POST` | `/api/voters` | `201` + `{"token"}`: a voter token, for a client that keeps its own |
+| `GET` | `/api/statistics` | `Statistics`: how much zvote is used, and where, as of the last hour; `Cache-Control: max-age=300, public` |
 | `GET` | `/api/polls` | `PollSummary[]`: the 50 most recent public polls (none while `publicPolls` is off) |
 | `GET` | `/api/polls/mine` | `PollSummary[]`: the caller's polls, newest first |
 | `POST` | `/api/polls` | `201` + `PollView`, `Location: /api/polls/{id}` |
 | `GET` | `/api/polls/{id}` | `PollView` |
+| `GET` | `/api/polls/{id}/places` | `PollPlaces`: where its ballots come from, once its results show; `Cache-Control: max-age=60` |
 | `GET` | `/api/polls/{id}/results` | `PollUpdate`: the results, the same for everyone, `Cache-Control: max-age=1` |
 | `POST` | `/api/polls/{id}/creator` | `PollView`: becomes the poll's creator, with `Zvote-Handover` |
 | `GET` | `/api/join/{code}` | `PollSummary`: the poll behind a join code (only its letters and digits count, in any case) |
@@ -207,6 +221,61 @@ told (`zvote.public-url`).
 
 From `zvote.features` and `zvote.limits` in `application.yml`. The server
 enforces them when a poll is created.
+
+### Statistics
+
+```json
+{
+  "asOf": "2026-10-12T14:00:00Z",
+  "polls": 1250, "openPolls": 40, "ballots": 8150, "voters": 3005,
+  "places": [
+    { "timeZone": "Europe/Paris", "polls": 1000, "ballots": 8000, "voters": 2000 },
+    { "timeZone": "Asia/Tokyo", "polls": 200, "ballots": 80, "voters": 1000 }
+  ],
+  "regions": [
+    { "region": "Asia", "polls": 200, "ballots": 80, "voters": 1000 },
+    { "region": "Europe", "polls": 1000, "ballots": 8000, "voters": 2000 }
+  ],
+  "days": [
+    { "day": "2026-10-11", "polls": 5, "ballots": 30, "voters": 12 },
+    { "day": "2026-10-12", "polls": 2, "ballots": 9, "voters": 4 }
+  ]
+}
+```
+
+Everything counted until `asOf`: polls created, ballots cast (a voter's first
+ballot on a poll; revising it is not another), voters (each browser or client
+that got a voter identity), and the polls open at that time.
+
+- `places`: by time zone, named as tzdata's `zone.tab` names it (an old name
+  such as `Asia/Calcutta` counts as `Asia/Kolkata`), most voters first.
+- `regions`: by the first part of those names (`Africa`, `America`,
+  `Antarctica`, `Arctic`, `Asia`, `Atlantic`, `Australia`, `Europe`,
+  `Indian`, `Pacific`): continents and oceans, never countries.
+- A place or a region is listed once it counts at least 3 voters: fewer could
+  point at someone. What the totals hold beyond the regions came without a
+  known time zone, or from places too small to list.
+- `days`: per UTC day, the last 90, oldest first; days without any are left
+  out.
+
+Counted in memory and published once an hour (`zvote.statistics-cron`), so
+that the statistics cannot be matched with one poll's ballots as they come.
+
+### PollPlaces
+
+```json
+{
+  "asOf": "2026-10-12T14:00:00Z",
+  "places": [{ "timeZone": "Europe/Berlin", "ballots": 5 }],
+  "regions": [{ "region": "Europe", "ballots": 7 }]
+}
+```
+
+Where one poll's ballots come from, as of the last hour: by time zone and
+region, those with at least 3 ballots, most first. A withdrawn ballot leaves
+the place its withdrawal came from. `places` and `regions` are null while the
+poll keeps its results back, for the same reason as its tallies: a place
+appearing as the tallies move would say where that ballot came from.
 
 ## Creating a poll
 

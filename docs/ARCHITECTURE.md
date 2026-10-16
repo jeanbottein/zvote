@@ -37,14 +37,15 @@ stand-in to type on a phone (`K7M-4QX`).
 
 Java 25, Spring Boot 4.1: Spring MVC on virtual threads, Spring Data JDBC,
 Flyway, H2 in file mode or PostgreSQL, Spring Modulith. About 1,500 lines of
-code, in six modules, one per package under `org.zvote.server`:
+code, in eight modules, one per package under `org.zvote.server`:
 
 | Module | Uses | Holds |
 |---|---|---|
 | `polls` | `common` | `Poll`, `PollOption`, `PollService`: every rule about polls; who may vote, in `InvitationService` and `InvitationLinks` |
 | `ballots` | nothing | ballots, one byte per option; their tallies (`TallyService`); `Mention` |
 | `api` | everything | controllers, the services that join polls and ballots, DTOs, the ranking, error mapping, and the MCP tools |
-| `identity` | `common` | the voter token - cookie or bearer - and `VoterIdentityFilter` |
+| `identity` | `common`, `statistics` | the voter token - cookie or bearer - and `VoterIdentityFilter` |
+| `statistics` | `polls` | `StatisticsService`: polls, ballots and voters by time zone, day and poll, published hourly |
 | `live` | nothing | `PollStream`: server-sent events |
 | `idempotency` | `common` | doing a request's work once per `Idempotency-Key` |
 | `common` | nothing | `ZVoteProperties`, `VoterSecret`, `InvalidRequestException` |
@@ -54,7 +55,8 @@ Each module says what it is, and which modules it may use, in its
 sub-packages (`api.dto`) are its own. `ArchitectureTest` has Spring Modulith
 verify it all: polls and ballots ignore each other (only `api` knows both, and
 what a ballot's bytes mean), nothing depends on `api`, `live` and `identity`
-know nothing about the domain, and there are no cycles. ArchUnit adds what a
+know nothing about the domain (`identity` only counts newcomers in the
+statistics), and there are no cycles. ArchUnit adds what a
 module declaration cannot say: repositories are package-private (so only the
 service beside one can use it), data classes are records, and nothing imports
 Reactor. (The MCP SDK brings Reactor onto the classpath; none of our code
@@ -255,6 +257,43 @@ deleted polls (`poll_removal`) that the deletion wrote in its own
 transaction. No transaction grows with the size of a poll, and nothing is
 left behind.
 
+### Statistics
+
+`GET /api/statistics` says how much zvote is used, when and where: polls
+created, ballots cast, voters met, open polls, by time zone, by region and
+per day. `GET /api/polls/{id}/places` says where one poll's ballots come
+from.
+
+- **The place is the time zone**, which the web app sends on every request
+  (`Zvote-Time-Zone: Europe/Paris`), never the address. The server looks it
+  up (`TimeZones`, generated from tzdata) and keeps it only as a total.
+- **No country, no border.** Regions are the first part of zone names
+  (Europe, America, Pacific: continents and oceans); the map is land only,
+  with a dot at each zone's city. Taipei, Simferopol or Srinagar's zone are
+  cities, not claims. What a country-based map must decide (whose Taiwan,
+  whose Kashmir) never comes up.
+- **Only totals are kept**: by time zone (`activity_by_place`), by UTC day
+  (`activity_by_day`), and by poll and time zone (`poll_place`, at most one
+  row per zone, so it goes with its poll). Nothing about a ballot or a voter.
+- **Counted in memory, written once an hour.** A count is an addition on a
+  `LongAdder`, so voting never waits on a counter (see Tallies); the hourly
+  job adds what was counted to the tables and publishes the new totals, and
+  shutdown writes what is left (a crash loses it). A count inside a
+  transaction waits for its commit: a ballot refused and sent again counts
+  once. Published as it happened,
+  a creator could match "a ballot from Reykjavik at 14:02" with the ballot
+  their poll got at 14:02. Several servers each add their own counts.
+- **Small places are not shown**: a time zone or a region shows once it
+  counts 3 voters (or, for a poll, 3 ballots). Fewer could point at someone.
+- **A poll's places show when its results do** (`Poll.showsResults`), for the
+  same reason as its tallies.
+- **A ballot counts once per voter and poll**: when `BallotBoxService.cast`
+  writes a ballot where the voter held none; a withdrawal takes it back from
+  the poll's places. A voter counts when a cookie or a bearer token is
+  issued, so one person on two devices is two. The web app sends a page's
+  first call alone (`api/client.ts`): calls made at once by a browser
+  without its cookie would each be issued one, and count it several times.
+
 ### Tallies
 
 Tallies are stored, so that reading them costs the same at any size: a few
@@ -420,6 +459,7 @@ src/
   app/                 the shell: routes, header, settings, not-found page
   api/                 the only code that talks to the server (fetch + EventSource)
   polls/               the screens (home, new poll, poll) and their hooks
+  statistics/          the statistics page, its chart and world map, a poll's places; loaded when opened
   features/VotingSystem/
     MajorityJudgment/  ballots (colour scale, dropdowns), results, mention names
     Approval/          ballot, results, ranking
@@ -442,6 +482,7 @@ the same way `api` composes polls and ballots on the server.
 | `/new` | create a poll |
 | `/p/:id` | a poll: your ballot, the live results, and the creator's controls |
 | `/about` | how results are decided, the research behind it, the source code |
+| `/statistics` | polls, ballots and visitors: totals, the last 90 days, and a map of time zones |
 
 A poll's page address is its share link. An invitation's link adds the
 invitation in the fragment (`#invitation=...`), which the page passes to the
@@ -553,6 +594,8 @@ Playwright is on the roadmap.
 | Invitation tokens in the fragment and a header | No server or proxy log ever holds one. |
 | Names per poll, optional | A cloud of who took part, without an account and without a profile kept across polls. |
 | Polls deleted after 30 days | Data minimisation (GDPR), and nothing to archive for a group decision. |
+| Statistics by time zone, hourly, from 3 up | No address is ever read or located, no country named, nothing kept about a ballot or a voter; an hour's delay and the threshold keep them from pointing at anyone. |
+| A map of land and time-zone cities, no borders | Borders are claims; a country map has to take sides (Taiwan, Kashmir, Crimea). Land and cities do not, and the time zone is all the server knows anyway. |
 | No client state library | Two data hooks and one ballot hook are all the state there is. |
 
 ## Known limits

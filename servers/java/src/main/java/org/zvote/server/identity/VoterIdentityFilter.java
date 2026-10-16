@@ -12,6 +12,8 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 import org.springframework.web.servlet.HandlerExceptionResolver;
 import org.zvote.server.common.VoterSecret;
+import org.zvote.server.statistics.Activity;
+import org.zvote.server.statistics.StatisticsService;
 
 import java.io.IOException;
 import java.time.Duration;
@@ -39,11 +41,13 @@ public class VoterIdentityFilter extends OncePerRequestFilter {
     private static final String BEARER = "Bearer ";
 
     private final VoterSecret secret;
+    private final StatisticsService statistics;
     private final HandlerExceptionResolver resolver;
 
-    public VoterIdentityFilter(VoterSecret secret,
+    public VoterIdentityFilter(VoterSecret secret, StatisticsService statistics,
                                @Qualifier("handlerExceptionResolver") HandlerExceptionResolver resolver) {
         this.secret = secret;
+        this.statistics = statistics;
         this.resolver = resolver;
     }
 
@@ -101,8 +105,9 @@ public class VoterIdentityFilter extends OncePerRequestFilter {
     }
 
     /** First visit, or a cookie we did not issue: start a fresh identity. */
-    private static String issue(HttpServletRequest request, HttpServletResponse response) {
+    private String issue(HttpServletRequest request, HttpServletResponse response) {
         var token = VoterIdentity.newToken();
+        statistics.count(Activity.VOTER);
         response.addHeader(HttpHeaders.SET_COOKIE, ResponseCookie.from(VoterIdentity.COOKIE, token)
             .httpOnly(true)
             .secure(request.isSecure())
