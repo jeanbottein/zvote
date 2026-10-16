@@ -1,12 +1,12 @@
-# zvote design
+# super-vote design
 
 How the web app looks, and why: the system behind `clients/web/src/style.css`
 and the voting systems' stylesheets. It is written for people and for agents:
 read it before changing how anything looks, and keep it true when you do.
 
-People open zvote on a phone, often from a link in a chat app, once. It must
-be obvious at first sight, calm, and trustworthy: a ballot is a private act, a
-result is a fact.
+People open super-vote on a phone, often from a link in a chat app, once. It
+must be obvious at first sight, calm, and trustworthy: a ballot is a private
+act, a result is a fact.
 
 ## Principles
 
@@ -42,9 +42,12 @@ the yellow band.
 | Safari before 26 | `public/favicon-32.png` | 32 px, transparent: Safari only shows SVG favicons since 26. |
 | iOS home screen | `public/apple-touch-icon.png` | 180 px on white: iOS paints transparency black, and rounds the corners itself. |
 
-- The mark always stands beside the name, "zvote", in lowercase, 750 weight,
-  tight tracking (`.brand`). It is decorative (`aria-hidden`): the name is the
-  link's text.
+- The mark always stands beside the name, "super-vote", in lowercase, 750
+  weight, tight tracking (`.brand`). It is decorative (`aria-hidden`): the
+  name is the link's text.
+- In running text the name is `<AppName />`, which keeps it on one line: a
+  line ending in "super-" reads as two words. The header's name may still
+  wrap below 280 px, rather than push the buttons off screen.
 - 30 px wide in the header, 64 px on Home. Not below 24 px, where the gaps
   between the bands close up. Keep a quarter of its width clear around it.
 - Never recolour the bands, stretch it, outline it, or set it on anything but

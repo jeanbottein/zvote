@@ -1,4 +1,4 @@
-# zvote server
+# super-vote server
 
 Java 25, Spring Boot 4.1. Spring MVC on virtual threads, Spring Data JDBC,
 Flyway, H2 in file mode or PostgreSQL, Spring Modulith. It serves the REST API
@@ -11,9 +11,9 @@ and the live-results streams described in [docs/API.md](../../docs/API.md).
 ./mvnw test                              # architecture, API and live-stream tests (~15 s, silent when green)
 ./mvnw test -Dtest=PollApiTest           # one class
 ./mvnw test -Pcoverage                   # + coverage report: target/site/jacoco/index.html
-./mvnw -Pnative native:compile           # a native executable, target/zvote-server (GraalVM as JAVA_HOME)
+./mvnw -Pnative native:compile           # a native executable, target/super-vote-server (GraalVM as JAVA_HOME)
 ./mvnw -PnativeTest test                 # the tests, compiled and run as a native image
-./mvnw package && ZVOTE_VOTER_SECRET=<32+ characters> java -jar target/zvote-server-0.1.0-SNAPSHOT.jar
+./mvnw package && SUPER_VOTE_VOTER_SECRET=<32+ characters> java -jar target/super-vote-server-0.1.0-SNAPSHOT.jar
 ```
 
 From the repo root, `./dev.sh server` does the same as `spring-boot:run`, with
@@ -25,8 +25,8 @@ H2 needs nothing installed; production runs on PostgreSQL, and the whole test
 suite passes on both. Point the server, or the tests, at an empty database:
 
 ```bash
-export SPRING_DATASOURCE_URL='jdbc:postgresql://localhost:5432/zvote?options=-c%20lock_timeout%3D2s'
-export SPRING_DATASOURCE_USERNAME=zvote SPRING_DATASOURCE_PASSWORD=...
+export SPRING_DATASOURCE_URL='jdbc:postgresql://localhost:5432/super_vote?options=-c%20lock_timeout%3D2s'
+export SPRING_DATASOURCE_USERNAME=super_vote SPRING_DATASOURCE_PASSWORD=...
 ./mvnw test                              # every test, on PostgreSQL (start from an empty database)
 ./mvnw spring-boot:run
 ```
@@ -41,17 +41,17 @@ it takes. Load tests: [docs/PERFORMANCE.md](../../docs/PERFORMANCE.md).
 
 | Setting | Default | Meaning |
 |---|---|---|
-| `ZVOTE_DATA_DIR` (environment) | `<working dir>/data` | where the H2 file lives; must be absolute |
-| `ZVOTE_VOTER_SECRET` (environment) | none: required | keys who owns each ballot and signs invitation links (32+ characters, `openssl rand -base64 48`); `spring-boot:run` sets a development one |
-| `zvote.features.*` | `true`, but `public-polls` | public polls (off until accounts), unlisted polls, approval voting, majority judgment |
-| `zvote.limits.max-options` | `20` | options per poll |
-| `zvote.limits.max-title-length` | `200` | characters (500 at most: the column) |
-| `zvote.limits.max-option-length` | `100` | characters (500 at most) |
-| `zvote.limits.max-voter-name-length` | `40` | characters (100 at most), for names on invitations too |
-| `zvote.limits.max-invitations` | `1000` | per poll; links are signed, not stored, so any number costs the same |
-| `zvote.limits.poll-lifetime-days` | `30` | days before a poll is deleted, with its ballots (1 at least) |
-| `zvote.retention-cron` | `0 * * * * *` | when expired polls are deleted, and deleted polls' ballots removed (every minute); `-` turns it off |
-| `zvote.fold-patience` | `250ms` | how long a ballot's answer waits for its ballot to be folded into the tallies |
+| `SUPER_VOTE_DATA_DIR` (environment) | `<working dir>/data` | where the H2 file lives; must be absolute |
+| `SUPER_VOTE_VOTER_SECRET` (environment) | none: required | keys who owns each ballot and signs invitation links (32+ characters, `openssl rand -base64 48`); `spring-boot:run` sets a development one |
+| `super-vote.features.*` | `true`, but `public-polls` | public polls (off until accounts), unlisted polls, approval voting, majority judgment |
+| `super-vote.limits.max-options` | `20` | options per poll |
+| `super-vote.limits.max-title-length` | `200` | characters (500 at most: the column) |
+| `super-vote.limits.max-option-length` | `100` | characters (500 at most) |
+| `super-vote.limits.max-voter-name-length` | `40` | characters (100 at most), for names on invitations too |
+| `super-vote.limits.max-invitations` | `1000` | per poll; links are signed, not stored, so any number costs the same |
+| `super-vote.limits.poll-lifetime-days` | `30` | days before a poll is deleted, with its ballots (1 at least) |
+| `super-vote.retention-cron` | `0 * * * * *` | when expired polls are deleted, and deleted polls' ballots removed (every minute); `-` turns it off |
+| `super-vote.fold-patience` | `250ms` | how long a ballot's answer waits for its ballot to be folded into the tallies |
 
 Features and limits are advertised at `GET /api/server-info` and enforced when
 a poll is created. A limit out of range stops the server at startup.
@@ -59,7 +59,7 @@ a poll is created. A limit out of range stops the server at startup.
 ## Layout
 
 ```
-org.zvote.server
+org.supervote.server
 ├── polls/      the question: Poll, PollOption, PollService (every poll rule),
 │               InvitationService (who may vote)
 ├── ballots/    ballots (BallotBoxService), tallies (TallyService), Mention
@@ -68,7 +68,7 @@ org.zvote.server
 │               PollRetention; DTOs, errors
 ├── identity/   the voter cookie
 ├── live/       PollStream: server-sent events
-└── common/     ZVoteProperties, InvalidRequestException
+└── common/     SuperVoteProperties, InvalidRequestException
 ```
 
 Each package is a Spring Modulith module: its `package-info.java` says which

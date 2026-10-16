@@ -1,5 +1,5 @@
 /* Approval voting: a checkbox per option, and results as bars. Ticks and bars
- * are drawn in ink (--accent), not green: in zvote, green is a mention. */
+ * are drawn in ink (--accent), not green: in super-vote, green is a mention. */
 
 .approval-ballot {
   display: flex;

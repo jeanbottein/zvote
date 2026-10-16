@@ -1,4 +1,4 @@
-# zvote architecture
+# super-vote architecture
 
 One Java server and one web client. The server stores polls and ballots,
 counts them and ranks the results; the client shows them and lets people vote.
@@ -8,18 +8,18 @@ layer below exists because something needed it.
 
 ```
  phone / desktop browser
- ┌──────────────────────────────┐
- │ React client (clients/web)   │  draws the results and the ballots
- └──────────────┬───────────────┘
-                │ same origin: JSON over HTTP, and one event stream per open poll
- ┌──────────────┴───────────────┐
- │ Spring Boot server           │  rules, identity, tallies, live pushes
- │ (servers/java)               │
- └──────────────┬───────────────┘
-                │ JDBC
- ┌──────────────┴───────────────┐
- │ H2 file (data/zvote.mv.db)   │  PostgreSQL when deployed
- └──────────────────────────────┘
+ ┌──────────────────────────────────┐
+ │ React client (clients/web)       │  draws the results and the ballots
+ └────────────────┬─────────────────┘
+                  │ same origin: JSON over HTTP, and one event stream per open poll
+ ┌────────────────┴─────────────────┐
+ │ Spring Boot server               │  rules, identity, tallies, live pushes
+ │ (servers/java)                   │
+ └────────────────┬─────────────────┘
+                  │ JDBC
+ ┌────────────────┴─────────────────┐
+ │ H2 file (data/super-vote.mv.db)  │  PostgreSQL when deployed
+ └──────────────────────────────────┘
 ```
 
 In development the Vite dev server serves the client on `:5173` and forwards
@@ -37,7 +37,7 @@ stand-in to type on a phone (`K7M-4QX`).
 
 Java 25, Spring Boot 4.1: Spring MVC on virtual threads, Spring Data JDBC,
 Flyway, H2 in file mode or PostgreSQL, Spring Modulith. About 1,500 lines of
-code, in eight modules, one per package under `org.zvote.server`:
+code, in eight modules, one per package under `org.supervote.server`:
 
 | Module | Uses | Holds |
 |---|---|---|
@@ -48,7 +48,7 @@ code, in eight modules, one per package under `org.zvote.server`:
 | `statistics` | `polls` | `StatisticsService`: polls, ballots and voters by time zone, day and poll, published hourly |
 | `live` | nothing | `PollStream`: server-sent events |
 | `idempotency` | `common` | doing a request's work once per `Idempotency-Key` |
-| `common` | nothing | `ZVoteProperties`, `VoterSecret`, `InvalidRequestException` |
+| `common` | nothing | `SuperVoteProperties`, `VoterSecret`, `InvalidRequestException` |
 
 Each module says what it is, and which modules it may use, in its
 `package-info.java` (`@ApplicationModule`). Its API is its root package; its
@@ -70,7 +70,7 @@ make the change and forget to fold the ballots in or tell the watchers.
 
 ### Casting a ballot, step by step
 
-1. `VoterIdentityFilter` reads the `zvote_voter` cookie (issuing one if
+1. `VoterIdentityFilter` reads the `super_vote_voter` cookie (issuing one if
    needed) and puts the `Voter` on the request.
 2. `BallotService`, in one transaction, asks `PollService.findOpen(id)` for
    the poll (404 if it does not exist, 409 if it is closed), and
@@ -159,7 +159,7 @@ Who can tell what someone chose, and what stops them:
   (blind signatures, mix networks), well beyond deciding where to eat. The
   operator is trusted, which the privacy page must say (roadmap, phase 6).
 
-The secret is `ZVOTE_VOTER_SECRET` (at least 32 characters). The server
+The secret is `SUPER_VOTE_VOTER_SECRET` (at least 32 characters). The server
 refuses to start without one; `spring-boot:run` sets a development secret in
 `pom.xml`, and the tests set their own. Changing it orphans every ballot:
 still counted, but on an open poll its voter is told they have not voted,
@@ -227,7 +227,7 @@ device's share sheet).
   vote with.
 - **Never in a URL the server sees.** The link carries the token in its
   fragment (`/p/{id}#invitation=...`), which browsers never send, and the
-  client passes it in the `Zvote-Invitation` header.
+  client passes it in the `Super-Vote-Invitation` header.
 - **Held by the first browser that votes.** The first ballot cast with an
   invitation marks it used by that browser (`InvitationService.admit`, in the
   casting transaction: of two browsers voting with one link at the same
@@ -244,10 +244,11 @@ device's share sheet).
 
 ### Retention
 
-`PollRetention` deletes polls `zvote.limits.poll-lifetime-days` (30) after
+`PollRetention` deletes polls `super-vote.limits.poll-lifetime-days` (30) after
 their creation, every minute, and tells their watchers. Polls are for deciding,
 not archiving, and keeping them briefly keeps little personal data around.
-Tests switch the job off (`zvote.retention-cron: "-"`) and call it themselves.
+Tests switch the job off (`super-vote.retention-cron: "-"`) and call it
+themselves.
 
 A deleted poll (by its creator or by retention) disappears at once, with its
 options, tallies and invitation counter, but its ballots, names and
@@ -259,13 +260,13 @@ left behind.
 
 ### Statistics
 
-`GET /api/statistics` says how much zvote is used, when and where: polls
+`GET /api/statistics` says how much super-vote is used, when and where: polls
 created, ballots cast, voters met, open polls, by time zone, by region and
 per day. `GET /api/polls/{id}/places` says where one poll's ballots come
 from.
 
 - **The place is the time zone**, which the web app sends on every request
-  (`Zvote-Time-Zone: Europe/Paris`), never the address. The server looks it
+  (`Super-Vote-Time-Zone: Europe/Paris`), never the address. The server looks it
   up (`TimeZones`, generated from tzdata) and keeps it only as a total.
 - **No country, no border.** Regions are the first part of zone names
   (Europe, America, Pacific: continents and oceans); the map is land only,
@@ -310,9 +311,9 @@ for another on a counter.
   servers fold side by side, and counters are always updated in the same
   order, so two folds never deadlock.
 - **A moment behind.** A ballot's request waits for its fold (250 ms at most,
-  `zvote.fold-patience`): with few ballots, its answer counts it; with many,
-  it shows in the next update. Closing waits for every fold, so final results
-  are final.
+  `super-vote.fold-patience`): with few ballots, its answer counts it; with
+  many, it shows in the next update. Closing waits for every fold, so final
+  results are final.
 - **Rebuildable.** Folding only adds and subtracts, so the counters can always
   be recomputed from the ballots (`PollApiTest.Tallies` does).
 
@@ -409,7 +410,7 @@ Measured on a laptop (Apple M1, 8 GB, PostgreSQL 14), majority judgment, in
 A billion ballots in a day is about 11,600 per second. The database alone
 records over 11,000 per second on this laptop; a production server would
 add CPU. Beyond one PostgreSQL server, ballots split by voter (Citus, or a
-shard key) with folds on each shard. What else stands between zvote and a
+shard key) with folds on each shard. What else stands between super-vote and a
 billion-ballot poll is in [ROADMAP.md](ROADMAP.md#scale): live updates across
 servers, results through a CDN for millions of watchers, and, above all,
 identity: one cookie per browser cannot stop anyone from voting twice.
@@ -601,10 +602,10 @@ Playwright is on the roadmap.
 ## Known limits
 
 - **Anonymous identity is per browser.** Clearing cookies, or another browser,
-  is another voter. Fine among friends, and the creation form says so: zvote
-  counts on voters' good faith, and the ballot count shows when it is
-  abused. Decisions that must resist ballot stuffing take invitations, which
-  trust the creator instead, or will take accounts (roadmap, phase 7).
+  is another voter. Fine among friends, and the creation form says so:
+  super-vote counts on voters' good faith, and the ballot count shows when
+  it is abused. Decisions that must resist ballot stuffing take invitations,
+  which trust the creator instead, or will take accounts (roadmap, phase 7).
 - **An invitation works in one browser.** A voter who changes device, or
   clears their cookies, can no longer change their ballot, and the creator
   cannot give them another link without counting them twice. Accounts will

@@ -2,6 +2,7 @@ import { useId, useState, type FormEvent, type KeyboardEvent } from 'react';
 import { useNavigate } from 'react-router';
 import { createPoll, errorMessage } from '../api/client';
 import type { ResultsShown, Visibility, VotingSystem } from '../api/types';
+import AppName from '../ui/AppName';
 import { CloseIcon } from '../ui/icons';
 import { isEnter } from '../ui/keys';
 import SegmentedControl from '../ui/SegmentedControl';
@@ -28,9 +29,13 @@ const WHO_CAN_VOTE: { value: 'anyone' | 'invited'; label: string }[] = [
 
 /** A browser is all that tells voters apart, unless the creator invites each one: the creator is warned. */
 const WHO_CAN_VOTE_HINTS = {
-  anyone: 'Anyone with the link or the code can vote. Someone set on it can vote again from another browser or '
-    + 'device: zvote counts on good faith, and the number of ballots shows if someone did. To count each person '
-    + 'once, invite them.',
+  anyone: (
+    <>
+      Anyone with the link or the code can vote. Someone set on it can vote again from another browser or
+      device: <AppName /> counts on good faith, and the number of ballots shows if someone did. To count each
+      person once, invite them.
+    </>
+  ),
   invited: 'You send each person a link of their own, which holds one ballot. You will see which links were used, '
     + 'never what anyone chose.',
 };
@@ -147,7 +152,7 @@ export default function CreatePollPage() {
 
   return (
     <form className="panel create-poll" onSubmit={submit} noValidate>
-      <title>New poll · zvote</title>
+      <title>New poll · super-vote</title>
       <h1>New poll</h1>
 
       <div className="field">

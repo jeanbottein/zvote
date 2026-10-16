@@ -12,7 +12,7 @@ export default function HomePage() {
 
   return (
     <>
-      <title>zvote · decide together</title>
+      <title>super-vote · decide together</title>
       <section className="hero">
         <Logo />
         <h1>Decide together, fairly.</h1>

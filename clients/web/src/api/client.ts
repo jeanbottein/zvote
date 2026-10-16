@@ -1,5 +1,5 @@
 /**
- * The zvote API.
+ * The super-vote API.
  *
  * Who is voting is decided by an HttpOnly cookie the server sets, so every call
  * carries credentials. A call without them would silently count as a brand new
@@ -17,9 +17,9 @@ import type {
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '';
 
-const INVITATION_HEADER = 'Zvote-Invitation';
-const HANDOVER_HEADER = 'Zvote-Handover';
-const TIME_ZONE_HEADER = 'Zvote-Time-Zone';
+const INVITATION_HEADER = 'Super-Vote-Invitation';
+const HANDOVER_HEADER = 'Super-Vote-Handover';
+const TIME_ZONE_HEADER = 'Super-Vote-Time-Zone';
 
 /** A failed call. The message is written for the person using the app. */
 export class ApiError extends Error {
@@ -121,7 +121,7 @@ const pollPath = (id: string) => `/api/polls/${encodeURIComponent(id)}`;
 
 export const getServerInfo = () => request<ServerInfo>('GET', '/api/server-info');
 
-/** How much zvote is used, and where, as of the last hour. */
+/** How much super-vote is used, and where, as of the last hour. */
 export const getStatistics = () => request<Statistics>('GET', '/api/statistics');
 
 export const listPublicPolls = () => request<PollSummary[]>('GET', '/api/polls');

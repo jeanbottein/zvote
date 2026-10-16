@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="-16 -1 232 232">
-  <!-- The zvote mark, from icon.svg at the repository root. Dark browser chrome gets a light frame. -->
+  <!-- The super-vote mark, from icon.svg at the repository root. Dark browser chrome gets a light frame. -->
   <style>
     @media (prefers-color-scheme: dark) {
       .frame-start { stop-color: #eef0f3; } .frame-end { stop-color: #cfd3da; }

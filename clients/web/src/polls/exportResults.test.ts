@@ -66,7 +66,7 @@ describe('downloading the results', () => {
     vi.stubGlobal('URL', { createObjectURL, revokeObjectURL });
     const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (this: HTMLAnchorElement) {
       expect(this.href).toBe('blob:results');
-      expect(this.download).toBe('zvote-results-abc.json');
+      expect(this.download).toBe('super-vote-results-abc.json');
     });
 
     downloadResults(lunch);

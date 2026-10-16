@@ -17,7 +17,7 @@ const StatisticsPage = lazy(() => import('../statistics/StatisticsPage'));
  * Three screens: the polls you can see, a form to create one, and a poll -
  * where you vote and watch the results come in. A poll's address, /p/<id>,
  * is its share link. /about says how results are decided, and why;
- * /statistics, how much zvote is used, and where.
+ * /statistics, how much super-vote is used, and where.
  */
 export default function App() {
   return (

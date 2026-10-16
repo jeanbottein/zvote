@@ -1,4 +1,4 @@
-# Pinned toolchain for zvote. With mise (or asdf) installed, run:
+# Pinned toolchain for super-vote. With mise (or asdf) installed, run:
 #   mise install
 # Java 25 LTS matches <java.version> in servers/java/pom.xml; Node 24 is the
 # current LTS (the client also runs on Node 20.19 or newer).

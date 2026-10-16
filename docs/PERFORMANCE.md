@@ -1,4 +1,4 @@
-# zvote performance: JVM, Leyden and GraalVM; ballots at scale
+# super-vote performance: JVM, Leyden and GraalVM; ballots at scale
 
 Two studies. [Ballots at scale](#ballots-at-scale) (2026-10-07): can one poll
 take billions of ballots? The runtimes, first (2026-09-27). The question: how should the server run once it is
@@ -21,9 +21,9 @@ brought nothing on this workload.
   applications kept the load average between 8 and 15 and memory in swap. Each
   variant was measured twice, in two sweeps run in opposite orders; both are
   shown. Differences within a few percent are noise.
-- **Software**: zvote on the `perf/native-image` branch, Spring Boot 4.1.1, H2
-  in file mode. Temurin 25.0.4 and Oracle GraalVM 25.0.4. On macOS, native
-  images only have the Serial garbage collector (G1 is Linux-only).
+- **Software**: super-vote on the `perf/native-image` branch, Spring Boot
+  4.1.1, H2 in file mode. Temurin 25.0.4 and Oracle GraalVM 25.0.4. On macOS,
+  native images only have the Serial garbage collector (G1 is Linux-only).
 - **Startup**: from launching the process to the first answer from
   `/actuator/health`, polled every 5 ms: the median of 5 restarts on an
   existing database. (The very first launch of a freshly built native
@@ -84,7 +84,7 @@ stream's 200 ms coalescing window, not by the runtime.
    ballots/s here. On PostgreSQL, ballots do not wait for each other, and the
    differences between runtimes would count for more.
 
-## What it means for zvote
+## What it means for super-vote
 
 For deployment (phase 6), in order of effort:
 
@@ -131,7 +131,7 @@ test mocks with Mockito, which generates classes at run time.
 
 Measured on 2026-10-07, on the same Apple M1 (8 GB), with PostgreSQL 14.19
 on the same machine as the server and the load (`shared_buffers` 1 GB). The
-question: how far is zvote from a billion ballots on one poll, and does a
+question: how far is super-vote from a billion ballots on one poll, and does a
 different design close the distance? The previous design stored one row per
 option and voter, and recounted the whole poll (`GROUP BY`, `COUNT(DISTINCT)`)
 for every ballot's answer and every live update. The new one stores one row
@@ -164,7 +164,7 @@ without the answer's view):
 | Pattern | Ballots/s | Latency |
 |---|---|---|
 | Before: lock the poll, delete, insert 20 rows | 2,447 | 13.1 ms |
-| One row per ballot, change log (what zvote does now) | 11,460 to 13,975 | 2.3 to 2.8 ms |
+| One row per ballot, change log (what super-vote does now) | 11,460 to 13,975 | 2.3 to 2.8 ms |
 | One row per ballot, counters updated by each ballot (64 shards) | 6,909 | 4.6 ms |
 
 Folding keeps up easily: 229,115 changes folded in 0.69 s, about 330,000 a
@@ -191,7 +191,7 @@ for your platform):
 
 ```bash
 cd servers/java
-./mvnw -Pnative native:compile        # the native image alone: target/zvote-server
+./mvnw -Pnative native:compile        # the native image alone: target/super-vote-server
 ./mvnw -PnativeTest test              # the test suite, compiled and run as a native image
 perf/bench.py prepare [--pgo]         # every variant, under target/perf (long: native builds)
 perf/bench.py run                     # measures them all; results in target/perf/results.jsonl
@@ -205,8 +205,8 @@ Ballots at scale, against a PostgreSQL of your own:
 ```bash
 cd servers/java
 ./mvnw -DskipTests package
-ZVOTE_VOTER_SECRET=$(openssl rand -base64 48) \
-  SPRING_DATASOURCE_URL='jdbc:postgresql://localhost:5432/zvote?options=-c%20lock_timeout%3D2s' \
-  SPRING_DATASOURCE_USERNAME=zvote java -jar target/zvote-server-0.1.0-SNAPSHOT.jar &
+SUPER_VOTE_VOTER_SECRET=$(openssl rand -base64 48) \
+  SPRING_DATASOURCE_URL='jdbc:postgresql://localhost:5432/super_vote?options=-c%20lock_timeout%3D2s' \
+  SPRING_DATASOURCE_USERNAME=super_vote java -jar target/super-vote-server-0.1.0-SNAPSHOT.jar &
 java perf/Load.java http://127.0.0.1:8080 100 50000 64 1   # viewers, ballots, at a time, rounds
 ```

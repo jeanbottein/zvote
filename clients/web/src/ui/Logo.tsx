@@ -12,10 +12,10 @@ const BANDS = [
 const WEDGE = 'm -30.416648,169.24974 -1e-6,-110.926234 96.064934,55.463114 z';
 
 /**
- * The zvote mark: a ballot box whose bands are the colours of the mentions.
+ * The super-vote mark: a ballot box whose bands are the colours of the mentions.
  * Its frame and the paper between the bands take the --logo-* tokens, so it
  * keeps its outline on a dark page; the bands and the slot keep their colours.
- * Decorative: the name zvote always stands beside it.
+ * Decorative: the name super-vote always stands beside it.
  */
 export default function Logo({ className = 'logo' }: { className?: string }) {
   const id = useId(); // two marks on a page must not share their gradients

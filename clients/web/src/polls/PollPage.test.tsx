@@ -135,7 +135,7 @@ describe('voting', () => {
   });
 
   it('submits an envelope ballot only once every option is rated', async () => {
-    localStorage.setItem('zvote.preferences', JSON.stringify({ submission: 'envelope' }));
+    localStorage.setItem('super-vote.preferences', JSON.stringify({ submission: 'envelope' }));
     vi.mocked(castBallot).mockResolvedValue(lunch);
     openPoll();
 
@@ -397,7 +397,7 @@ describe('a counted ballot', () => {
   });
 
   it('cannot be hidden with changes not submitted yet', async () => {
-    localStorage.setItem('zvote.preferences', JSON.stringify({ submission: 'envelope' }));
+    localStorage.setItem('super-vote.preferences', JSON.stringify({ submission: 'envelope' }));
     openPoll();
 
     await userEvent.click(await screen.findByRole('button', { name: 'Change my ballot' }));
@@ -449,7 +449,7 @@ describe('names', () => {
   });
 
   it('go with the ballot, starting from the name last given', async () => {
-    localStorage.setItem('zvote.preferences', JSON.stringify({ voterName: 'Jean' }));
+    localStorage.setItem('super-vote.preferences', JSON.stringify({ voterName: 'Jean' }));
     vi.mocked(getPoll).mockResolvedValue(trip);
     vi.mocked(castBallot).mockResolvedValue(trip);
     openPoll();
@@ -461,7 +461,7 @@ describe('names', () => {
   });
 
   it('can be left blank, to vote anonymously', async () => {
-    localStorage.setItem('zvote.preferences', JSON.stringify({ voterName: 'Jean' }));
+    localStorage.setItem('super-vote.preferences', JSON.stringify({ voterName: 'Jean' }));
     vi.mocked(getPoll).mockResolvedValue(trip);
     vi.mocked(castBallot).mockResolvedValue(trip);
     openPoll();
@@ -502,10 +502,10 @@ describe('names', () => {
 
     const name = await screen.findByLabelText('Your name');
     await userEvent.type(name, 'Zo');
-    expect(localStorage.getItem('zvote.preferences') ?? '').not.toContain('Zo');
+    expect(localStorage.getItem('super-vote.preferences') ?? '').not.toContain('Zo');
     await userEvent.type(name, 'é{Enter}');
 
-    expect(JSON.parse(localStorage.getItem('zvote.preferences')!).voterName).toBe('Zoé');
+    expect(JSON.parse(localStorage.getItem('super-vote.preferences')!).voterName).toBe('Zoé');
   });
 
   it('show the first hundred, then how many more voted', async () => {

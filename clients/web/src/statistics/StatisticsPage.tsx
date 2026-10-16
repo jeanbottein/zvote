@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { errorMessage, getStatistics } from '../api/client';
 import type { Activity, Statistics } from '../api/types';
+import AppName from '../ui/AppName';
 import SegmentedControl from '../ui/SegmentedControl';
 import { formatCount } from '../utils/formatCount';
 import ActivityChart from './ActivityChart';
@@ -24,7 +25,7 @@ export function plural(count: number, noun: string): string {
 }
 
 /**
- * How much zvote is used, when and where: totals, the last 90 days, and a
+ * How much super-vote is used, when and where: totals, the last 90 days, and a
  * map of the time zones people came from. The server publishes them once an
  * hour, places people by their device's time zone, never their address, and
  * names no country.
@@ -55,9 +56,9 @@ export default function StatisticsPage() {
 
   return (
     <>
-      <title>Statistics · zvote</title>
+      <title>Statistics · super-vote</title>
       <section className="hero">
-        <h1>zvote around the world</h1>
+        <h1><AppName /> around the world</h1>
         <p>How many polls, ballots and visitors, when, and from where.</p>
       </section>
 
@@ -99,7 +100,7 @@ export default function StatisticsPage() {
           <section className="panel statistics-panel">
             <h2>How these are counted</h2>
             <p>
-              A visitor is a browser or an app that came to zvote: one person on two devices counts twice.
+              A visitor is a browser or an app that came to <AppName />: one person on two devices counts twice.
               A ballot counts once, however often its voter changes it.
             </p>
             <p>

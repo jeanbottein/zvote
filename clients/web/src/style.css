@@ -1,4 +1,4 @@
-/* zvote - global styles. The system behind them: docs/DESIGN.md.
+/* super-vote - global styles. The system behind them: docs/DESIGN.md.
  *
  * Mobile first: everything is laid out for a phone held upright, and wider
  * screens only get more room. Tap targets are at least 44px, inputs use 16px
@@ -291,6 +291,11 @@ a:hover {
   width: 30px;
   height: auto;
   aspect-ratio: 230 / 202;
+}
+
+/* The name in running text (src/ui/AppName.tsx): never split at its hyphen. */
+.app-name {
+  white-space: nowrap;
 }
 
 .page {

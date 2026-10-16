@@ -20,7 +20,7 @@ export interface Preferences {
 }
 
 const DEFAULTS: Preferences = { appearance: 'system', colorblind: false, mjBallot: 'scale', submission: 'live', voterName: '' };
-const STORAGE_KEY = 'zvote.preferences'; // index.html reads it too, to set the appearance before the first paint
+const STORAGE_KEY = 'super-vote.preferences'; // index.html reads it too, to set the appearance before the first paint
 
 export function loadPreferences(): Preferences {
   try {

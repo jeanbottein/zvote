@@ -55,7 +55,7 @@ describe('the app', () => {
 
     await userEvent.click(screen.getByRole('link', { name: 'Statistics' }));
 
-    expect(await screen.findByRole('heading', { name: 'zvote around the world' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'super-vote around the world' })).toBeInTheDocument();
     expect(await screen.findByRole('img', { name: /World map/ })).toBeInTheDocument();
   });
 
@@ -64,11 +64,11 @@ describe('the app', () => {
 
     await userEvent.click(screen.getByRole('link', { name: 'About and the science behind it' }));
 
-    expect(await screen.findByRole('heading', { name: 'About zvote' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'About super-vote' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'A theory of measuring, electing, and ranking' }))
       .toHaveAttribute('href', 'https://doi.org/10.1073/pnas.0702634104');
     expect(screen.getAllByRole('link', { name: /source code/i })[0])
-      .toHaveAttribute('href', 'https://github.com/jeanbottein/zvote');
+      .toHaveAttribute('href', 'https://github.com/jeanbottein/super-vote');
   });
 
   it('says when there is nothing at an address', () => {
