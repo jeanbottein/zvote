@@ -133,7 +133,7 @@ export default function CreatePollPage() {
     setCreating(true);
     setFailure(null);
     try {
-      const poll = await createPoll({
+      const { poll, pollsLeft } = await createPoll({
         title: title.trim(),
         options: filledOptions(options),
         votingSystem: chosenSystem,
@@ -143,7 +143,7 @@ export default function CreatePollPage() {
         resultsShown,
         resultsAfterBallots: resultsShown === 'AFTER_BALLOTS' ? Number(resultsAfterBallots) : null,
       });
-      navigate(`/p/${poll.id}`, { state: { created: true } });
+      navigate(`/p/${poll.id}`, { state: { created: true, pollsLeft } });
     } catch (error) {
       setFailure(errorMessage(error));
       setCreating(false);

@@ -69,13 +69,26 @@ public final class ApiRules {
         theirs to close, to delete, and whose invitations are theirs to read -
         and the token is spent.""";
 
+    public static final String FAIR_USE = """
+        super-vote is free, and its resources are shared fairly: each network
+        (an IPv4 address, or an IPv6 /64) can create a limited number of polls
+        a day. POST /api/polls answers how many more it may create in the
+        RateLimit field ("polls";r=4;t=3600: 4 more, and a new day in an hour)
+        and its daily quota in RateLimit-Policy. A join code is short, so it
+        could be guessed: a network that tries too many wrong ones is refused
+        codes for a day. A poll's id is never refused that way. Refusals
+        answer 429 with Retry-After.""";
+
     public static final String ERRORS = """
         Every error is an RFC 9457 problem document. Its "type" says what went
         wrong and is what to branch on (/problems/poll-closed,
         /problems/not-invited, /problems/invitation-used,
         /problems/poll-not-found, /problems/not-poll-creator,
         /problems/unknown-voter, /problems/handover-unavailable,
-        /problems/invalid-request, /problems/collision, /problems/server-error);
-        its "detail" is a sentence written for a person to read. A collision
-        answers 409 with Retry-After: sending the request again is safe.""";
+        /problems/invalid-request, /problems/collision,
+        /problems/too-many-polls, /problems/too-many-wrong-codes,
+        /problems/server-error); its "detail" is a sentence written for a
+        person to read. A collision answers 409 with Retry-After: sending the
+        request again is safe. A refusal for fair use answers 429 with
+        Retry-After: sending it again before then is refused again.""";
 }

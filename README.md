@@ -34,6 +34,8 @@ in, on a phone or a desktop, with nothing to install and no account needed.
   million ballots as at ten, on PostgreSQL ([measured](docs/PERFORMANCE.md#ballots-at-scale)).
 - **Mobile first**: light and dark themes, and a colour-blind-friendly
   palette.
+- **Open to agents**: the same services as an HTTP API and as MCP tools,
+  explained to them at `/llms.txt`.
 
 ## Getting started
 
@@ -80,6 +82,8 @@ path to keep it elsewhere. The schema is migrated automatically at startup.
   installable app, Android, and billions of ballots per poll.
 - [docs/PERFORMANCE.md](docs/PERFORMANCE.md): the JVM, Leyden's AOT cache and
   GraalVM native images, and ballots at scale, measured.
+- [deploy/README.md](deploy/README.md): on the internet: one HTTPS address,
+  what is exposed, and what protects it.
 
 <img src="docs/images/desktop-results.png" width="560" alt="Majority judgment results on a desktop, dark theme">
 

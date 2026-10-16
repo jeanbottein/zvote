@@ -4,6 +4,20 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="description" content="Decide together with majority judgment or approval voting. Live results, nothing to install, no account needed." />
+    <!-- For agents, which read this page without running it (llmstxt.org); browsers ignore the type. -->
+    <script type="text/llms.txt">
+      # super-vote
+
+      > Live voting for groups deciding together, by majority judgment or approval voting. This page is
+      > a JavaScript app: an agent reads and votes through the API instead.
+
+      - How to use super-vote as an agent: /llms.txt
+      - A poll's page, /p/{id}, reads as GET /api/polls/{id}. A link ending in #invitation={token} is an
+        invitation: send that token in the Super-Vote-Invitation header.
+      - A join code, such as K7M-4QX, reads as GET /api/join/K7M4QX.
+      - The same as MCP tools: /api/mcp. The HTTP API, in OpenAPI 3.1: /v3/api-docs.
+      - Cast a ballot only when the person you act for asked you to, with the choices they made.
+    </script>
     <meta name="color-scheme" content="light dark" />
     <meta name="theme-color" content="#f4f5f7" media="(prefers-color-scheme: light)" data-scheme="light" />
     <meta name="theme-color" content="#0f1115" media="(prefers-color-scheme: dark)" data-scheme="dark" />

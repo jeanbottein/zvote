@@ -1,0 +1,54 @@
+# super-vote's one public address, HTTPS only: the web app, its API and the
+# MCP tools on one origin. Caddy is all the internet reaches (ports 80 and
+# 443): it gets and renews the certificate, sends HTTP on to HTTPS, serves the
+# built web app, and passes the API to the Java server, which listens on a
+# private network only. See deploy/README.md.
+{
+	servers {
+		timeouts {
+			read_header 10s
+			read_body 30s
+			idle 2m
+		}
+	}
+}
+
+{$SUPER_VOTE_DOMAIN:super-vote.org} {
+	encode zstd gzip
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		# The hash is index.html's inline script, which sets the appearance before the first paint
+		# (clients/web/src/app/contentSecurityPolicy.test.ts keeps them in step).
+		Content-Security-Policy "default-src 'self'; script-src 'self' 'sha256-NiP4PN1Ip4U9p3WU2wr9c1bguCRqLCQkzqfDuaqELi4='; style-src 'self'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'"
+		X-Content-Type-Options nosniff
+		# A poll's address is its key: no other site learns it from a link followed.
+		Referrer-Policy no-referrer
+		Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=(), usb=()"
+		-Server
+	}
+
+	@server path /api/* /v3/api-docs /v3/api-docs/* /v3/api-docs.yaml /llms.txt
+	handle @server {
+		request_body {
+			max_size 64KB
+		}
+		reverse_proxy {$SUPER_VOTE_SERVER:server:8080}
+	}
+
+	handle {
+		root * {$SUPER_VOTE_WEB:/srv/web}
+		@assets path /assets/*
+		header @assets Cache-Control "public, max-age=31536000, immutable"
+		@pages not path /assets/*
+		header @pages Cache-Control no-cache
+		# Unlisted polls stay out of search engines, even when someone posts a link.
+		header /p/* X-Robots-Tag noindex
+		try_files {path} /index.html
+		file_server
+	}
+}
+
+www.{$SUPER_VOTE_DOMAIN:super-vote.org} {
+	redir https://{$SUPER_VOTE_DOMAIN:super-vote.org}{uri} permanent
+}

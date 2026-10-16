@@ -7,6 +7,7 @@ import org.supervote.server.polls.CreatePollRequest;
 import org.supervote.server.polls.InvitationService;
 import org.supervote.server.polls.Poll;
 import org.supervote.server.polls.PollService;
+import org.supervote.server.ratelimit.Network;
 import org.supervote.server.statistics.Activity;
 import org.supervote.server.statistics.StatisticsService;
 
@@ -31,8 +32,8 @@ public class PollCreationService {
     }
 
     @Transactional
-    public Poll create(CreatePollRequest request, String creatorId) {
-        var poll = polls.create(request, creatorId);
+    public Poll create(CreatePollRequest request, String creatorId, Network network) {
+        var poll = polls.create(request, creatorId, network);
         tallies.open(poll.id(), polls.optionsOf(poll).size(), BallotFormat.choices(poll.votingSystem()));
         if (poll.invitationOnly()) {
             invitations.open(poll.id());

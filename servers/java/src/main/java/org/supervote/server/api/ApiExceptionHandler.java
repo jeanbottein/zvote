@@ -24,6 +24,9 @@ import org.supervote.server.polls.NotInvitedException;
 import org.supervote.server.polls.NotPollCreatorException;
 import org.supervote.server.polls.PollClosedException;
 import org.supervote.server.polls.PollNotFoundException;
+import org.supervote.server.ratelimit.RateLimitedException;
+import org.supervote.server.ratelimit.TooManyPollsException;
+import org.supervote.server.ratelimit.TooManyWrongCodesException;
 
 /**
  * Every error is an RFC 9457 problem document (application/problem+json) whose
@@ -80,6 +83,16 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
     }
 
     @ExceptionHandler
+    ResponseEntity<ProblemDetail> tooManyPolls(TooManyPollsException e) {
+        return tooMany(e, ProblemType.TOO_MANY_POLLS);
+    }
+
+    @ExceptionHandler
+    ResponseEntity<ProblemDetail> tooManyWrongCodes(TooManyWrongCodesException e) {
+        return tooMany(e, ProblemType.TOO_MANY_WRONG_CODES);
+    }
+
+    @ExceptionHandler
     ProblemDetail invalid(InvalidRequestException e) {
         return problem(HttpStatus.BAD_REQUEST, e.getMessage(), ProblemType.INVALID_REQUEST);
     }
@@ -129,6 +142,13 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
             "The request body could not be read. Send JSON with the documented fields and values.",
             ProblemType.INVALID_REQUEST);
         return handleExceptionInternal(e, problem, headers, status, request);
+    }
+
+    /** Retry-After is rounded up: a client waiting that long is never refused again for being early. */
+    private static ResponseEntity<ProblemDetail> tooMany(RateLimitedException e, ProblemType type) {
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+            .header(HttpHeaders.RETRY_AFTER, String.valueOf(e.retryAfter().toSeconds() + 1))
+            .body(problem(HttpStatus.TOO_MANY_REQUESTS, e.getMessage(), type));
     }
 
     private static ProblemDetail problem(HttpStatus status, String detail, ProblemType type) {

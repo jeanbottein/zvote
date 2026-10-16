@@ -83,6 +83,33 @@ describe('a poll page', () => {
     expect(within(dialog).getByRole('button', { name: 'Copied' })).toBeInTheDocument();
   });
 
+  it('warns its creator when it was one of the last polls their connection may create today', async () => {
+    vi.mocked(getPoll).mockResolvedValue({ ...lunch, isMine: true });
+    openPoll({ pathname: '/p/abc', state: { created: true, pollsLeft: { count: 4, perDay: 20, resetsAt: Date.now() } } });
+
+    expect(await screen.findByText(/You can create 4 more polls today\./)).toHaveTextContent(
+      "You can create 4 more polls today. As super-vote's resources are limited, each connection can create 20 polls "
+      + 'a day, to be fair to everyone.',
+    );
+  });
+
+  it('tells its creator when they can create polls again, once they have none left', async () => {
+    vi.mocked(getPoll).mockResolvedValue({ ...lunch, isMine: true });
+    const resetsAt = Date.now() + 5 * 3_600_000;
+    openPoll({ pathname: '/p/abc', state: { created: true, pollsLeft: { count: 0, perDay: 20, resetsAt } } });
+
+    expect(await screen.findByText(/That was your last poll for now: you can create more in 5 hours\./))
+      .toBeInTheDocument();
+  });
+
+  it('says nothing of the polls left while there are plenty', async () => {
+    vi.mocked(getPoll).mockResolvedValue({ ...lunch, isMine: true });
+    openPoll({ pathname: '/p/abc', state: { created: true, pollsLeft: { count: 5, perDay: 20, resetsAt: Date.now() } } });
+
+    await screen.findByText('Your poll is ready.');
+    expect(screen.queryByText(/polls a day/)).not.toBeInTheDocument();
+  });
+
   it('says so when the poll does not exist', async () => {
     vi.mocked(getPoll).mockRejectedValue(new ApiError(404, 'That poll does not exist.'));
     openPoll();

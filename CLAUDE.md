@@ -68,7 +68,9 @@ folded from a change log; `Mention`), `api` (controllers, `PollViewService`,
 DTOs, error mapping; the only module that knows both polls and ballots, and
 what a ballot's bytes mean: `BallotFormat`),
 `identity` (voter cookie), `live` (`PollStream`, server-sent events),
-`statistics` (usage by time zone, day and poll, `StatisticsService`), `common`
+`statistics` (usage by time zone, day and poll, `StatisticsService`),
+`ratelimit` (what one network may do in a day: `PollQuota`, `WrongCodes`,
+`Network`), `common`
 (config, the server's secret `VoterSecret`, the invalid-request exception). Each module's `package-info.java`
 declares the modules it may use (`@ApplicationModule(allowedDependencies)`);
 its API is its root package, and its sub-packages (`api.dto`) are its own.
@@ -87,6 +89,10 @@ statistics page, its chart and world map, and a poll's places, loaded only
 when opened. How it looks (tokens, light/dark and
 themes, components, contrast) is `docs/DESIGN.md`: read it before changing a
 stylesheet.
+
+**Edge**: `deploy/Caddyfile` is the one public address, HTTPS only: it serves
+the built web app and passes `/api`, `/v3/api-docs` and `/llms.txt` to the
+server, which is never published. `deploy/README.md` covers the VPS.
 
 **Contract**: `docs/API.md`. Mirror every DTO change in
 `clients/web/src/api/types.ts`. A poll's `id` is its share token, the only id
@@ -158,6 +164,18 @@ shown to people as is: write it as a sentence for them.
   publishes. A time zone or region shows once it counts 3 (`VISIBLE`), and a
   poll's places only when its results show: sooner or smaller, they could
   point at someone.
+- **Limits are per network, in memory, and applied in `PollService`**: a
+  poll counts against its network's day once it is valid (`PollQuota`), and
+  only a well-formed join code that leads nowhere counts as wrong
+  (`WrongCodes`). Links are never refused, and ballots are not limited by
+  network: a room votes from one address. A network is an IPv4 address or an
+  IPv6 /64, read from `X-Forwarded-For` only when the proxy is at a private
+  address (`server.forward-headers-strategy: native`). Nothing about a
+  network is ever written.
+- **Agents read `/llms.txt`**, which the server writes from `ApiRules` like
+  the OpenAPI document and the MCP tools, and each page's
+  `<script type="text/llms.txt">` (in `index.html`), which points to it.
+  Change a rule in `ApiRules`, never in a copy.
 - **No countries, no borders.** Regions are tzdata's (Europe, Pacific) and the
   map is land with a dot per time zone's city: a country map has to take
   sides. `tools/geography/build.mjs` generates `TimeZones.java` and
@@ -314,6 +332,15 @@ shown to people as is: write it as a sentence for them.
 - **A new voter token is one request away** (`POST /api/voters`), so anything
   that assumed "a voter costs a cookie round-trip" no longer holds. Rate
   limits, keyed by network, are phase 6 (docs/ROADMAP.md).
+- **Every test calls from 127.0.0.1**, so `application-test.yml` puts the
+  rate limits out of reach; `RateLimitApiTest` sets its own and gives each
+  test addresses of its own. In development every request comes through
+  Vite's proxy from 127.0.0.1 too: the 20 polls a day are everyone's, and a
+  restart gives them back.
+- **The Content Security Policy allows `index.html`'s inline script by its
+  hash** (`deploy/Caddyfile`). Change the script and
+  `src/app/contentSecurityPolicy.test.ts` fails with the new hash; that test
+  is why Vite's `server.fs.allow` includes `../../deploy`.
 - **Tests wait for their fold** (`super-vote.fold-patience: 10s`), so a ballot's
   answer counts it; in production the wait is 250 ms. The server's tests
   also pass on PostgreSQL: see `servers/java/README.md`.
